@@ -6,15 +6,12 @@ import {
   CalendarDays, 
   Target, 
   BarChart3, 
-  ListTodo, 
   Hash,
   Search,
   Plus,
-  HelpCircle,
   LogOut,
   ChevronDown,
-  ChevronRight,
-  User
+  User as UserIcon
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -22,11 +19,32 @@ import { useTaskStore } from '../../store/useTaskStore';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Separator } from '../ui/separator';
+import { ProfileModal } from '@/features/profile/components/ProfileModal';
 
 export function Sidebar() {
   const { user, logout } = useAuthStore();
   const { lists } = useTaskStore();
   const location = useLocation();
+
+  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+  const [isProfileOpen, setIsProfileOpen] = React.useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
 
   const navItems = [
     { icon: Inbox, label: 'Inbox', path: '/tasks/inbox', count: 12 },
@@ -37,30 +55,63 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 bg-slate-50 border-r border-slate-200 flex flex-col h-screen sticky top-0 text-slate-600">
-      {/* Branding Section */}
-      <div className="p-6 flex items-center gap-3">
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/20">
-          <Target className="w-5 h-5 text-white" />
-        </div>
-        <span className="text-lg font-bold tracking-tight text-slate-900">FocusFlow</span>
-      </div>
-
+    <aside className="w-64 bg-slate-50 border-r border-slate-200 flex flex-col h-screen sticky top-0 text-slate-600 select-none">
+      
       {/* User Session */}
-      <div className="mx-4 mb-4 p-3 bg-white rounded-2xl border border-slate-200 flex items-center justify-between group cursor-pointer hover:border-blue-200 hover:shadow-sm transition-all">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8 ring-2 ring-white">
-            <AvatarImage src={user?.avatar} />
-            <AvatarFallback className="bg-slate-100 text-slate-600 text-xs font-bold">{user?.name?.charAt(0)}</AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-bold text-slate-900 leading-none truncate">{user?.name}</span>
-            <span className="text-[10px] text-slate-400 capitalize leading-none mt-1 font-bold tracking-wider">
-              {user?.plan} Plan
-            </span>
+      <div className="relative" ref={dropdownRef}>
+        <div 
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          className={cn(
+            "m-4 p-3 bg-white rounded-2xl border flex items-center justify-between group cursor-pointer hover:border-blue-200 hover:shadow-sm transition-all",
+            isDropdownOpen ? "border-blue-300 ring-4 ring-blue-50" : "border-slate-200"
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <Avatar className="h-8 w-8 ring-2 ring-white">
+              <AvatarImage src={user?.avatar} />
+              <AvatarFallback className="bg-slate-100 text-slate-600 text-xs font-bold">{user?.name?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-slate-900 leading-none truncate">{user?.name}</span>
+              <span className="text-[10px] text-slate-400 capitalize leading-none mt-1 font-bold tracking-wider">
+                {user?.plan} Plan
+              </span>
+            </div>
           </div>
+          <ChevronDown className={cn(
+            "h-4 w-4 text-slate-300 group-hover:text-slate-400 transition-transform duration-200",
+            isDropdownOpen && "rotate-180 text-blue-500"
+          )} />
         </div>
-        <ChevronDown className="h-4 w-4 text-slate-300 group-hover:text-slate-400 transition-colors" />
+
+        {/* Floating Premium Popover Menu */}
+        {isDropdownOpen && (
+          <div className="absolute top-[80px] left-4 right-4 z-40 bg-white border border-slate-100 rounded-2xl shadow-xl shadow-slate-200/80 p-1.5 flex flex-col gap-1 animate-in fade-in slide-in-from-top-3 duration-200">
+            <button
+              onClick={() => {
+                setIsProfileOpen(true);
+                setIsDropdownOpen(false);
+              }}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors w-full text-left"
+            >
+              <UserIcon className="h-4 w-4 text-slate-400" />
+              Profile Settings
+            </button>
+            
+            <Separator className="bg-slate-100 my-0.5" />
+            
+            <button
+              onClick={() => {
+                logout();
+                setIsDropdownOpen(false);
+              }}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-colors w-full text-left"
+            >
+              <LogOut className="h-4 w-4" />
+              Log Out
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Search Trigger */}
@@ -70,7 +121,6 @@ export function Sidebar() {
             <Search className="h-4 w-4 text-slate-400" />
             <span className="font-semibold">Quick search...</span>
           </div>
-          <span className="text-[10px] bg-slate-50 px-1.5 py-0.5 rounded-lg border border-slate-100 font-bold opacity-0 group-hover:opacity-100 transition-opacity">⌘K</span>
         </button>
       </div>
 
@@ -152,17 +202,8 @@ export function Sidebar() {
         </section>
       </div>
 
-      {/* Footer */}
-      <div className="p-4 mt-auto border-t border-slate-200 space-y-1 bg-white/50 backdrop-blur-sm">
-        <NavLink to="/help" className="sidebar-item text-slate-500 hover:text-slate-900 hover:bg-white">
-          <HelpCircle className="h-4 w-4 text-slate-400" />
-          <span className="font-semibold">User Guide</span>
-        </NavLink>
-        <button onClick={logout} className="sidebar-item w-full text-left text-slate-500 hover:text-red-600 hover:bg-red-50/50 transition-colors">
-          <LogOut className="h-4 w-4 text-slate-400 group-hover:text-red-500" />
-          <span className="font-semibold">Sign Out</span>
-        </button>
-      </div>
+      {/* Render ProfileModal */}
+      <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
     </aside>
   );
 }

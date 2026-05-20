@@ -6,7 +6,6 @@ import {
   ListFilter, 
   Calendar, 
   Plus, 
-  CheckCircle2, 
   Circle,
   Flag,
   Tag as TagIcon,
@@ -16,16 +15,15 @@ import {
   X,
   Inbox
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { useTaskStore } from '../../store/useTaskStore';
-import { Button } from '../ui/button';
-import { Checkbox } from '../ui/checkbox';
-import { Badge } from '../ui/badge';
-import { Input } from '../ui/input';
-import { ScrollArea } from '../ui/scroll-area';
-import { Separator } from '../ui/separator';
-import { type Task } from '../../types/index';
-import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { useTaskStore } from '@/store/useTaskStore';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { type Task } from '@/types/index';
 
 export function InboxView() {
   const { listId = 'inbox' } = useParams();
@@ -105,7 +103,7 @@ export function InboxView() {
                     task={task} 
                     isSelected={selectedTaskId === task.id}
                     onClick={() => setSelectedTaskId(task.id)}
-                    onToggle={(checked) => updateTask(task.id, { status: checked ? 'completed' : 'todo' })}
+                    onToggle={(checked) => updateTask(task.id, { status: checked ? 'done' : 'todo' })}
                   />
                 ))}
               </div>
@@ -125,7 +123,7 @@ export function InboxView() {
                     task={task} 
                     isSelected={selectedTaskId === task.id}
                     onClick={() => setSelectedTaskId(task.id)}
-                    onToggle={(checked) => updateTask(task.id, { status: checked ? 'completed' : 'todo' })}
+                    onToggle={(checked) => updateTask(task.id, { status: checked ? 'done' : 'todo' })}
                     isOverdue
                   />
                 ))}
@@ -162,8 +160,8 @@ export function InboxView() {
             <div className="space-y-10">
               <div className="flex items-start gap-5">
                 <Checkbox 
-                  checked={selectedTask.status === 'completed'}
-                  onCheckedChange={(checked) => updateTask(selectedTask.id, { status: checked ? 'completed' : 'todo' })}
+                  checked={selectedTask.status === 'done'}
+                  onCheckedChange={(checked) => updateTask(selectedTask.id, { status: checked ? 'done' : 'todo' })}
                   className="mt-1.5 h-7 w-7 rounded-lg border-2 border-slate-200 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                 />
                 <h2 className="text-3xl font-bold tracking-tight text-slate-900 leading-tight">{selectedTask.title}</h2>
@@ -171,7 +169,7 @@ export function InboxView() {
 
               <div className="grid grid-cols-1 gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner">
                 <DetailRow icon={Circle} label="Status" value="In Progress" />
-                <DetailRow icon={Calendar} label="Due Date" value={selectedTask.dueDate ? format(new Date(selectedTask.dueDate), 'MMMM do, yyyy') : 'Unscheduled'} />
+                <DetailRow icon={Calendar} label="Due Date" value={selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Unscheduled'} />
                 <DetailRow icon={Flag} label="Priority" value={selectedTask.priority} isPriority />
                 <DetailRow icon={Clock} label="Focus Units" value="2 Blocks (50m)" />
                 <div className="flex gap-4">
@@ -247,7 +245,7 @@ function TaskItem({
     >
       <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
         <Checkbox 
-          checked={task.status === 'completed'} 
+          checked={task.status === 'done'} 
           onCheckedChange={onToggle}
           className="h-5 w-5 rounded-md border-2 border-slate-200 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
         />
@@ -256,7 +254,7 @@ function TaskItem({
         <div className="flex items-center gap-3">
           <span className={cn(
             "text-[15px] font-bold truncate text-slate-900",
-            task.status === 'completed' && "line-through text-slate-400"
+            task.status === 'done' && "line-through text-slate-400"
           )}>
             {task.title}
           </span>

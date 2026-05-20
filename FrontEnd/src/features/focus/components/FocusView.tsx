@@ -32,7 +32,7 @@ export function FocusView() {
   } = useFocusStore();
 
   React.useEffect(() => {
-    let interval: null | number = null;
+    let interval: any = null;
     if (isActive && timeLeft > 0) {
       interval = setInterval(() => {
         tick();

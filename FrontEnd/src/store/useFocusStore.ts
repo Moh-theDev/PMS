@@ -13,7 +13,7 @@ interface FocusState {
   resetTimer: () => void;
 }
 
-export const useFocusStore = create<FocusState>((set, get) => ({
+export const useFocusStore = create<FocusState>((set) => ({
   isActive: false,
   timeLeft: 25 * 60,
   totalTime: 25 * 60,

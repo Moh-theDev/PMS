@@ -1,5 +1,4 @@
-import * as React from 'react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 import { 
   BarChart, 
   Bar, 
@@ -20,9 +19,9 @@ import {
   TrendingUp,
   TrendingDown
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { ScrollArea } from '../ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const barData = [
   { day: 'Mon', completed: 6 },
