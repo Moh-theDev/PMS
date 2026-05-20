@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -73,195 +74,200 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     }
   };
 
-  return (
+  // Guard: Avoid rendering when modal is closed
+  if (!isOpen) return null;
+
+  // Render modal inside document.body React Portal to solve z-index nesting conflicts permanently
+  return createPortal(
     <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
-          />
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+        {/* Backdrop overlay */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+        />
 
-          {/* Modal Container */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 15 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 15 }}
-            className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl z-10 font-sans"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-800 bg-slate-950/20">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-blue-600/10 flex items-center justify-center border border-blue-500/10">
-                  <UserIcon className="h-4 w-4 text-blue-500" />
-                </div>
-                <h3 className="text-lg font-bold text-white">Profile Settings</h3>
+        {/* Modal content container */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 15 }}
+          className="relative w-full max-w-lg bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xl z-10 font-sans"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center border border-blue-100">
+                <UserIcon className="h-4 w-4 text-blue-600" />
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClose}
-                className="h-8 w-8 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <h3 className="text-base font-bold text-slate-900">Profile Settings</h3>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-8 w-8 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
 
-            {/* Content / Form */}
-            <div className="p-6">
-              {error && (
-                <div className="mb-6 flex items-center gap-3 bg-red-950/30 border border-red-900/40 p-4 rounded-xl text-red-400 text-sm">
-                  <ShieldAlert className="h-5 w-5 shrink-0" />
-                  <span>{error}</span>
+          {/* Body */}
+          <div className="p-6">
+            {error && (
+              <div className="mb-5 flex items-center gap-3 bg-red-50 border border-red-200 p-4 rounded-xl text-red-700 text-sm">
+                <ShieldAlert className="h-5 w-5 shrink-0 text-red-500" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {!showDeleteConfirm ? (
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                {/* Read-only Email Field */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-slate-700">Email Address</label>
+                  <Input
+                    type="text"
+                    disabled
+                    value={user?.email || ''}
+                    className="w-full px-4 py-2.5 h-11 rounded-xl border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed text-sm focus:ring-0 focus:border-slate-200"
+                  />
+                  <span className="text-[11px] text-slate-400 pl-1">Verified email address cannot be changed.</span>
                 </div>
-              )}
 
-              {!showDeleteConfirm ? (
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                  {/* Read-only Email */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Email Address</label>
-                    <Input
-                      type="text"
-                      disabled
-                      value={user?.email || ''}
-                      className="w-full px-4 py-2.5 h-11 rounded-xl border-slate-800 bg-slate-950/50 text-slate-500 cursor-not-allowed text-sm"
-                    />
-                    <span className="text-[10px] text-slate-500">Email addresses are verified and cannot be changed.</span>
-                  </div>
+                {/* Name Input Field */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-slate-700" htmlFor="name">Full Name</label>
+                  <Input
+                    type="text"
+                    id="name"
+                    placeholder="Jane Doe"
+                    className="w-full px-4 py-2.5 h-11 rounded-xl border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 transition-all text-sm bg-white text-slate-900 placeholder:text-slate-400"
+                    {...register('name')}
+                  />
+                  {errors.name && (
+                    <span className="text-xs font-semibold text-red-500 mt-1 pl-1">{errors.name.message}</span>
+                  )}
+                </div>
 
-                  {/* Username Field */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider" htmlFor="name">Full Name</label>
-                    <Input
-                      type="text"
-                      id="name"
-                      placeholder="Jane Doe"
-                      className="w-full px-4 py-2.5 h-11 rounded-xl border-slate-800 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm bg-slate-950/30 text-white"
-                      {...register('name')}
-                    />
-                    {errors.name && (
-                      <span className="text-xs font-bold text-red-500 mt-1 pl-1">{errors.name.message}</span>
-                    )}
-                  </div>
+                {/* Avatar URL Input Field */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-slate-700" htmlFor="avatar">Avatar Image URL</label>
+                  <Input
+                    type="text"
+                    id="avatar"
+                    placeholder="https://example.com/avatar.png"
+                    className="w-full px-4 py-2.5 h-11 rounded-xl border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 transition-all text-sm bg-white text-slate-900 placeholder:text-slate-400"
+                    {...register('avatar')}
+                  />
+                  {errors.avatar && (
+                    <span className="text-xs font-semibold text-red-500 mt-1 pl-1">{errors.avatar.message}</span>
+                  )}
+                </div>
 
-                  {/* Avatar URL Field */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider" htmlFor="avatar">Avatar Image URL</label>
-                    <Input
-                      type="text"
-                      id="avatar"
-                      placeholder="https://example.com/avatar.png"
-                      className="w-full px-4 py-2.5 h-11 rounded-xl border-slate-800 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm bg-slate-950/30 text-white"
-                      {...register('avatar')}
-                    />
-                    {errors.avatar && (
-                      <span className="text-xs font-bold text-red-500 mt-1 pl-1">{errors.avatar.message}</span>
-                    )}
-                  </div>
-
-                  {/* Divider */}
-                  <div className="border-t border-slate-800 pt-6 flex flex-col gap-4">
-                    <div className="flex justify-between items-center bg-red-950/10 border border-red-950/30 p-4 rounded-2xl">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-bold text-red-400">Danger Zone</span>
-                        <span className="text-[11px] text-slate-500">Permanently delete your personal profile data.</span>
-                      </div>
-                      <Button
-                        type="button"
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="bg-red-900/20 hover:bg-red-900/30 text-red-400 text-xs font-bold px-4 py-2 h-9 rounded-xl border border-red-900/30 cursor-pointer"
-                      >
-                        Delete Account
-                      </Button>
+                {/* Divider Line */}
+                <div className="border-t border-slate-100 pt-5 flex flex-col gap-4">
+                  <div className="flex justify-between items-center bg-red-50/50 border border-red-100 p-4 rounded-xl">
+                    <div className="flex flex-col gap-0.5 text-left">
+                      <span className="text-sm font-bold text-red-700">Danger Zone</span>
+                      <span className="text-[11px] text-slate-500">Permanently delete your profile and task data.</span>
                     </div>
-                  </div>
-
-                  {/* Footer Actions */}
-                  <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-5 mt-6">
                     <Button
                       type="button"
-                      onClick={onClose}
-                      className="bg-transparent hover:bg-slate-800 text-slate-400 hover:text-white h-10 px-5 rounded-xl text-xs font-bold cursor-pointer"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold px-4 py-2 h-9 rounded-xl border border-red-200 hover:border-red-300 transition-all cursor-pointer shadow-sm"
                     >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={isLoading}
-                      className="bg-blue-600 hover:bg-blue-500 text-white h-10 px-5 rounded-xl text-xs font-bold shadow-lg shadow-blue-600/10 flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          <span>Saving Changes...</span>
-                        </>
-                      ) : (
-                        <span>Save Changes</span>
-                      )}
+                      Delete Account
                     </Button>
                   </div>
-                </form>
-              ) : (
-                <div className="space-y-6">
-                  <div className="flex items-start gap-4 bg-red-950/20 border border-red-900/30 p-5 rounded-2xl">
-                    <AlertTriangle className="h-6 w-6 text-red-500 shrink-0 mt-0.5" />
-                    <div className="space-y-2 text-left">
-                      <h4 className="text-base font-bold text-red-400">Permanently Delete Account?</h4>
-                      <p className="text-xs leading-relaxed text-slate-400">
-                        This action cannot be undone. All your tasks, lists, logs, and labels will be deleted permanently.
-                      </p>
-                    </div>
-                  </div>
+                </div>
 
-                  <div className="flex flex-col gap-2">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      Type <span className="text-red-400 font-bold select-all lowercase">"delete my account"</span> to confirm
+                {/* Footer Action Buttons */}
+                <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 mt-5">
+                  <Button
+                    type="button"
+                    onClick={onClose}
+                    className="bg-transparent hover:bg-slate-50 text-slate-500 hover:text-slate-900 h-10 px-5 rounded-xl text-xs font-semibold border border-slate-100 transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isLoading}
+                    className="bg-slate-900 hover:bg-slate-800 text-white h-10 px-5 rounded-xl text-xs font-semibold shadow-lg shadow-slate-900/10 flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:pointer-events-none transition-all"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <span>Save Changes</span>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-5">
+                {/* Warning Alert Container */}
+                <div className="flex items-start gap-4 bg-red-50 border border-red-100 p-4 rounded-xl text-left">
+                  <AlertTriangle className="h-6 w-6 text-red-500 shrink-0 mt-0.5 animate-pulse" />
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-red-700">Permanently Delete Account?</h4>
+                    <p className="text-xs leading-relaxed text-slate-600">
+                      This action cannot be undone. All your lists, active tasks, streaks, and labels will be deleted permanently.
                     </p>
-                    <Input
-                      type="text"
-                      placeholder="delete my account"
-                      value={deleteConfirmText}
-                      onChange={(e) => setDeleteConfirmText(e.target.value)}
-                      className="w-full px-4 py-2.5 h-11 rounded-xl border-slate-800 focus:ring-red-500/20 focus:border-red-500 transition-all text-sm bg-slate-950/30 text-white"
-                    />
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-5 mt-6">
-                    <Button
-                      type="button"
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="bg-transparent hover:bg-slate-800 text-slate-400 hover:text-white h-10 px-5 rounded-xl text-xs font-bold cursor-pointer"
-                    >
-                      Go Back
-                    </Button>
-                    <Button
-                      type="button"
-                      disabled={isLoading || deleteConfirmText.toLowerCase() !== 'delete my account'}
-                      onClick={handleDeleteAccount}
-                      className="bg-red-600 hover:bg-red-500 text-white h-10 px-5 rounded-xl text-xs font-bold shadow-lg shadow-red-600/10 flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          <span>Deleting Account...</span>
-                        </>
-                      ) : (
-                        <span>Confirm Delete</span>
-                      )}
-                    </Button>
                   </div>
                 </div>
-              )}
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+
+                {/* Confirm Text Input */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-slate-600 text-left">
+                    Type <span className="text-red-600 font-bold select-all">"delete my account"</span> to confirm deletion
+                  </p>
+                  <Input
+                    type="text"
+                    placeholder="delete my account"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    className="w-full px-4 py-2.5 h-11 rounded-xl border-slate-200 focus:border-red-600 focus:ring-4 focus:ring-red-600/5 transition-all text-sm bg-white text-slate-900 placeholder:text-slate-400"
+                  />
+                </div>
+
+                {/* Delete View Footer Buttons */}
+                <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 mt-5">
+                  <Button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="bg-transparent hover:bg-slate-50 text-slate-500 hover:text-slate-900 h-10 px-5 rounded-xl text-xs font-semibold border border-slate-100 transition-all cursor-pointer"
+                  >
+                    Go Back
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={isLoading || deleteConfirmText.toLowerCase() !== 'delete my account'}
+                    onClick={handleDeleteAccount}
+                    className="bg-red-600 hover:bg-red-500 text-white h-10 px-5 rounded-xl text-xs font-semibold shadow-lg shadow-red-600/10 flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:pointer-events-none transition-all"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span>Deleting...</span>
+                      </>
+                    ) : (
+                      <span>Confirm Delete</span>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>,
+    document.body
   );
 }
