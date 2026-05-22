@@ -1,28 +1,79 @@
-export type Priority = 'low' | 'medium' | 'high';
-export type Status = 'todo' | 'in-progress' | 'done' | 'backlog';
+export const TaskStatus = {
+  Todo: 0,
+  InProgress: 1,
+  Done: 2,
+  Cancelled: 3,
+  Paused: 4,
+} as const;
 
-export interface Tag {
-  id: string;
-  name: string;
-  color: string;
-}
+export type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];
 
 export interface Task {
-  id: string;
+  id: number;
   title: string;
   description?: string;
-  priority: Priority;
-  status: Status;
-  dueDate?: string;
-  duration?: number; // in minutes or pomodoros
-  tags: string[]; // tag ids
-  listId?: string;
-  createdAt: string;
-  updatedAt: string;
+  durationInMinutes: number;
+  priority: number; // 1 to 10
+  effortLevel: number; // 1 to 5
+  deadline?: string;
+  earliestStart?: string;
+  latestEnd?: string;
+  status: TaskStatus;
+  categoryId?: number;
+  tags?: string[];
+}
+
+export interface CreateTaskDto {
+  title: string;
+  description?: string;
+  durationInMinutes: number;
+  priority?: number; // 1 to 10
+  effortLevel?: number; // 1 to 5
+  deadline?: string;
+  earliestStart?: string;
+  latestEnd?: string;
+}
+
+export interface UpdateTaskDto {
+  title?: string;
+  description?: string;
+  durationInMinutes?: number;
+  priority?: number;
+  effortLevel?: number;
+  deadline?: string;
+  earliestStart?: string;
+  latestEnd?: string;
+  status?: TaskStatus;
+  categoryId?: number;
+}
+
+export interface DeleteTaskResult {
+  success: boolean;
+  notFound: boolean;
+  hasScheduleConflict: boolean;
+  options?: string[]; // e.g. ["ReplaceTask", "ReplanSchedule", "ClearSlot", "Cancel"]
+  message?: string;
+}
+
+export interface DeleteResolutionRequest {
+  option: string; // ReplaceTask, ReplanSchedule, ClearSlot, Cancel
+  newTaskId?: number;
+}
+
+export interface Tag {
+  id: number;
+  name: string;
+  color?: string;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  color?: string;
 }
 
 export interface List {
-  id: string;
+  id: string; // "inbox" | "today" | "upcoming" | String(categoryId)
   name: string;
   icon?: string;
   color?: string;

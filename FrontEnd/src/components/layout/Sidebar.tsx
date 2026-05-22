@@ -23,7 +23,14 @@ import { ProfileModal } from '@/features/profile/components/ProfileModal';
 
 export function Sidebar() {
   const { user, logout } = useAuthStore();
-  const { lists } = useTaskStore();
+  const { 
+    lists, 
+    tasks, 
+    tags, 
+    getTasksByList, 
+    addCategory, 
+    addTag 
+  } = useTaskStore();
   const location = useLocation();
 
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
@@ -46,9 +53,13 @@ export function Sidebar() {
     };
   }, [isDropdownOpen]);
 
+  // Compute dynamic active count (exclude Done status = 2)
+  const inboxCount = tasks.filter(t => t.status !== 2).length;
+  const todayCount = getTasksByList('today').filter(t => t.status !== 2).length;
+
   const navItems = [
-    { icon: Inbox, label: 'Inbox', path: '/tasks/inbox', count: 12 },
-    { icon: Calendar, label: 'Today', path: '/tasks/today', count: 5 },
+    { icon: Inbox, label: 'Inbox', path: '/tasks/inbox', count: inboxCount },
+    { icon: Calendar, label: 'Today', path: '/tasks/today', count: todayCount },
     { icon: CalendarDays, label: 'Upcoming', path: '/tasks/upcoming' },
     { icon: Target, label: 'Focus Mode', path: '/focus' },
     { icon: BarChart3, label: 'Analytics', path: '/analytics' },
@@ -157,7 +168,17 @@ export function Sidebar() {
         <section>
           <div className="px-3 py-1 flex items-center justify-between group mb-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Workspace</span>
-            <Button variant="ghost" size="icon" className="h-5 w-5 bg-white hover:bg-slate-100 text-slate-400 rounded-lg opacity-0 group-hover:opacity-100 border border-slate-200">
+            <Button 
+              onClick={() => {
+                const name = prompt('Enter workspace category name:');
+                if (name && name.trim()) {
+                  addCategory(name.trim());
+                }
+              }}
+              variant="ghost" 
+              size="icon" 
+              className="h-5 w-5 bg-white hover:bg-slate-100 text-slate-400 rounded-lg opacity-0 group-hover:opacity-100 border border-slate-200"
+            >
               <Plus className="h-3 w-3" />
             </Button>
           </div>
@@ -185,17 +206,32 @@ export function Sidebar() {
         <section>
           <div className="px-3 py-1 flex items-center justify-between group mb-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Labels</span>
-            <ChevronDown className="h-3 w-3 text-slate-300" />
+            <Button 
+              onClick={() => {
+                const name = prompt('Enter label name:');
+                if (name && name.trim()) {
+                  addTag(name.trim());
+                }
+              }}
+              variant="ghost" 
+              size="icon" 
+              className="h-5 w-5 bg-white hover:bg-slate-100 text-slate-400 rounded-lg opacity-0 group-hover:opacity-100 border border-slate-200"
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
           </div>
           <nav className="space-y-1">
-            {['marketing', 'research', 'design', 'urgent'].map((tag) => (
+            {tags.map((tag) => (
               <NavLink
-                key={tag}
-                to={`/tasks/tag/${tag}`}
-                className="sidebar-item text-slate-500 hover:text-slate-900 hover:bg-white"
+                key={tag.id}
+                to={`/tasks/tag/${tag.id}`}
+                className={({ isActive }) => cn(
+                  "sidebar-item text-slate-500 hover:text-slate-900 hover:bg-white",
+                  isActive && "sidebar-item-active text-white bg-blue-600"
+                )}
               >
                 <Hash className="h-4 w-4 text-slate-300" />
-                <span className="flex-1 truncate capitalize font-semibold">{tag}</span>
+                <span className="flex-1 truncate capitalize font-semibold">{tag.name}</span>
               </NavLink>
             ))}
           </nav>

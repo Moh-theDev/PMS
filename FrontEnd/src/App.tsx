@@ -88,6 +88,7 @@ export default function App() {
           <Route index element={<Navigate to="/tasks/inbox" replace />} />
           <Route path="tasks/:listId" element={<InboxView />} />
           <Route path="tasks/list/:listId" element={<InboxView />} />
+          <Route path="tasks/tag/:tagId" element={<InboxView />} />
           <Route path="focus" element={<FocusView />} />
           <Route path="analytics" element={<AnalyticsView />} />
         </Route>

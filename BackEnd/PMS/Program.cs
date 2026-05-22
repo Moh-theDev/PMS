@@ -157,7 +157,7 @@ namespace PMS
 
             app.UseHttpsRedirection();
 
-            app.UseCors();
+            app.UseCors("AllowReactApp");
             app.UseAuthentication();
             app.UseAuthorization();
 
