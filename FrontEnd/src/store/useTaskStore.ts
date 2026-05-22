@@ -23,9 +23,11 @@ interface TaskState {
   resolveDelete: (id: number, option: string, newTaskId?: number) => Promise<void>;
 
   addCategory: (name: string) => Promise<void>;
+  updateCategory: (id: number, name: string) => Promise<void>;
   deleteCategory: (id: number) => Promise<void>;
 
   addTag: (name: string) => Promise<void>;
+  updateTag: (id: number, name: string) => Promise<void>;
   deleteTag: (id: number) => Promise<void>;
 
   assignTags: (taskId: number, tagIds: number[]) => Promise<void>;
@@ -53,10 +55,13 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     try {
       const tasks = await taskService.getAllTasks();
       const tags = await tagService.getAllTags();
+      const categories = await categoryService.getAllCategories();
       
       const taskTagsMap: Record<number, string[]> = {};
-      await Promise.all(
-        tags.map(async (tag) => {
+      const taskCategoryMap: Record<number, number> = {};
+
+      await Promise.all([
+        ...tags.map(async (tag) => {
           try {
             const associatedTasks = await tagService.getTasksForTag(tag.id);
             if (associatedTasks && Array.isArray(associatedTasks)) {
@@ -72,15 +77,28 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           } catch (err) {
             console.error(`Failed to fetch tasks for tag ${tag.name}`, err);
           }
+        }),
+        ...categories.map(async (cat) => {
+          try {
+            const associatedTasks = await taskService.filterTasks(cat.id);
+            if (associatedTasks && Array.isArray(associatedTasks)) {
+              associatedTasks.forEach((assoc) => {
+                taskCategoryMap[assoc.id] = cat.id;
+              });
+            }
+          } catch (err) {
+            console.error(`Failed to fetch tasks for category ${cat.name}`, err);
+          }
         })
-      );
+      ]);
 
-      const tasksWithTags = tasks.map((task) => ({
+      const enrichedTasks = tasks.map((task) => ({
         ...task,
         tags: taskTagsMap[task.id] || [],
+        categoryId: taskCategoryMap[task.id],
       }));
 
-      set({ tasks: tasksWithTags, isLoading: false });
+      set({ tasks: enrichedTasks, isLoading: false });
     } catch (err: any) {
       set({ error: 'Failed to fetch tasks', isLoading: false });
     }
@@ -118,11 +136,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const newTask = await taskService.createTask(task, categoryId);
+      const enrichedNewTask = {
+        ...newTask,
+        categoryId: categoryId,
+        tags: [],
+      };
       set((state) => ({
-        tasks: [...state.tasks, newTask],
+        tasks: [...state.tasks, enrichedNewTask],
         isLoading: false,
       }));
-      return newTask;
+      return enrichedNewTask;
     } catch (err: any) {
       set({ error: 'Failed to create task', isLoading: false });
       throw err;
@@ -134,7 +157,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     try {
       await taskService.updateTask(id, updates);
       set((state) => ({
-        tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+        tasks: state.tasks.map((t) => {
+          if (t.id === id) {
+            const updated = { ...t, ...updates };
+            if (updates.categoryId === 0) {
+              delete updated.categoryId;
+            }
+            return updated;
+          }
+          return t;
+        }),
         isLoading: false,
       }));
     } catch (err: any) {
@@ -217,6 +249,20 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
+  updateCategory: async (id, name) => {
+    set({ isLoading: true, error: null });
+    try {
+      await categoryService.updateCategory(id, name);
+      set((state) => ({
+        categories: state.categories.map((c) => (c.id === id ? { ...c, name } : c)),
+        lists: state.lists.map((l) => (l.id === String(id) ? { ...l, name } : l)),
+        isLoading: false,
+      }));
+    } catch (err: any) {
+      set({ error: 'Failed to rename category', isLoading: false });
+    }
+  },
+
   deleteCategory: async (id) => {
     set({ isLoading: true, error: null });
     try {
@@ -247,11 +293,37 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
+  updateTag: async (id, name) => {
+    set({ isLoading: true, error: null });
+    try {
+      await tagService.updateTag(id, name);
+      set((state) => ({
+        tags: state.tags.map((t) => (t.id === id ? { ...t, name } : t)),
+        isLoading: false,
+      }));
+      await get().fetchTasks();
+    } catch (err: any) {
+      set({ error: 'Failed to rename tag', isLoading: false });
+    }
+  },
+
   assignTags: async (taskId, tagIds) => {
     set({ isLoading: true, error: null });
     try {
       await tagService.assignTagsToTask(taskId, tagIds);
-      // Wait a moment and fetch updated tasks to get tag association
+      // Optimistic local state update
+      const allTags = get().tags;
+      const tagNamesToAssign = tagIds
+        .map((id) => allTags.find((t) => t.id === id)?.name)
+        .filter((name): name is string => !!name);
+
+      set((state) => ({
+        tasks: state.tasks.map((t) =>
+          t.id === taskId
+            ? { ...t, tags: Array.from(new Set([...(t.tags || []), ...tagNamesToAssign])) }
+            : t
+        ),
+      }));
       await get().fetchTasks();
     } catch (err: any) {
       set({ error: 'Failed to assign tags', isLoading: false });
@@ -262,6 +334,17 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await tagService.removeTagFromTask(taskId, tagId);
+      // Optimistic local state update
+      const tagToRemove = get().tags.find((t) => t.id === tagId);
+      if (tagToRemove) {
+        set((state) => ({
+          tasks: state.tasks.map((t) =>
+            t.id === taskId
+              ? { ...t, tags: (t.tags || []).filter((name) => name !== tagToRemove.name) }
+              : t
+          ),
+        }));
+      }
       await get().fetchTasks();
     } catch (err: any) {
       set({ error: 'Failed to remove tag', isLoading: false });

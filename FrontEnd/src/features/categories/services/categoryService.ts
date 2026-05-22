@@ -16,8 +16,8 @@ export async function createCategory(name: string): Promise<number> {
   return res.data; // Returns category ID
 }
 
-export async function updateCategory(id: number, name: string): Promise<void> {
-  await api.put(`/categories/${id}`, { Name: name });
+export async function updateCategory(id: number, name: string, color?: string): Promise<void> {
+  await api.put(`/categories/${id}`, { Name: name, Color: color });
 }
 
 export async function deleteCategory(id: number): Promise<void> {

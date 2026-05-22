@@ -5,8 +5,6 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
   Cell,
   PieChart,
   Pie
@@ -17,11 +15,19 @@ import {
   Clock, 
   ChevronDown,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  BarChart3, 
+  LayoutGrid
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  ChartContainer, 
+  ChartTooltip, 
+  ChartTooltipContent,
+  type ChartConfig
+} from '@/components/ui/chart';
 
 const barData = [
   { day: 'Mon', completed: 6 },
@@ -40,38 +46,40 @@ const categoryData = [
   { name: 'Errands', value: 5, color: '#8b919f' },
 ];
 
+const barChartConfig = {
+  completed: {
+    label: "Focused Hours",
+    color: "#2563eb",
+  },
+} satisfies ChartConfig;
+
+const pieChartConfig = {
+  Work: { label: "Work", color: "#1978e5" },
+  Study: { label: "Study", color: "#5cde94" },
+  Personal: { label: "Personal", color: "#ffb68c" },
+  Errands: { label: "Errands", color: "#8b919f" },
+} satisfies ChartConfig;
+
 export function AnalyticsView() {
   return (
     <div className="h-full bg-slate-50/50">
-      <ScrollArea className="h-full px-10 py-10">
-        <div className="max-w-6xl mx-auto space-y-12">
+      <ScrollArea className="h-full">
+        <div className="max-w-6xl mx-auto px-4 py-6 md:px-10 md:py-10 space-y-8 md:space-y-12">
+          
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <div className="flex items-center gap-2 text-blue-600 mb-2">
-                <TrendingUp className="h-4 w-4" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Insights Engine</span>
-              </div>
-              <h1 className="text-4xl font-bold tracking-tight text-slate-900">Performance Metrics</h1>
-              <p className="text-sm text-slate-500 mt-2 font-medium">Systematic analysis of your productivity architecture over the last 7 cycles.</p>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">Performance Metrics</h1>
             </div>
-            <Button variant="outline" className="bg-white border-slate-200 hover:border-blue-600 text-slate-600 font-bold rounded-xl h-11 px-6 shadow-sm flex items-center justify-between gap-4 transition-all">
+            <Button variant="outline" className="bg-white border-slate-200 hover:border-blue-600 text-slate-600 font-bold rounded-xl h-11 px-6 shadow-sm flex items-center justify-between gap-4 transition-all w-full md:w-auto self-start md:self-center">
               <span>Current Week</span>
               <ChevronDown className="h-4 w-4 opacity-50" />
             </Button>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <StatCard 
-              title="Completion Streak" 
-              value="12" 
-              unit="days" 
-              trend="+2 days vs avg" 
-              trendType="up"
-              icon={Flame} 
-              iconColor="text-orange-500 bg-orange-50"
-            />
+          <div className="grid grid-cols-2 gap-5 md:gap-8">
+            
             <StatCard 
               title="Tasks Completed" 
               value="48" 
@@ -83,23 +91,23 @@ export function AnalyticsView() {
             <StatCard 
               title="Total Focus Time" 
               value="14h 30m" 
-              trend="Avg 2h 04m / session" 
+              trend="Avg 2h 04m / day" 
               icon={Clock} 
               iconColor="text-purple-600 bg-purple-50"
             />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-12">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 pb-12">
             {/* Bar Chart */}
             <Card className="lg:col-span-2 bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden">
-              <CardHeader className="p-8 pb-4">
+              <CardHeader className="p-6 md:p-8 pb-4">
                 <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-blue-600" />
-                  Velocity Output
+                  Focused Hours
                 </CardTitle>
               </CardHeader>
-              <CardContent className="h-[350px] p-8 pt-0">
-                <ResponsiveContainer width="100%" height="100%">
+              <CardContent className="h-[350px] p-6 md:p-8 pt-0">
+                <ChartContainer config={barChartConfig} className="h-full w-full aspect-auto">
                   <BarChart data={barData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis 
@@ -114,9 +122,8 @@ export function AnalyticsView() {
                       tickLine={false} 
                       tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} 
                     />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                      itemStyle={{ color: '#0f172a', fontWeight: 600 }}
+                    <ChartTooltip 
+                      content={<ChartTooltipContent />}
                       cursor={{ fill: 'rgba(37,99,235,0.05)', radius: 8 }}
                     />
                     <Bar 
@@ -125,31 +132,35 @@ export function AnalyticsView() {
                       maxBarSize={45}
                     >
                       {barData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.completed > 10 ? '#2563eb' : '#cbd5e1'} className="transition-all duration-300" />
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.completed > 10 ? 'var(--color-completed)' : '#cbd5e1'} 
+                          className="transition-all duration-300" 
+                        />
                       ))}
                     </Bar>
                   </BarChart>
-                </ResponsiveContainer>
+                </ChartContainer>
               </CardContent>
             </Card>
 
             {/* Categories Pie */}
             <Card className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden">
-              <CardHeader className="p-8 pb-4">
+              <CardHeader className="p-6 md:p-8 pb-4">
                 <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <LayoutGrid className="h-5 w-5 text-blue-600" />
-                  Allocation
+                  Tasks Done Per List
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col h-[350px] p-8 pt-0">
-                <div className="flex-1 min-h-0">
-                  <ResponsiveContainer width="100%" height="100%">
+              <CardContent className="flex flex-col h-auto min-h-[350px] p-6 md:p-8 pt-0">
+                <div className="h-[180px] w-full">
+                  <ChartContainer config={pieChartConfig} className="h-full w-full aspect-auto">
                     <PieChart>
                       <Pie
                         data={categoryData}
-                        innerRadius={70}
-                        outerRadius={95}
-                        paddingAngle={8}
+                        innerRadius={55}
+                        outerRadius={75}
+                        paddingAngle={6}
                         dataKey="value"
                         stroke="none"
                       >
@@ -157,13 +168,11 @@ export function AnalyticsView() {
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }}
-                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
                     </PieChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
                 </div>
-                <div className="grid grid-cols-2 gap-3 mt-6">
+                <div className="grid grid-cols-2 gap-3 mt-4">
                   {categoryData.map((item) => (
                     <div key={item.name} className="flex flex-col p-3 bg-slate-50 rounded-2xl border border-slate-100">
                       <div className="flex items-center gap-2 mb-1">
@@ -177,6 +186,7 @@ export function AnalyticsView() {
               </CardContent>
             </Card>
           </div>
+
         </div>
       </ScrollArea>
     </div>
@@ -210,7 +220,7 @@ function StatCard({
       </CardHeader>
       <CardContent className="p-0">
         <div className="flex items-baseline gap-2">
-          <span className="text-5xl font-bold tracking-tight text-slate-900">{value}</span>
+          <span className="text-4xl md:text-5xl font-bold tracking-tight text-slate-900">{value}</span>
           {unit && <span className="text-lg font-bold text-slate-400">{unit}</span>}
         </div>
         {trend && (
@@ -229,5 +239,3 @@ function StatCard({
     </Card>
   );
 }
-
-import { BarChart3, LayoutGrid } from 'lucide-react';

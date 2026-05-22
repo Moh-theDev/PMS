@@ -28,16 +28,8 @@ export async function deleteTag(id: number): Promise<void> {
 }
 
 export async function assignTagsToTask(taskId: number, tagIds: number[]): Promise<void> {
-  // POST api/Tags/assign?taskId=X&tagIds=Y
-  await api.post('/tags/assign', null, {
-    params: {
-      taskId,
-      tagIds,
-    },
-    paramsSerializer: {
-      indexes: null, // serializes array as tagIds=1&tagIds=2
-    }
-  });
+  // POST api/Tags/assign?taskId=X with tagIds in the body
+  await api.post(`/tags/assign?taskId=${taskId}`, tagIds);
 }
 
 export async function removeTagFromTask(taskId: number, tagId: number): Promise<void> {
