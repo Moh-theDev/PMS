@@ -2,22 +2,13 @@ import * as React from 'react';
 import { 
   Play, 
   Pause, 
-  RotateCcw, 
-  SkipForward, 
-  Settings, 
-  Flame,
-  Clock,
-  Target,
-  BarChart3,
-  CheckCircle2
+  RotateCcw,
+  Clock
 } from 'lucide-react';
 import { useFocusStore } from '@/store/useFocusStore';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function FocusView() {
   const { 
@@ -139,7 +130,7 @@ export function FocusView() {
             </div>
 
             {/* Playback Controls */}
-            <div className="flex items-center justify-center gap-3 md:gap-6">
+            <div className="flex items-center justify-center gap-3 md:gap-6 bg-card p-3 rounded-xl">
               <Button 
                 variant="outline" 
                 size="icon" 
@@ -151,13 +142,13 @@ export function FocusView() {
               
               <Button 
                 size="icon" 
-                className="h-20 w-20 md:h-24 md:w-24 rounded-3xl bg-slate-900 hover:bg-slate-800 shadow-2xl shadow-slate-900/20 active:scale-95 transition-all text-white border-2 border-white"
+                className="h-12 w-12 md:h-14 md:w-14 rounded-3xl bg-slate-900 hover:bg-slate-800 shadow-2xl shadow-slate-900/20 active:scale-95 transition-all text-white border-2 border-white"
                 onClick={() => isActive ? stopFocus() : startFocus(null, 25)}
               >
                 {isActive ? (
-                  <Pause className="h-8 w-8 md:h-10 md:w-10 fill-white" />
+                  <Pause className="h-5 w-5 md:h-8 md:w-8 fill-white" />
                 ) : (
-                  <Play className="h-8 w-8 md:h-10 md:w-10 fill-white ml-1" />
+                  <Play className="h-5 w-5 md:h-8 md:w-8 fill-white ml-1" />
                 )}
               </Button>
             </div>

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Filter, ListFilter, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -13,6 +13,8 @@ import { ConflictResolutionModal } from './ConflictResolutionModal';
 
 export function InboxView() {
   const { listId = 'inbox', tagId } = useParams();
+  const [searchParams] = useSearchParams();
+  const paramTaskId = searchParams.get('taskId');
 
   const {
     tasks,
@@ -33,8 +35,14 @@ export function InboxView() {
   } = useTaskStore();
 
   const [selectedTaskId, setSelectedTaskId] = React.useState<number | null>(null);
-  const [newTitle, setNewTitle] = React.useState('');
   const panelRef = React.useRef<HTMLElement | null>(null);
+
+  // Synchronise selection state with URL taskId parameter if provided (e.g. from Search Modal)
+  React.useEffect(() => {
+    if (paramTaskId) {
+      setSelectedTaskId(Number(paramTaskId));
+    }
+  }, [paramTaskId]);
 
   // Conflict modal state
   const [conflictModalOpen, setConflictModalOpen] = React.useState(false);
@@ -85,19 +93,25 @@ export function InboxView() {
   })();
 
   // Handlers
-  const handleQuickCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
+  const handleAddTask = async (title: string, priority: number, deadline: string | null) => {
     const categoryIdNum = !['inbox', 'today', 'upcoming'].includes(listId) ? Number(listId) : undefined;
     try {
-      const createdTask = await addTask({ title: newTitle.trim(), durationInMinutes: 30, priority: 5, effortLevel: 3 }, categoryIdNum);
+      const createdTask = await addTask(
+        {
+          title,
+          durationInMinutes: 30,
+          priority,
+          effortLevel: 3,
+          deadline,
+        },
+        categoryIdNum
+      );
       if (tagId) {
         const activeTag = tags.find((t) => String(t.id) === tagId || t.name === tagId);
         if (activeTag) {
           await assignTags(createdTask.id, [activeTag.id]);
         }
       }
-      setNewTitle('');
     } catch { /* handled in store */ }
   };
 
@@ -154,7 +168,7 @@ export function InboxView() {
         </header>
 
         {/* Quick create */}
-        <TaskQuickCreate value={newTitle} onChange={setNewTitle} onSubmit={handleQuickCreate} />
+        <TaskQuickCreate onAddTask={handleAddTask} />
 
         {/* Task list */}
         <ScrollArea className="flex-1 px-8 pt-2">
@@ -181,8 +195,8 @@ export function InboxView() {
       {selectedTask && (
         <ResizableDivider
           panelRef={panelRef}
-          minWidth={280}
-          maxWidth={720}
+          minWidth={400}
+          maxWidth={750}
           onResizeEnd={() => { /* panelRef already has the width — nothing extra needed */ }}
         />
       )}
@@ -190,6 +204,7 @@ export function InboxView() {
       {/* ── Right pane: Task detail ───────────────── */}
       {selectedTask && (
         <TaskDetailPanel
+          key={selectedTask.id}
           task={selectedTask}
           panelRef={panelRef}
           categories={categories}

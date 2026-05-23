@@ -10,7 +10,6 @@ import {
   Pie
 } from 'recharts';
 import { 
-  Flame, 
   CheckCircle2, 
   Clock, 
   ChevronDown,

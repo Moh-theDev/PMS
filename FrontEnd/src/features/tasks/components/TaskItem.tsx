@@ -53,8 +53,12 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
           checked={isCompleted}
           onCheckedChange={(val) => onToggle(val === true)}
           className={cn(
-            'h-4 w-4 rounded border-slate-300',
-            isCompleted && 'data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500'
+            'h-4 w-4 rounded transition-all',
+            task.priority >= 8 
+              ? 'border-red-500 hover:border-red-600 focus-visible:ring-red-500/20 data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500'
+              : task.priority > 4 
+                ? 'border-amber-500 hover:border-amber-600 focus-visible:ring-amber-500/20 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500'
+                : 'border-slate-300 hover:border-slate-400 focus-visible:ring-slate-500/20 data-[state=checked]:bg-slate-500 data-[state=checked]:border-slate-500'
           )}
         />
       </div>
@@ -150,11 +154,6 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
             {!isOverdue && !isCompleted && <Clock className="h-2.5 w-2.5 text-slate-400" />}
             {badgeText}
           </Badge>
-        )}
-
-        {/* High-priority dot */}
-        {task.priority >= 8 && !isCompleted && (
-          <span className="h-1.5 w-1.5 rounded-full bg-orange-400 shrink-0" title={`Priority ${task.priority}`} />
         )}
       </div>
     </div>

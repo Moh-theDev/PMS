@@ -35,7 +35,7 @@ export function TaskDetailPanel({
     <aside
       ref={panelRef as React.RefObject<HTMLElement>}
       className="border-l bg-white flex flex-col shrink-0 overflow-hidden animate-in slide-in-from-right duration-200"
-      style={{ width: '420px', willChange: 'width', minWidth: '280px', maxWidth: '750px' }}
+      style={{ width: '420px', willChange: 'width', minWidth: '400px', maxWidth: '750px' }}
     >
       {/* Header */}
       <div className="px-5 py-3.5 border-b flex items-center justify-between bg-slate-50/80 shrink-0">

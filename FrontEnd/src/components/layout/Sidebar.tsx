@@ -24,6 +24,7 @@ import { useTaskStore } from '../../store/useTaskStore';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Separator } from '../ui/separator';
 import { ProfileModal } from '@/features/profile/components/ProfileModal';
+import { SearchModal } from '@/features/search/components/SearchModal';
 
 /* ── Category colour palette ──────────────────────────────────────────── */
 const COLORS = [
@@ -127,7 +128,20 @@ export function Sidebar() {
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  /* Global keyboard listener for search modal toggling */
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   /* inline creation state */
   const [creatingCategory, setCreatingCategory] = useState(false);
@@ -154,11 +168,12 @@ export function Sidebar() {
 
   const inboxCount = tasks.filter((t) => t.status !== 2).length;
   const todayCount = getTasksByList('today').filter((t) => t.status !== 2).length;
+  const upcomingCount = getTasksByList('upcoming').filter((t) => t.status !== 2).length;
 
   const navItems = [
     { icon: Inbox, label: 'Inbox', path: '/tasks/inbox', count: inboxCount },
     { icon: Calendar, label: 'Today', path: '/tasks/today', count: todayCount },
-    { icon: CalendarDays, label: 'Upcoming', path: '/tasks/upcoming' },
+    { icon: CalendarDays, label: 'Upcoming', path: '/tasks/upcoming', count: upcomingCount },
     { icon: Target, label: 'Focus Mode', path: '/focus' },
     { icon: BarChart3, label: 'Analytics', path: '/analytics' },
   ];
@@ -222,9 +237,17 @@ export function Sidebar() {
 
       {/* ── Search ─────────────────────────────────────────────────── */}
       <div className="px-3 pb-2">
-        <button className="flex items-center gap-2 w-full px-3 py-2 bg-white border border-slate-200 hover:border-blue-200 rounded-xl text-slate-400 text-xs font-semibold transition-all shadow-sm">
-          <Search className="h-3.5 w-3.5 shrink-0" />
-          Quick search...
+        <button 
+          onClick={() => setIsSearchOpen(true)}
+          className="flex items-center justify-between w-full px-3 py-2 bg-white border border-slate-200 hover:border-blue-200 rounded-xl text-slate-400 text-xs font-semibold transition-all shadow-sm group"
+        >
+          <div className="flex items-center gap-2">
+            <Search className="h-3.5 w-3.5 shrink-0 text-slate-400 group-hover:text-blue-500 transition-colors" />
+            <span>Quick search...</span>
+          </div>
+          <kbd className="hidden sm:inline-flex items-center text-[9px] px-1.5 py-0.5 bg-slate-50 text-slate-400 border border-slate-100 rounded font-sans font-bold group-hover:bg-slate-100 transition-colors">
+            ctrl + k
+          </kbd>
         </button>
       </div>
 
@@ -456,6 +479,7 @@ export function Sidebar() {
       </div>
 
       <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
+      <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </aside>
   );
 }

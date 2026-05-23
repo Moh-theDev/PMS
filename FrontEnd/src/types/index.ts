@@ -15,9 +15,9 @@ export interface Task {
   durationInMinutes: number;
   priority: number; // 1 to 10
   effortLevel: number; // 1 to 5
-  deadline?: string;
-  earliestStart?: string;
-  latestEnd?: string;
+  deadline?: string | null;
+  earliestStart?: string | null;
+  latestEnd?: string | null;
   status: TaskStatus;
   categoryId?: number;
   tags?: string[];
@@ -29,9 +29,9 @@ export interface CreateTaskDto {
   durationInMinutes: number;
   priority?: number; // 1 to 10
   effortLevel?: number; // 1 to 5
-  deadline?: string;
-  earliestStart?: string;
-  latestEnd?: string;
+  deadline?: string | null;
+  earliestStart?: string | null;
+  latestEnd?: string | null;
 }
 
 export interface UpdateTaskDto {
@@ -40,9 +40,9 @@ export interface UpdateTaskDto {
   durationInMinutes?: number;
   priority?: number;
   effortLevel?: number;
-  deadline?: string;
-  earliestStart?: string;
-  latestEnd?: string;
+  deadline?: string | null;
+  earliestStart?: string | null;
+  latestEnd?: string | null;
   status?: TaskStatus;
   categoryId?: number;
 }

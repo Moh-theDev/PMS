@@ -153,32 +153,37 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   updateTask: async (id, updates) => {
-    set({ isLoading: true, error: null });
+    const previousTasks = get().tasks;
+    set((state) => ({
+      tasks: state.tasks.map((t) => {
+        if (t.id === id) {
+          const updated = { ...t, ...updates };
+          if (updates.categoryId === 0) {
+            delete updated.categoryId;
+          }
+          return updated;
+        }
+        return t;
+      }),
+      error: null,
+    }));
+
     try {
       await taskService.updateTask(id, updates);
-      set((state) => ({
-        tasks: state.tasks.map((t) => {
-          if (t.id === id) {
-            const updated = { ...t, ...updates };
-            if (updates.categoryId === 0) {
-              delete updated.categoryId;
-            }
-            return updated;
-          }
-          return t;
-        }),
-        isLoading: false,
-      }));
     } catch (err: any) {
-      set({ error: 'Failed to update task', isLoading: false });
+      set({ tasks: previousTasks, error: 'Failed to update task' });
       throw err;
     }
   },
 
   updateTaskStatus: async (id, status) => {
-    set({ isLoading: true, error: null });
+    const previousTasks = get().tasks;
+    set((state) => ({
+      tasks: state.tasks.map((t) => (t.id === id ? { ...t, status } : t)),
+      error: null,
+    }));
+
     try {
-      // Convert status numeric enum to string representing the enum name for Backend
       const statusMap: Record<TaskStatus, string> = {
         [TaskStatus.Todo]: 'Todo',
         [TaskStatus.InProgress]: 'InProgress',
@@ -188,12 +193,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       };
       const statusStr = statusMap[status] || 'Todo';
       await taskService.changeTaskStatus(id, statusStr);
-      set((state) => ({
-        tasks: state.tasks.map((t) => (t.id === id ? { ...t, status } : t)),
-        isLoading: false,
-      }));
     } catch (err: any) {
-      set({ error: 'Failed to change status', isLoading: false });
+      set({ tasks: previousTasks, error: 'Failed to change status' });
       throw err;
     }
   },
@@ -308,46 +309,47 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   assignTags: async (taskId, tagIds) => {
-    set({ isLoading: true, error: null });
+    const previousTasks = get().tasks;
+    const allTags = get().tags;
+    const tagNamesToAssign = tagIds
+      .map((id) => allTags.find((t) => t.id === id)?.name)
+      .filter((name): name is string => !!name);
+
+    set((state) => ({
+      tasks: state.tasks.map((t) =>
+        t.id === taskId
+          ? { ...t, tags: Array.from(new Set([...(t.tags || []), ...tagNamesToAssign])) }
+          : t
+      ),
+      error: null,
+    }));
+
     try {
       await tagService.assignTagsToTask(taskId, tagIds);
-      // Optimistic local state update
-      const allTags = get().tags;
-      const tagNamesToAssign = tagIds
-        .map((id) => allTags.find((t) => t.id === id)?.name)
-        .filter((name): name is string => !!name);
-
-      set((state) => ({
-        tasks: state.tasks.map((t) =>
-          t.id === taskId
-            ? { ...t, tags: Array.from(new Set([...(t.tags || []), ...tagNamesToAssign])) }
-            : t
-        ),
-      }));
-      await get().fetchTasks();
     } catch (err: any) {
-      set({ error: 'Failed to assign tags', isLoading: false });
+      set({ tasks: previousTasks, error: 'Failed to assign tags' });
     }
   },
 
   removeTag: async (taskId, tagId) => {
-    set({ isLoading: true, error: null });
+    const previousTasks = get().tasks;
+    const tagToRemove = get().tags.find((t) => t.id === tagId);
+
+    if (tagToRemove) {
+      set((state) => ({
+        tasks: state.tasks.map((t) =>
+          t.id === taskId
+            ? { ...t, tags: (t.tags || []).filter((name) => name !== tagToRemove.name) }
+            : t
+        ),
+        error: null,
+      }));
+    }
+
     try {
       await tagService.removeTagFromTask(taskId, tagId);
-      // Optimistic local state update
-      const tagToRemove = get().tags.find((t) => t.id === tagId);
-      if (tagToRemove) {
-        set((state) => ({
-          tasks: state.tasks.map((t) =>
-            t.id === taskId
-              ? { ...t, tags: (t.tags || []).filter((name) => name !== tagToRemove.name) }
-              : t
-          ),
-        }));
-      }
-      await get().fetchTasks();
     } catch (err: any) {
-      set({ error: 'Failed to remove tag', isLoading: false });
+      set({ tasks: previousTasks, error: 'Failed to remove tag' });
     }
   },
 
