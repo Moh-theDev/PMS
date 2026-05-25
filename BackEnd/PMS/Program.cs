@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using PMS.Application.Behaviors;
 using PMS.Application.Interfaces.Repositories;
 using PMS.Application.Interfaces.Services;
@@ -17,14 +18,14 @@ using PMS.Application.Services.taskservices;
 using PMS.Application.Services.TimeTrackingServices;
 using PMS.Application.Services.userser;
 using PMS.Domain.Entities;
+using PMS.Infrastructre.AiSetting;
 using PMS.Infrastructre.Data;
 using PMS.Infrastructre.Interfaces;
 using PMS.Infrastructre.Repository;
 using PMS.Infrastructre.Services.AuthService;
+using PMS.Infrastructre.Services.GeminiService;
 using PMS.Infrastructre.Services.UnitOfWork;
 using System.Text;
-
-using Microsoft.OpenApi.Models;
 
 
 namespace PMS
@@ -114,6 +115,8 @@ namespace PMS
             })
             .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<AppDbContext>().AddDefaultTokenProviders();
+            /////////////////////////
+            builder.Services.Configure<GeminiSettings>(builder.Configuration.GetSection("Gemini"));
             ////////////////////////
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IunitOfWork, UnitOfWork>();
@@ -124,6 +127,7 @@ namespace PMS
             builder.Services.AddScoped<ITaskService, TaskServices>();
             builder.Services.AddScoped<ITimeTrackingService, TimeTrackingServices>();
             builder.Services.AddScoped<IUserServices, UserServices>();
+            builder.Services.AddHttpClient<GeminiClientService>();
             ///////////////////////////////////
 
 
@@ -145,6 +149,9 @@ namespace PMS
             //builder.Services.AddValidatorsFromAssembly(typeof(Application.IAssemplyMarker).Assembly);
             // builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviors<,>));
   builder.Services.AddOpenApi();
+
+           
+
             var app = builder.Build();
           
             // Configure the HTTP request pipeline.

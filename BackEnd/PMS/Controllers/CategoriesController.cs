@@ -13,6 +13,7 @@ namespace PMS.Controllers
     [Authorize(Roles ="User")]
     [Route("api/[controller]")]
     [ApiController]
+
     public class CategoriesController : ControllerBase
     {
         private readonly ICategoryService _service;

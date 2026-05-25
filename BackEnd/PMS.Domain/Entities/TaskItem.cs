@@ -40,7 +40,7 @@ namespace PMS.Domain.Entities
         // Core input for AI
         public TimeSpan Duration { get; set; }
 
-        public DateTime? Deadline { get; set; }
+        public DateTime Deadline { get; set; }
 
         // Optional constraints
         public DateTime? EarliestStart { get; set; }

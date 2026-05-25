@@ -14,10 +14,16 @@ namespace PMS.Application.DTO.TimeEntry
 
         public bool IsPaused { get; set; }
 
-        public int AccumulatedSeconds { get; set; }
+        public int AccumulatedSeconds { get; set; }//
 
         public DateTime StartedAt { get; set; }
 
         public int CurrentSeconds { get; set; }
+
+        public DateTime CreatedAt { get; set; }//ثابت فيه وقت البدايه بس
+
+        public DateTime? EndedAt { get; set; } //وقت النهايه بس
+
+        public List<string>? errors { get; set; } = new List<string>();
     }
 }

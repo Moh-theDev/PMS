@@ -41,6 +41,8 @@ namespace PMS.Application.DTO.Task
 
         public Taskstatus Status { get; set; } 
 
+        public List<string>? error { get; set; }
+
 
     }
 }

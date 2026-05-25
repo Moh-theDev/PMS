@@ -1,12 +1,17 @@
-﻿using PMS.Application.DTO.TimeEntry;
+﻿using PMS.Application.DTO.Task;
+using PMS.Application.DTO.TimeEntry;
 using PMS.Application.Interfaces.Repositories;
 using PMS.Application.Interfaces.Services;
 using PMS.Domain.Entities;
+using PMS.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+
 
 namespace PMS.Application.Services.TimeTrackingServices
 {
@@ -14,12 +19,14 @@ namespace PMS.Application.Services.TimeTrackingServices
     {
 
         private readonly Irepsitory<TimeTracking> _irepsitory;
+        private readonly Irepsitory<TaskItem> _taskrepo;
         private readonly IunitOfWork _unitOfWork;
 
-        public TimeTrackingServices(Irepsitory<TimeTracking> irepsitory, IunitOfWork unitOfWork)
+        public TimeTrackingServices(Irepsitory<TimeTracking> irepsitory, IunitOfWork unitOfWork, Irepsitory<TaskItem> taskrepo)
         {
             _irepsitory = irepsitory;
             _unitOfWork = unitOfWork;
+            _taskrepo = taskrepo;
         }
 
         public async Task<TimeEntryDto?> GetActiveAsync(int userId)
@@ -43,9 +50,9 @@ namespace PMS.Application.Services.TimeTrackingServices
           return result.FirstOrDefault();
         }
 
-        public async Task<TimeEntryDto> PauseAsync(int entryId, int userId)
+        public async Task<TimeEntryDto> PauseAsync(int entryId, int userId) //s      pause    resume      end
         {
-
+            var errors = new List<string>();
 
             var entry = await GetActiveEntry(entryId, userId);
 
@@ -53,7 +60,17 @@ namespace PMS.Application.Services.TimeTrackingServices
             entry.AccumulatedSeconds += elapsed;
             entry.IsPaused = true;
 
+            var task = await _taskrepo.GetByIdAsync(entry.TaskId);
 
+            if (task == null)
+            {
+                errors.Add("Task not exist in time tracking id");
+                return new TimeEntryDto { errors = errors };
+                //throw new Exception("Task not exist in time tracking id");
+            }
+
+            task.Status=Taskstatus.Paused;
+            await _taskrepo.UpdateAsync(task);
 
             await _unitOfWork.SaveChangesAsync();
 
@@ -81,22 +98,39 @@ namespace PMS.Application.Services.TimeTrackingServices
 
         public async Task<TimeEntryDto> ResumeAsync(int entryId, int userId)
         {
+            var errors = new List<string>();
             var entry = await _irepsitory.FindOneAsync(e =>
            e.Id == entryId &&
            e.UserId == userId &&
-           !e.IsPaused 
-           )
-           ?? throw new Exception("all timers paused");
+           e.IsPaused
+           );
+             if (entry == null)
+                 {
+                errors.Add("all timers paused Or No Timers");
+                return new TimeEntryDto { errors = errors };
+                  }
+          // ?? throw new Exception("all timers paused Or No Timers");
 
             entry.StartedAt = DateTime.UtcNow;
 
             entry.IsPaused = false;
 
+            var task=await _taskrepo.GetByIdAsync(entry.TaskId);
+
+            if (task == null)
+            {
+                errors.Add("Task not exist in time tracking id");
+                return new TimeEntryDto { errors = errors };
+              //  throw new Exception("Task not exist in time tracking id");
+            }
+
+            task.Status = Taskstatus.InProgress;
+            await _taskrepo.UpdateAsync(task);
             await _unitOfWork.SaveChangesAsync();
 
             return new TimeEntryDto
             {
-
+                CreatedAt=entry.CreatedAt,
                 TaskId = entry.TaskId,
                 StartedAt = entry.StartedAt,
                 AccumulatedSeconds = entry.AccumulatedSeconds,
@@ -107,13 +141,27 @@ namespace PMS.Application.Services.TimeTrackingServices
 
         public async Task<TimeEntryDto> StartAsync(int taskId, int userId)
         {
+            var errors = new List<string>();
+
             var hasActive = await _irepsitory.ExistsAsync(e =>
             e.UserId == userId &&
             e.EndedAt == null &&
             !e.IsPaused);
 
             if (hasActive)
-                throw new Exception("Already is running");
+            {
+                errors.Add("You already have an active task running");
+                return new TimeEntryDto{ errors=errors};
+            }
+               // throw new Exception("You already have an active task running");
+
+           var task= await _taskrepo.GetByIdAsync(taskId);
+            if (task == null)
+            {
+                errors.Add("Task is not exist");
+                return new TimeEntryDto { errors = errors };
+               // throw new Exception("Task is not exist");
+            }
 
             var entry = new TimeTracking
             {
@@ -122,31 +170,48 @@ namespace PMS.Application.Services.TimeTrackingServices
                 UserId = userId,
                 StartedAt = DateTime.UtcNow,
                 AccumulatedSeconds = 0,
-                IsPaused = false
+                IsPaused = false,
+                CreatedAt = DateTime.UtcNow
             };
+            task.Status = Taskstatus.InProgress;
+            await  _taskrepo.UpdateAsync(task);
+            await _irepsitory.AddAsync(entry);
+            await _unitOfWork.SaveChangesAsync();
 
             var dto = new TimeEntryDto
             {
+                Id = entry.Id,
                 TaskId = taskId,
                 StartedAt = DateTime.UtcNow,
                 AccumulatedSeconds = 0,
                 IsPaused = false
             };
-
-            await _irepsitory.AddAsync(entry);
-            await _unitOfWork.SaveChangesAsync();
-
             return dto;
         }
 
         public async Task<TimeEntryDto> StopAsync(int entryId, int userId)
         {
-            var entry =  await _irepsitory.FindOneAsync(e =>
+            var errors = new List<string>();
+            var entry = await _irepsitory.FindOneAsync(e =>
            e.Id == entryId &&
            e.UserId == userId &&
            e.EndedAt == null
-           )
-           ?? throw new Exception("all timers paused");
+           );
+            if (entry == null)
+            {
+                errors.Add("Timer not found or already stopped");
+                return new TimeEntryDto { errors = errors };
+            }
+
+
+            var task = await _taskrepo.GetByIdAsync(entry.TaskId);
+
+            if (task == null)
+            {
+                errors.Add("Task not exist in time tracking id");
+                return new TimeEntryDto { errors = errors };
+            }
+
 
             if (!entry.IsPaused)
             {
@@ -154,11 +219,17 @@ namespace PMS.Application.Services.TimeTrackingServices
                 entry.AccumulatedSeconds += elapsed;
             }
 
+
             entry.EndedAt = DateTime.UtcNow;
             entry.IsPaused = false;
 
-            await _irepsitory.UpdateAsync(entry);
+            
 
+            task.Status=Taskstatus.Done;
+            await _taskrepo.UpdateAsync(task);
+
+            await _irepsitory.UpdateAsync(entry);
+            await _unitOfWork.SaveChangesAsync();
             return new TimeEntryDto {
 
                 Id = entry.Id, 
@@ -166,12 +237,12 @@ namespace PMS.Application.Services.TimeTrackingServices
                 StartedAt = entry.StartedAt,
                 AccumulatedSeconds = entry.AccumulatedSeconds,
                 IsPaused = entry.IsPaused,
+                EndedAt = entry.EndedAt,
 
-                CurrentSeconds = entry.IsPaused
-                ? entry.AccumulatedSeconds
-                : entry.AccumulatedSeconds +
-                  (int)(DateTime.UtcNow - entry.StartedAt).TotalSeconds
-
+                //CurrentSeconds = entry.IsPaused
+                //? entry.AccumulatedSeconds
+                //: entry.AccumulatedSeconds +
+                //  (int)(DateTime.UtcNow - entry.StartedAt).TotalSeconds
 
             };
         }

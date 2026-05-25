@@ -3,12 +3,6 @@ using PMS.Application.Interfaces.Repositories;
 using PMS.Application.Interfaces.Services;
 using PMS.Domain.Entities;
 using PMS.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PMS.Application.Services.taskservices
 {
@@ -70,33 +64,51 @@ namespace PMS.Application.Services.taskservices
             if (TimeSpan.FromMinutes(dto.DurationInMinutes) <= TimeSpan.Zero)
                 errors.Add("Duration must be greater than zero.");
 
-            // 4. Earliest < Latest (only if both exist)
+            // 4. Earliest < Latest (only if both exist) ///
             if (dto.EarliestStart.HasValue && dto.LatestEnd.HasValue)
             {
                 if (dto.EarliestStart >= dto.LatestEnd)
-                    errors.Add("EarliestStart must be before LatestEnd.");
+                    errors.Add("Start must be before End.");
 
                 // 5. Duration must fit inside window
                 var window = dto.LatestEnd.Value - dto.EarliestStart.Value;
 
                 if (TimeSpan.FromMinutes(dto.DurationInMinutes) > window)
                     errors.Add("Duration exceeds available time window.");
+
+                if (dto.EarliestStart >= dto.Deadline) {
+                    errors.Add("Start must be before Deadline");
+                }
+
+                if (dto.LatestEnd > dto.Deadline)
+                {
+                    errors.Add("End must be before Deadline");
+                }
+
+            }
+
+           if ((dto.EarliestStart.HasValue && !dto.LatestEnd.HasValue) || (!dto.EarliestStart.HasValue && dto.LatestEnd.HasValue))
+                {
+                errors.Add("You Must Enter Start and End or no both ");
             }
 
             // 6. If there is only EarliestStart + Deadline feasibility check (optional but strong)
-            if (dto.Deadline.HasValue)
-            {
-                var reference = dto.EarliestStart ?? DateTime.UtcNow;
+            //if (dto.Deadline.HasValue)
+            //{
+            //    var reference = dto.EarliestStart ?? DateTime.UtcNow;
 
-                var available = dto.Deadline.Value - reference;
+            //    var available = dto.Deadline.Value - reference;
 
-                if (TimeSpan.FromMinutes(dto.DurationInMinutes) > available)
-                    errors.Add("Task cannot be completed before deadline.");
-            }
+            //    if (TimeSpan.FromMinutes(dto.DurationInMinutes) > available)
+            //        errors.Add("Task cannot be completed before deadline.");
+            //}
 
             // ❌ If any errors → stop
             if (errors.Any())
-                throw new Exception(string.Join(" | ", errors));
+            {
+                return new TaskDto { error = errors };
+            }
+                
 
             // 7. Validate category
             if (CategoryId != null)
@@ -348,9 +360,46 @@ namespace PMS.Application.Services.taskservices
             if (dto.CategoryId != null)
             {
                 var category = await _category.ExistsAsync(id => id.Id == dto.CategoryId && id.UserId == UserId);
-                if (category == false)
-                    dto.CategoryId = null;
+                if (category == true)
+                    task.CategoryId = dto.CategoryId;
             }
+
+            
+
+            //if ((dto.EarliestStart.HasValue && !dto.LatestEnd.HasValue)|| (!dto.EarliestStart.HasValue && dto.LatestEnd.HasValue))
+            //{
+            //    return false;
+            //}
+
+            if (dto.EarliestStart.HasValue &&dto.LatestEnd.HasValue &&dto.EarliestStart.Value < dto.LatestEnd.Value)
+            {
+                task.EarliestStart = dto.EarliestStart;
+                task.LatestEnd = dto.LatestEnd;
+            }
+
+            if (dto.Deadline.HasValue )
+            {
+                if (!dto.EarliestStart.HasValue && !dto.LatestEnd.HasValue&&task.LatestEnd.HasValue&&task.LatestEnd.Value<=dto.Deadline.Value)
+                {  
+                     task.Deadline = dto.Deadline.Value;
+                }
+
+                if (dto.EarliestStart.HasValue && dto.LatestEnd.HasValue && dto.LatestEnd.Value <= dto.Deadline.Value)
+                {
+                    task.Deadline = dto.Deadline.Value;
+                }
+
+            }
+
+            //if (dto.Deadline.HasValue && dto.EarliestStart.HasValue && dto.LatestEnd.HasValue && ((dto.Deadline.Value > dto.EarliestStart.Value) && (dto.Deadline.Value >= dto.LatestEnd.Value)))
+            //{
+            //    task.Deadline = dto.Deadline.Value;
+            //}
+
+            //if (dto.EarliestStart.HasValue && dto.LatestEnd.HasValue && task.Deadline != null && task.Deadline <= dto.EarliestStart.Value && task.Deadline < dto.LatestEnd.Value)
+            //{
+            //    return false;
+            //}
 
             // ✏️ Basic fields
             if (dto.Title != null)
@@ -363,14 +412,19 @@ namespace PMS.Application.Services.taskservices
             if (dto.DurationInMinutes.HasValue)
                 task.Duration = TimeSpan.FromMinutes(dto.DurationInMinutes.Value);
 
-            if (dto.Deadline.HasValue)
-                task.Deadline = dto.Deadline;
+            //if (dto.Deadline.HasValue &&!dto.EarliestStart.HasValue&&!dto.LatestEnd.HasValue)
+            //            {
+            //                task.Deadline = dto.Deadline.Value;
+            //            }
+            //
 
-            if (dto.EarliestStart.HasValue)
-                task.EarliestStart = dto.EarliestStart;
+            //task.EarliestStart = dto.EarliestStart;
+            //task.LatestEnd = dto.LatestEnd;
 
-            if (dto.LatestEnd.HasValue)
-                task.LatestEnd = dto.LatestEnd;
+                
+
+            //if (dto.LatestEnd.HasValue)
+            //    task.LatestEnd = dto.LatestEnd;
 
             // 🎯 AI ranking
             if (dto.Priority.HasValue)
@@ -383,8 +437,8 @@ namespace PMS.Application.Services.taskservices
             if (dto.Status.HasValue)
                 task.Status = (Taskstatus)dto.Status.Value;
 
-            if (dto.CategoryId.HasValue)
-                task.CategoryId = dto.CategoryId;
+            //if (dto.CategoryId.HasValue)
+            //    task.CategoryId = dto.CategoryId;
 
             await _taskRepo.UpdateAsync(task);
             await _uow.SaveChangesAsync();

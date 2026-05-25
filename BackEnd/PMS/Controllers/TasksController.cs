@@ -31,6 +31,10 @@ namespace PMS.Controllers
             var result = await _taskService.CreateAsync(dto,UserId,CategoryId);
             if(result==null)
                 return BadRequest("Task Creation Faild");
+            if (result.error != null)
+            {
+                return BadRequest(result.error);
+            }
             //return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
             return Ok(result);
         }//
@@ -63,6 +67,7 @@ namespace PMS.Controllers
             var result = await _taskService.UpdateAsync(dto,taskId,UserId);
             if (!result)
                 return NotFound();
+
 
             return NoContent(); ;
         }//

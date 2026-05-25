@@ -31,7 +31,7 @@ namespace PMS.Application.DTO.Task
         public int EffortLevel { get; set; } = 3;
 
         // 📌 Optional constraints
-        public DateTime? Deadline { get; set; }
+        public DateTime Deadline { get; set; }
 
         public DateTime? EarliestStart { get; set; }
 
