@@ -10,24 +10,7 @@ namespace PMS.Domain.Entities
 {
     public class TaskItem
     {
-        //public int Id { get; set; }
-
-        //[Required, MaxLength(200)]
-        //public string Title { get; set; }
-
-        //[MaxLength(2000)]
-        //public string ?Description { get; set; }
-
-        //public DateTime? Date { get; set; }
-
-        //public TimeSpan? Time { get; set; }
-
-        //[Required, MaxLength(20)]
-        //public string Priority { get; set; } = null!;
-
-        //[Required, MaxLength(20)]
-        //public string Status { get; set; }= null!;
-        ////////////////////////////////////////////
+ 
 
         public int Id { get; set; }
 
@@ -54,8 +37,6 @@ namespace PMS.Domain.Entities
         public Taskstatus Status { get; set; } = Taskstatus.Todo;
 
 
-
-
         [Required]
         public int UserId { get; set; }
 
@@ -68,3 +49,21 @@ namespace PMS.Domain.Entities
         public ICollection<TimeTracking>? TimeTrackings { get; set; }
     }
 }
+//public int Id { get; set; }
+
+//[Required, MaxLength(200)]
+//public string Title { get; set; }
+
+//[MaxLength(2000)]
+//public string ?Description { get; set; }
+
+//public DateTime? Date { get; set; }
+
+//public TimeSpan? Time { get; set; }
+
+//[Required, MaxLength(20)]
+//public string Priority { get; set; } = null!;
+
+//[Required, MaxLength(20)]
+//public string Status { get; set; }= null!;
+////////////////////////////////////////////

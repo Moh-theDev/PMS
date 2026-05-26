@@ -12,9 +12,9 @@ namespace PMS.Domain.Entities
         public int Id { get; set; }
 
         public int UserId { get; set; }
-        public User User { get; set; }
+        public User? User { get; set; }
 
-        public string Type { get; set; }
+        public string? Type { get; set; }
 
         public DateTime PeriodStart { get; set; }
         public DateTime PeriodEnd { get; set; }
@@ -37,7 +37,7 @@ namespace PMS.Domain.Entities
 
         public string? MotivationalMessage { get; set; }
 
-        public string Content { get; set; } 
+        public string Content { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }

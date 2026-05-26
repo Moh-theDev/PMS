@@ -15,7 +15,7 @@ namespace PMS.Infrastructre.Services.GeminiService
     {
         private readonly string _apiKey;
         private readonly HttpClient _httpClient;
-       private readonly string _model;
+        private readonly string _model;
         // Direct injection via IOptions
         public GeminiClientService(HttpClient httpClient, IOptions<GeminiSettings> options)
         {
@@ -102,5 +102,132 @@ namespace PMS.Infrastructre.Services.GeminiService
             var finalResult = JsonSerializer.Deserialize<SchedulingEngineResult>(rawAiText ?? "{}", jsonOptions);
             return finalResult ?? new SchedulingEngineResult { IsSuccessful = false, ConflictMessage = "Failed to evaluate schedule rules." };
         }
+
+
+        public async Task<GeminiReportResponse> GenerateDailyReportAsync(List<TaskItem> tasks, List<TimeTracking> trackings)
+        {
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/{_model}:generateContent?key={_apiKey}";
+            string currentTimeString = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+
+            // 1. صياغة الـ System Instructions لطلب الـ Report فقط بالـ Markdown والـ Headers المطلوبة
+            string systemInstructions =
+                "You are an expert AI Productivity Coach and Data Analyst.\n" +
+                "Your job is to analyze the user's daily tasks and their actual tracked time to generate a highly motivational, analytical daily report.\n\n" +
+                "CRITICAL RULES:\n" +
+                "1. Calculate a 'ProductivityScore' (0 to 100) as a float based on: tasks completed vs. pending, strict deadline compliance, and how close the actual tracked time matches the estimated duration.\n" +
+                "2. Write the 'Content' field strictly in English, using an encouraging, professional, and slightly witty tone.\n" +
+                "3. Output raw JSON matching the required schema. Do not wrap code inside markdown blocks.\n\n" +
+                "THE 'Content' FIELD MUST BE IN MARKDOWN AND INCLUDE THESE EXACT HEADERS:\n" +
+                "- ##  Daily Achievements Summary\n" +
+                "  (Celebrate completed tasks, congratulate them on wins, especially high priority ones)\n" +
+                "- ##  Performance and Time Analysis\n" +
+                "  (Deep dive into numbers. Compare estimated task Duration vs. actual AccumulatedSeconds/CurrentDuration. Tell them where they spent too much time or where they were efficient)\n" +
+                "- ##  Points for Improvement\n" +
+                "  (Gently but directly highlight missed deadlines, unstarted high-priority tasks, or severe time overruns. What went wrong today?)\n" +
+                "- ##  Smart Tips for the Next Day\n" +
+                "  (Provide 2-3 actionable, personalized, smart tips based on today's performance data to help them optimize tomorrow)\n" +
+                "- ##  Our Encouraging Saying Today\n" +
+                "  (End the report with a powerful, deeply inspiring motivational quote relevant to their struggle or success today)";
+
+            // 2. تحضير وتجميع البيانات (Payload) لبيانات الـ Report
+            var reportsPayload = new
+            {
+                CurrentSystemTime = currentTimeString,
+                Tasks = tasks.Select(t => new
+                {
+                    t.Id,
+                    t.Title,
+                    EstimatedDurationMinutes = t.Duration.TotalMinutes,
+                    Deadline = t.Deadline.ToString("yyyy-MM-dd HH:mm"),
+                    Priority = t.Priority,
+                    EffortLevel = t.EffortLevel,
+                    Status = t.Status.ToString()
+                }).ToList(),
+                TimeLogs = trackings.Select(g => new
+                {
+                    g.TaskId,
+                    TaskTitle = g.Task?.Title,
+                    ActualTrackedMinutes = TimeSpan.FromSeconds(g.CurrentDuration).TotalMinutes,
+                    g.IsPaused
+                }).ToList()
+            };
+
+            var userPrompt = $"Analyze this dataset and generate the productivity report:\n" +
+                             JsonSerializer.Serialize(reportsPayload, new JsonSerializerOptions { WriteIndented = true });
+
+            // 3. تجهيز الـ Request لـ Gemini مع الـ responseSchema لضمان عدم رجوع null
+            var requestPayload = new
+            {
+                contents = new[] { new { parts = new[] { new { text = $"{systemInstructions}\n\nDataset:\n{userPrompt}" } } } },
+                generationConfig = new
+                {
+                    responseMimeType = "application/json",
+                    responseSchema = new
+                    {
+                        type = "OBJECT",
+                        properties = new
+                        {
+                            productivityScore = new
+                            {
+                                type = "NUMBER",
+                                description = "The calculated productivity score from 0 to 100 based on data analysis."
+                            },
+                            content = new
+                            {
+                                type = "STRING",
+                                description = "The full English markdown report with all required sections."
+                            }
+                        },
+                        required = new[] { "productivityScore", "content" }
+                    }
+                }
+            };
+
+            var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            var httpContent = new StringContent(JsonSerializer.Serialize(requestPayload, jsonOptions), Encoding.UTF8, "application/json");
+
+            // 4. إرسال الطلب لـ Gemini API
+            var response = await _httpClient.PostAsync(url, httpContent);
+            response.EnsureSuccessStatusCode();
+
+            var jsonResponse = await response.Content.ReadAsStringAsync();
+
+            // 5. استخراج الـ JSON وعمل الـ Deserialize بأمان لتجنب مشاكل حالة الأحرف
+            using var doc = JsonDocument.Parse(jsonResponse);
+            var rawAiText = doc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString();
+
+            if (string.IsNullOrEmpty(rawAiText))
+            {
+                return new GeminiReportResponse { ProductivityScore = 0, Content = "## 📊 Daily Performance Report\nSorry, the AI returned an empty response." };
+            }
+
+            // تنظيف النص في حال وجود علامات الكود ماركداون
+            rawAiText = rawAiText.Trim();
+            if (rawAiText.StartsWith("```json")) rawAiText = rawAiText.Substring(7);
+            if (rawAiText.StartsWith("```")) rawAiText = rawAiText.Substring(3);
+            if (rawAiText.EndsWith("```")) rawAiText = rawAiText.Substring(0, rawAiText.Length - 3);
+            rawAiText = rawAiText.Trim();
+
+            var deserializeOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                AllowTrailingCommas = true
+            };
+
+            var finalResult = JsonSerializer.Deserialize<GeminiReportResponse>(rawAiText, deserializeOptions);
+
+            if (finalResult == null || string.IsNullOrEmpty(finalResult.Content))
+            {
+                return new GeminiReportResponse
+                {
+                    ProductivityScore = 50,
+                    Content = "##  Daily Performance Report\nYour report was generated successfully but failed to format correctly."
+                };
+            }
+
+            return finalResult;
+        }
     }
 }
+    
+
