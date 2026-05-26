@@ -53,7 +53,7 @@ namespace PMS.Controllers
             var userId = User.GetBusinessUserId();
 
             var result = await _timeTrackingService.StopAsync(entryId, userId);
-            if (result.errors != null)
+            if (result.errors.Count>0)
             {
                 return BadRequest(result.errors);
             }
@@ -67,7 +67,7 @@ namespace PMS.Controllers
             var userId = User.GetBusinessUserId();
 
             var result = await _timeTrackingService.ResumeAsync(entryId, userId);
-            if (result.errors != null)
+            if (result.errors.Count>0)
             {
                 return BadRequest(result.errors);
             }
@@ -80,12 +80,60 @@ namespace PMS.Controllers
             var userId = User.GetBusinessUserId();
 
             var result = await _timeTrackingService.PauseAsync(entryId, userId);
-            if (result.errors != null)
+            if (result.errors.Count > 0)
             {
                 return BadRequest(result.errors);
             }
             return Ok(result);
         }
 
+        [HttpGet("tasks/{taskId}/sessions")]
+        public async Task<IActionResult> GetTaskSessions(int taskId)
+        {
+            var userId = User.GetBusinessUserId();
+            var result = await _timeTrackingService.TasksSessions(taskId, userId);
+            return Ok(result);
+        }
+
+        [HttpGet("tasks/{taskId}/sessions/{entryId}")]
+        public async Task<IActionResult> GetTaskSessionById(int taskId, int entryId)
+        {
+            var userId = User.GetBusinessUserId();
+            var result = await _timeTrackingService.TaskSessionId(taskId, entryId, userId);
+
+            if (result == null)
+                return NotFound();
+
+            return Ok(result);
+        }
+
+        [HttpGet("session/{entryId}")]
+        public async Task<IActionResult> GetSessionById(int entryId)
+        {
+            var userId = User.GetBusinessUserId();
+            var result = await _timeTrackingService.SessionId(entryId, userId);
+
+            if (result == null)
+                return NotFound();
+
+            return Ok(result);
+        }
+
+        [HttpGet("tasks/{taskId}/sum")]
+        public async Task<IActionResult> GetTaskSessionsSum(int taskId)
+        {
+            var userId = User.GetBusinessUserId();
+            var result = await _timeTrackingService.SumOfAllSessionsTaskId(taskId, userId);
+            return Ok(result);
+        }
+
+        [HttpGet("sum")]
+        public async Task<IActionResult> GetUserSessionsSum()
+        {
+            var userId = User.GetBusinessUserId();
+            var result = await _timeTrackingService.SumOfAllSessions(userId);
+            return Ok(result);
+        }
     }
 }
+

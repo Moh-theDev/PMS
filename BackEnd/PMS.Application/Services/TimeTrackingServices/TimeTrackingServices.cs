@@ -42,6 +42,7 @@ namespace PMS.Application.Services.TimeTrackingServices
                   IsPaused = e.IsPaused,
                   AccumulatedSeconds = e.AccumulatedSeconds,
                   StartedAt = e.StartedAt,
+                  CreatedAt=e.CreatedAt,
                   CurrentSeconds = e.IsPaused
                     ? e.AccumulatedSeconds
                     : e.AccumulatedSeconds +
@@ -54,7 +55,17 @@ namespace PMS.Application.Services.TimeTrackingServices
         {
             var errors = new List<string>();
 
-            var entry = await GetActiveEntry(entryId, userId);
+            var entry = await _irepsitory.FindOneAsync(e =>
+                       e.Id == entryId &&
+                       e.UserId == userId &&
+                       e.EndedAt == null &&
+                       !e.IsPaused);
+
+            if (entry == null)
+            {
+                errors.Add("no timer'id runnin");
+                return new TimeEntryDto { errors = errors };
+            }
 
             var elapsed = (int)(DateTime.UtcNow - entry.StartedAt).TotalSeconds;
             entry.AccumulatedSeconds += elapsed;
@@ -80,21 +91,22 @@ namespace PMS.Application.Services.TimeTrackingServices
                 TaskId = entry.TaskId,
                 StartedAt = entry.StartedAt,
                 AccumulatedSeconds = entry.AccumulatedSeconds,
-                IsPaused = entry.IsPaused
+                IsPaused = entry.IsPaused,
+                CreatedAt=entry.CreatedAt
 
             };
 
         }
 
-        private async Task<TimeTracking> GetActiveEntry(int entryId, int userId)
-        {
-            return await _irepsitory.FindOneAsync(e =>
-                       e.Id == entryId &&
-                       e.UserId == userId &&
-                       e.EndedAt == null &&
-                       !e.IsPaused)
-                   ?? throw new Exception("no timer'id runnin");
-        }
+        //private async Task<TimeTracking> GetActiveEntry(int entryId, int userId)
+        //{
+        //    return await _irepsitory.FindOneAsync(e =>
+        //               e.Id == entryId &&
+        //               e.UserId == userId &&
+        //               e.EndedAt == null &&
+        //               !e.IsPaused)
+        //           ?? throw new Exception("no timer'id runnin");
+        //}
 
         public async Task<TimeEntryDto> ResumeAsync(int entryId, int userId)
         {
@@ -102,7 +114,7 @@ namespace PMS.Application.Services.TimeTrackingServices
             var entry = await _irepsitory.FindOneAsync(e =>
            e.Id == entryId &&
            e.UserId == userId &&
-           e.IsPaused
+           e.IsPaused&&e.EndedAt==null
            );
              if (entry == null)
                  {
@@ -134,7 +146,9 @@ namespace PMS.Application.Services.TimeTrackingServices
                 TaskId = entry.TaskId,
                 StartedAt = entry.StartedAt,
                 AccumulatedSeconds = entry.AccumulatedSeconds,
-                IsPaused = entry.IsPaused
+                IsPaused = entry.IsPaused,
+                Id=entry.Id,
+                
 
             };
         }
@@ -145,8 +159,8 @@ namespace PMS.Application.Services.TimeTrackingServices
 
             var hasActive = await _irepsitory.ExistsAsync(e =>
             e.UserId == userId &&
-            e.EndedAt == null &&
-            !e.IsPaused);
+            e.EndedAt == null /*&&
+            e.IsPaused||!e.IsPaused*/);
 
             if (hasActive)
             {
@@ -181,10 +195,11 @@ namespace PMS.Application.Services.TimeTrackingServices
             var dto = new TimeEntryDto
             {
                 Id = entry.Id,
-                TaskId = taskId,
-                StartedAt = DateTime.UtcNow,
+                TaskId = entry.TaskId,
+                StartedAt = entry.StartedAt,
                 AccumulatedSeconds = 0,
-                IsPaused = false
+                IsPaused = false,
+                CreatedAt = entry.CreatedAt
             };
             return dto;
         }
@@ -235,6 +250,7 @@ namespace PMS.Application.Services.TimeTrackingServices
                 Id = entry.Id, 
                 TaskId = entry.TaskId,
                 StartedAt = entry.StartedAt,
+                CreatedAt=entry.CreatedAt,
                 AccumulatedSeconds = entry.AccumulatedSeconds,
                 IsPaused = entry.IsPaused,
                 EndedAt = entry.EndedAt,
@@ -245,6 +261,83 @@ namespace PMS.Application.Services.TimeTrackingServices
                 //  (int)(DateTime.UtcNow - entry.StartedAt).TotalSeconds
 
             };
+        }
+
+        public async Task<List<TimeEntryDto>?> TasksSessions(int taskId,int userId)
+        {
+            var taskSessions= await _irepsitory.FindAsyncAdvanced
+                                       (t => t.TaskId == taskId && t.UserId == userId,
+                                         t=>new TimeEntryDto {Id=t.Id,CreatedAt=t.CreatedAt,StartedAt
+                                         =t.StartedAt,EndedAt=t.EndedAt,TaskId=t.TaskId,
+                                         AccumulatedSeconds=t.AccumulatedSeconds,IsPaused=t.IsPaused,
+                                         });
+
+            return taskSessions.ToList();
+        }
+
+
+        public async Task<TimeEntryDto?> TaskSessionId(int taskId,int entryId, int userId)
+        {
+            var taskSession = await _irepsitory.FindAsyncAdvanced
+                                       (t => t.TaskId == taskId && t.UserId == userId&&t.Id == entryId,
+                                         t => new TimeEntryDto
+                                         {
+                                             Id = t.Id,
+                                             CreatedAt = t.CreatedAt,
+                                             StartedAt
+                                         = t.StartedAt,
+                                             EndedAt = t.EndedAt,
+                                             AccumulatedSeconds = t.AccumulatedSeconds,
+                                             IsPaused = t.IsPaused,
+                                         });
+
+            return taskSession.FirstOrDefault();
+        }
+
+
+        public async Task<TimeEntryDto?> SessionId( int entryId, int userId)
+        {
+            var taskSession = await _irepsitory.FindAsyncAdvanced
+                                       (t =>  t.UserId == userId && t.Id == entryId,
+                                         t => new TimeEntryDto
+                                         {
+                                             Id = t.Id,
+                                             CreatedAt = t.CreatedAt,
+                                             StartedAt
+                                         = t.StartedAt,
+                                             EndedAt = t.EndedAt,
+                                             AccumulatedSeconds = t.AccumulatedSeconds,
+                                             IsPaused = t.IsPaused,
+                                         });
+
+            return taskSession.FirstOrDefault();
+        }
+
+        public async Task<long> SumOfAllSessionsTaskId(int taskId,int userId)
+        {
+            var taskSession = await _irepsitory.FindAsync(t => t.TaskId == taskId && t.UserId == userId);
+            if (taskSession == null) {  return 0; }
+            var sum = 0;
+            foreach (var session in taskSession) {
+
+                sum += session.AccumulatedSeconds;
+            }
+
+            return sum;
+        }
+
+        public async Task<long> SumOfAllSessions( int userId)
+        {
+            var taskSession = await _irepsitory.FindAsync(t =>  t.UserId == userId);
+            if (taskSession == null) { return 0; }
+            var sum = 0;
+            foreach (var session in taskSession)
+            {
+
+                sum += session.AccumulatedSeconds;
+            }
+
+            return sum;
         }
     }
 }

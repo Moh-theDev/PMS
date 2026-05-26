@@ -14,6 +14,16 @@ namespace PMS.Application.Interfaces.Services
         public Task<TimeEntryDto> ResumeAsync(int entryId, int userId);
         public Task<TimeEntryDto> StopAsync(int entryId, int userId);
         public Task<TimeEntryDto?> GetActiveAsync(int userId);
+
+        public Task<List<TimeEntryDto>?> TasksSessions(int taskId, int userId);
+
+        public Task<TimeEntryDto?> TaskSessionId(int taskId, int entryId, int userId);
+
+        public Task<TimeEntryDto?> SessionId(int entryId, int userId);
+
+        public Task<long> SumOfAllSessionsTaskId(int taskId, int userId);
+
+        public Task<long> SumOfAllSessions(int userId);
         //public Task<TimeEntryDto> GetActiveEntry(int entryId, int userId);
     }
 }
