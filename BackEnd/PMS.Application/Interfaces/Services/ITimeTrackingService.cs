@@ -24,6 +24,8 @@ namespace PMS.Application.Interfaces.Services
         public Task<long> SumOfAllSessionsTaskId(int taskId, int userId);
 
         public Task<long> SumOfAllSessions(int userId);
+
+        public Task<List<TimeEntryDto>?> AllSessionsUser(int userId);
         //public Task<TimeEntryDto> GetActiveEntry(int entryId, int userId);
     }
 }

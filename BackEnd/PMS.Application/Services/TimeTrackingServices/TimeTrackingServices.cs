@@ -240,7 +240,7 @@ namespace PMS.Application.Services.TimeTrackingServices
 
             
 
-            task.Status=Taskstatus.Done;
+            task.Status=Taskstatus.InProgress;//Done
             await _taskrepo.UpdateAsync(task);
 
             await _irepsitory.UpdateAsync(entry);
@@ -275,6 +275,24 @@ namespace PMS.Application.Services.TimeTrackingServices
             return taskSessions.ToList();
         }
 
+        public async Task<List<TimeEntryDto>?> AllSessionsUser( int userId)
+        {
+            var taskSessions = await _irepsitory.FindAsyncAdvanced
+                                       (t => t.UserId == userId,
+                                         t => new TimeEntryDto
+                                         {
+                                             Id = t.Id,
+                                             CreatedAt = t.CreatedAt,
+                                             StartedAt
+                                         = t.StartedAt,
+                                             EndedAt = t.EndedAt,
+                                             TaskId = t.TaskId,
+                                             AccumulatedSeconds = t.AccumulatedSeconds,
+                                             IsPaused = t.IsPaused,
+                                         });
+
+            return taskSessions.ToList();
+        }
 
         public async Task<TimeEntryDto?> TaskSessionId(int taskId,int entryId, int userId)
         {

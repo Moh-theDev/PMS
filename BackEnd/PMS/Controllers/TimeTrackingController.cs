@@ -133,7 +133,22 @@ namespace PMS.Controllers
             var userId = User.GetBusinessUserId();
             var result = await _timeTrackingService.SumOfAllSessions(userId);
             return Ok(result);
+        
         }
+
+        [HttpGet("Allsessions")]
+        public async Task<IActionResult> GetAllSessionsUser()
+        {
+            var userId = User.GetBusinessUserId();
+            var sessions = await _timeTrackingService.AllSessionsUser(userId);
+
+            if (sessions == null || !sessions.Any())
+                return NotFound("No sessions found for this user.");
+
+            return Ok(sessions);
+        }
+
+
     }
 }
 
