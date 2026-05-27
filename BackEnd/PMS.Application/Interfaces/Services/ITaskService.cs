@@ -23,6 +23,8 @@ namespace PMS.Application.Interfaces.Services
 
         Task<List<TaskDto>> SearchAsync(int userId, string keyword);//
 
+
+        public  Task<bool> ClearStartEnd(int TaskId,int UserId);
         public Task<DeleteTaskResult> ResolveDeleteAsync(int taskId, int userId, string option, int newTaskId);
     }
 }

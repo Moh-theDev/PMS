@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PMS.Application.DTO.Task;
 using PMS.Application.Interfaces.Services;
 using PMS.Helpers;
+using System.Security.Claims;
 //using Swashbuckle.AspNetCore.Annotations;
 
 namespace PMS.Controllers
@@ -136,6 +137,22 @@ namespace PMS.Controllers
                 return BadRequest(result.Message);
 
             return Ok(result);
+        }
+
+        [HttpPatch("clear-start-end/{taskId}")]
+        public async Task<IActionResult> ClearStartEnd(int taskId)
+        {
+            var userId = User.GetBusinessUserId();
+
+            var result = await _taskService.ClearStartEnd(taskId, userId);
+
+            if (!result)
+                return NotFound(new { message = "Task not found" });
+
+            return Ok(new
+            {
+                message = "EarliestStart and LatestEnd cleared successfully"
+            });
         }
     }
 }

@@ -51,6 +51,12 @@ namespace PMS.Application.Services.taskservices
         public async Task<TaskDto> CreateAsync(CreateTaskDto dto,int UserId, int? CategoryId)
         {
             var errors = new List<string>();
+       
+            if (!dto.EarliestStart.HasValue || !dto.LatestEnd.HasValue)
+            {
+                dto.EarliestStart = null;
+                dto.LatestEnd = null;
+            }
 
             // 1. Priority range
             if (dto.Priority < 1 || dto.Priority > 10)
@@ -74,7 +80,7 @@ namespace PMS.Application.Services.taskservices
                 var window = dto.LatestEnd.Value - dto.EarliestStart.Value;
 
                 if (TimeSpan.FromMinutes(dto.DurationInMinutes) > window)
-                    errors.Add("Duration exceeds available time window.");
+                    errors.Add("Duration exceeds available time window.Please Change Start,End Or change Duration");
 
                 if (dto.EarliestStart >= dto.Deadline) {
                     errors.Add("Start must be before Deadline");
@@ -87,10 +93,10 @@ namespace PMS.Application.Services.taskservices
 
             }
 
-           if ((dto.EarliestStart.HasValue && !dto.LatestEnd.HasValue) || (!dto.EarliestStart.HasValue && dto.LatestEnd.HasValue))
-                {
-                errors.Add("You Must Enter Start and End or no both ");
-            }
+           //if ((dto.EarliestStart.HasValue && !dto.LatestEnd.HasValue) || (!dto.EarliestStart.HasValue && dto.LatestEnd.HasValue))
+           //     {
+           //     errors.Add("You Must Enter Start and End or no both ");
+           // }
 
             // 6. If there is only EarliestStart + Deadline feasibility check (optional but strong)
             //if (dto.Deadline.HasValue)
@@ -575,6 +581,17 @@ namespace PMS.Application.Services.taskservices
             }
         }
 
+        public async Task<bool> ClearStartEnd(int TaskId, int UserId)
+        {
+            var task = await _taskRepo.FindOneAsync(t => t.Id == TaskId && t.UserId == UserId);
+            if (task == null) return false;
+
+            task.EarliestStart = null;
+            task.LatestEnd= null;
+            await _taskRepo.UpdateAsync(task);
+            await _uow.SaveChangesAsync();
+            return true;
+        }
 
     }
 
