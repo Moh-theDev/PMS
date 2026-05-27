@@ -109,8 +109,12 @@ function InlineCreate({
   );
 }
 
-/* ── Main Sidebar ─────────────────────────────────────────────────────── */
-export function Sidebar() {
+interface SidebarProps {
+  sidebarOpen: boolean;
+  toggleSidebar: () => void;
+}
+
+export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarProps) {
   const { user, logout } = useAuthStore();
   const {
     lists,
@@ -187,17 +191,17 @@ export function Sidebar() {
   return (
     <aside className="w-60 bg-slate-50 border-r border-slate-200 flex flex-col h-screen sticky top-0 text-slate-600 select-none shrink-0">
 
-      {/* ── User section ───────────────────────────────────────────── */}
-      <div className="relative" ref={dropdownRef}>
+      {/* ── User section with Collapse trigger ─────────────────────── */}
+      <div className="relative flex items-center justify-between px-3 pt-3" ref={dropdownRef}>
         <div
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           className={cn(
-            'm-3 p-2.5 bg-white rounded-xl border flex items-center justify-between cursor-pointer hover:border-blue-200 hover:shadow-sm transition-all',
+            'flex-1 p-2 bg-white rounded-xl border flex items-center justify-between cursor-pointer hover:border-blue-200 hover:shadow-sm transition-all min-w-0',
             isDropdownOpen ? 'border-blue-300 ring-4 ring-blue-50' : 'border-slate-200'
           )}
         >
-          <div className="flex items-center gap-2.5">
-            <Avatar className="h-7 w-7 ring-2 ring-white">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Avatar className="h-7 w-7 ring-2 ring-white shrink-0">
               <AvatarImage src={user?.avatar} />
               <AvatarFallback className="bg-blue-100 text-blue-700 text-[10px] font-bold">
                 {user?.name?.charAt(0)}
@@ -212,14 +216,24 @@ export function Sidebar() {
           </div>
           <ChevronDown
             className={cn(
-              'h-3.5 w-3.5 text-slate-300 transition-transform duration-200',
+              'h-3.5 w-3.5 text-slate-300 transition-transform duration-200 shrink-0',
               isDropdownOpen && 'rotate-180 text-blue-500'
             )}
           />
         </div>
 
+        {/* Sidebar Collapse Button */}
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className="ml-2 h-9 w-9 bg-white border border-slate-200 hover:border-blue-200 hover:text-blue-600 rounded-xl shadow-2xs flex items-center justify-center shrink-0 cursor-pointer text-slate-400 hover:bg-slate-50 transition-all active:scale-95"
+          title="Collapse Sidebar"
+        >
+          <X className="h-4.5 w-4.5" />
+        </button>
+
         {isDropdownOpen && (
-          <div className="absolute top-[68px] left-3 right-3 z-50 bg-white border border-slate-100 rounded-xl shadow-xl shadow-slate-200/60 p-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="absolute top-[52px] left-3 right-12 z-50 bg-white border border-slate-100 rounded-xl shadow-xl shadow-slate-200/60 p-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-2 duration-150">
             <button
               onClick={() => { setIsProfileOpen(true); setIsDropdownOpen(false); }}
               className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors w-full text-left"

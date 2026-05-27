@@ -23,8 +23,6 @@ import {
   CheckCircle2, 
   Clock, 
   ChevronDown,
-  TrendingUp,
-  BarChart3, 
   LayoutGrid,
   Loader2,
   Filter,
@@ -34,26 +32,213 @@ import {
   Target,
   Flame,
   Zap,
-  Award
+  X
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+// Helper to format seconds into a friendly duration: e.g. "14h30m"
+const formatSecondsFriendly = (totalSeconds: number): string => {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (hours === 0 && minutes === 0) return '0m';
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h${minutes}m`;
+};
+
+// Returns a chronological anchor date for a task, spreading fallbacks based on task ID
+const getTaskAnchorDate = (t: Task): Date => {
+  if (t.latestEnd && !t.latestEnd.startsWith('0001-01-01')) {
+    return new Date(t.latestEnd);
+  }
+  if (t.deadline && !t.deadline.startsWith('0001-01-01')) {
+    return new Date(t.deadline);
+  }
+  if (t.earliestStart && !t.earliestStart.startsWith('0001-01-01')) {
+    return new Date(t.earliestStart);
+  }
+  // Soft fallback: Spread task IDs across the past 15 days to populate charts gracefully
+  const offsetDays = (t.id % 15);
+  const fallback = new Date();
+  fallback.setDate(fallback.getDate() - offsetDays);
+  return fallback;
+};
+
 // Custom Tooltip component for standard styling across Recharts components
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, sessions = [], tasks = [], showFocus = true, showTasks = true }: any) => {
   if (active && payload && payload.length) {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    // Dynamically calculate focus seconds and completed tasks for the hovered label/date to construct premium headers
+    let focusSeconds = 0;
+    let completedTasksCount = 0;
+    
+    // Find Focus duration metrics inside active payload first
+    const focusHoursPayload = payload.find((p: any) => 
+      p.name === 'Focused Hours' || 
+      p.name === 'Hours' || 
+      p.name === 'Focus Time' || 
+      p.name === 'Focused Time'
+    );
+    const focusMinsPayload = payload.find((p: any) => p.name === 'Focus Minutes' || p.name === 'Focus Time');
+    
+    if (showFocus) {
+      if (focusHoursPayload) {
+        focusSeconds = Math.round(Number(focusHoursPayload.value) * 3600);
+      } else if (focusMinsPayload) {
+        focusSeconds = Math.round(Number(focusMinsPayload.value) * 60);
+      } else {
+        // If the current chart does not plot focus, look up in the master sessions list
+        let matchingSessions: any[] = [];
+        const now = new Date();
+        
+        if (monthNames.includes(label)) {
+          matchingSessions = sessions.filter((s: any) => {
+            const d = new Date(s.startedAt || s.createdAt);
+            return d.getFullYear() === now.getFullYear() && monthNames[d.getMonth()] === label;
+          });
+        } else if (dayNames.includes(label)) {
+          const weekStart = new Date(now);
+          weekStart.setDate(now.getDate() - 7);
+          weekStart.setHours(0, 0, 0, 0);
+          matchingSessions = sessions.filter((s: any) => {
+            const d = new Date(s.startedAt || s.createdAt);
+            return d.getTime() >= weekStart.getTime() && dayNames[d.getDay()] === label;
+          });
+        } else if (typeof label === 'string' && label.includes(' ')) {
+          const [mName, dDay] = label.split(' ');
+          if (monthNames.includes(mName) && !isNaN(Number(dDay))) {
+            matchingSessions = sessions.filter((s: any) => {
+              const d = new Date(s.startedAt || s.createdAt);
+              return monthNames[d.getMonth()] === mName && d.getDate() === Number(dDay);
+            });
+          }
+        }
+        focusSeconds = matchingSessions.reduce((acc: number, s: any) => acc + s.accumulatedSeconds, 0);
+      }
+    }
+
+    if (showTasks) {
+      // Find Completed Task metrics inside payload or master tasks
+      const tasksCompletedPayload = payload.find((p: any) => 
+        p.name === 'Completed Tasks' || 
+        p.name === 'Total Completed' || 
+        p.name === 'Daily Completed' ||
+        p.name === 'Tasks Completed' ||
+        p.name === 'Completed'
+      );
+      
+      if (tasksCompletedPayload) {
+        completedTasksCount = Number(tasksCompletedPayload.value);
+      } else {
+        // Look up in master tasks
+        let matchingCompletedTasks: any[] = [];
+        const now = new Date();
+        
+        if (monthNames.includes(label)) {
+          matchingCompletedTasks = tasks.filter((t: any) => {
+            if (t.status !== 2) return false;
+            const d = getTaskAnchorDate(t);
+            return d.getFullYear() === now.getFullYear() && monthNames[d.getMonth()] === label;
+          });
+        } else if (dayNames.includes(label)) {
+          const weekStart = new Date(now);
+          weekStart.setDate(now.getDate() - 7);
+          weekStart.setHours(0, 0, 0, 0);
+          matchingCompletedTasks = tasks.filter((t: any) => {
+            if (t.status !== 2) return false;
+            const d = getTaskAnchorDate(t);
+            return d.getTime() >= weekStart.getTime() && dayNames[d.getDay()] === label;
+          });
+        } else if (typeof label === 'string' && label.includes(' ')) {
+          const [mName, dDay] = label.split(' ');
+          if (monthNames.includes(mName) && !isNaN(Number(dDay))) {
+            matchingCompletedTasks = tasks.filter((t: any) => {
+              if (t.status !== 2) return false;
+              const d = getTaskAnchorDate(t);
+              return monthNames[d.getMonth()] === mName && d.getDate() === Number(dDay);
+            });
+          }
+        }
+        completedTasksCount = matchingCompletedTasks.length;
+      }
+    }
+
+    const focusStr = (showFocus && focusSeconds > 0) ? formatSecondsFriendly(focusSeconds) : '';
+    const taskStr = (showTasks && completedTasksCount > 0) ? `${completedTasksCount} completed` : '';
+
+    let headerText = label;
+    if (focusStr && taskStr) {
+      headerText = `${label}, ${focusStr}, ${taskStr}`;
+    } else if (focusStr) {
+      headerText = `${label}, ${focusStr}`;
+    } else if (taskStr) {
+      headerText = `${label}, ${taskStr}`;
+    }
+
     return (
       <div className="bg-white/95 border border-slate-200/80 rounded-2xl shadow-xl p-3.5 flex flex-col gap-1.5 backdrop-blur-md">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{label}</span>
-        {payload.map((p: any, idx: number) => (
-          <div key={idx} className="flex items-center gap-2.5">
-            <div className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color || p.fill || '#3b82f6' }} />
-            <span className="text-xs font-bold text-slate-900 capitalize">
-              {p.name}: <span className="text-blue-600 font-extrabold">{p.value}</span>
-            </span>
-          </div>
-        ))}
+        <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{headerText}</span>
+        {payload.map((p: any, idx: number) => {
+          const isFocusItem = p.name === 'Focused Hours' || 
+                              p.name === 'Hours' || 
+                              p.name === 'Focus Time' || 
+                              p.name === 'Focused Time' || 
+                              p.name === 'Focus Minutes' ||
+                              p.name === 'Sessions' ||
+                              p.name === 'Focus Sessions';
+                              
+          const isTaskItem = p.name === 'Active Tasks' || 
+                             p.name === 'Completed Tasks' || 
+                             p.name === 'Cancelled Tasks' || 
+                             p.name === 'Daily Completed' || 
+                             p.name === 'Total Completed' ||
+                             p.name === 'Tasks Completed' ||
+                             p.name === 'In Progress' ||
+                             p.name === 'Cancelled' ||
+                             p.name === 'Completed';
+
+          if (isFocusItem && !showFocus) return null;
+          if (isTaskItem && !showTasks) return null;
+
+          let displayValue = p.value;
+          if (
+            p.name === 'Focused Hours' || 
+            p.name === 'Hours' || 
+            p.name === 'Focus Time' || 
+            p.name === 'Focused Time'
+          ) {
+            displayValue = formatSecondsFriendly(Math.round(Number(p.value) * 3600));
+          } else if (p.name === 'Focus Minutes') {
+            displayValue = formatSecondsFriendly(Math.round(Number(p.value) * 60));
+          } else if (p.name === 'Sessions' || p.name === 'Focus Sessions') {
+            displayValue = `${p.value} sessions`;
+          } else if (
+            p.name === 'Active Tasks' || 
+            p.name === 'Completed Tasks' || 
+            p.name === 'Cancelled Tasks' || 
+            p.name === 'Daily Completed' || 
+            p.name === 'Total Completed' ||
+            p.name === 'Tasks Completed' ||
+            p.name === 'In Progress' ||
+            p.name === 'Cancelled' ||
+            p.name === 'Completed'
+          ) {
+            displayValue = `${p.value} tasks`;
+          }
+          
+          return (
+            <div key={idx} className="flex items-center gap-2.5">
+              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color || p.fill || '#3b82f6' }} />
+              <span className="text-xs font-bold text-slate-700 capitalize">
+                {p.name}: <span className="text-blue-600 font-extrabold">{displayValue}</span>
+              </span>
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -62,8 +247,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 // Reusable card timeframe selection dropdown with custom date range fields
 interface CardTimeframeSelectorProps {
-  timeframe: 'day' | 'week' | 'month' | 'custom';
-  onChangeTimeframe: (tf: 'day' | 'week' | 'month' | 'custom') => void;
+  timeframe: 'week' | 'month' | 'year' | 'custom';
+  onChangeTimeframe: (tf: 'week' | 'month' | 'year' | 'custom') => void;
   customStart: string;
   customEnd: string;
   onChangeCustomRange: (start: string, end: string) => void;
@@ -91,7 +276,7 @@ function CardTimeframeSelector({
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="bg-slate-50 hover:bg-slate-100 border-slate-200/60 hover:border-slate-300 text-slate-600 font-bold rounded-xl h-9 px-4 shadow-2xs flex items-center justify-between gap-2 transition-all cursor-pointer">
           <span className="capitalize text-xs">
-            {timeframe === 'day' ? 'Today' : timeframe === 'week' ? 'Last 7 Days' : timeframe === 'month' ? 'Last 30 Days' : 'Custom'}
+            {timeframe === 'week' ? 'Week' : timeframe === 'month' ? 'Month' : timeframe === 'year' ? 'Year' : 'Custom Range'}
           </span>
           <ChevronDown className="h-3 w-3 opacity-50" />
         </Button>
@@ -101,23 +286,13 @@ function CardTimeframeSelector({
           <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase select-none">Timeframe</span>
           <button
             type="button"
-            onClick={() => { onChangeTimeframe('day'); setOpen(false); }}
-            className={cn(
-              "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer w-full text-left",
-              timeframe === 'day' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-            )}
-          >
-            Today
-          </button>
-          <button
-            type="button"
             onClick={() => { onChangeTimeframe('week'); setOpen(false); }}
             className={cn(
               "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer w-full text-left",
               timeframe === 'week' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
             )}
           >
-            Last 7 Days
+            Week
           </button>
           <button
             type="button"
@@ -127,7 +302,17 @@ function CardTimeframeSelector({
               timeframe === 'month' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
             )}
           >
-            Last 30 Days
+            Month
+          </button>
+          <button
+            type="button"
+            onClick={() => { onChangeTimeframe('year'); setOpen(false); }}
+            className={cn(
+              "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer w-full text-left",
+              timeframe === 'year' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+            )}
+          >
+            Year
           </button>
           
           <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-slate-100">
@@ -170,32 +355,258 @@ function CardTimeframeSelector({
   );
 }
 
-// Helper to format seconds into a friendly duration: e.g. "14h 30m"
-const formatSecondsFriendly = (totalSeconds: number): string => {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  if (hours === 0 && minutes === 0) return '0m';
-  if (hours === 0) return `${minutes}m`;
-  return `${hours}h ${minutes}m`;
-};
+interface FocusHeatmapProps {
+  timeframe: 'week' | 'month' | 'year' | 'custom';
+  customStart: string;
+  customEnd: string;
+  sessions: TimeEntry[];
+}
 
-// Returns a chronological anchor date for a task, spreading fallbacks based on task ID
-const getTaskAnchorDate = (t: Task): Date => {
-  if (t.latestEnd && !t.latestEnd.startsWith('0001-01-01')) {
-    return new Date(t.latestEnd);
+function FocusHeatmap({ timeframe, customStart, customEnd, sessions }: FocusHeatmapProps) {
+  const now = new Date();
+  
+  const days = React.useMemo(() => {
+    let datesList: Date[] = [];
+    
+    if (timeframe === 'week') {
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        datesList.push(d);
+      }
+    } else if (timeframe === 'month') {
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      for (let i = 1; i <= lastDay; i++) {
+        datesList.push(new Date(year, month, i));
+      }
+    } else if (timeframe === 'year') {
+      const year = now.getFullYear();
+      const firstDay = new Date(year, 0, 1);
+      const lastDay = new Date(year, 11, 31);
+      const curr = new Date(firstDay);
+      while (curr <= lastDay) {
+        datesList.push(new Date(curr));
+        curr.setDate(curr.getDate() + 1);
+      }
+    } else {
+      const start = customStart ? new Date(customStart) : new Date();
+      const end = customEnd ? new Date(customEnd) : new Date();
+      start.setHours(0,0,0,0);
+      end.setHours(23,59,59,999);
+      const curr = new Date(start);
+      while (curr <= end) {
+        datesList.push(new Date(curr));
+        curr.setDate(curr.getDate() + 1);
+      }
+    }
+    
+    return datesList;
+  }, [timeframe, customStart, customEnd]);
+
+  const focusTimeByDate = React.useMemo(() => {
+    const table: Record<string, number> = {};
+    sessions.forEach(s => {
+      const dateStr = new Date(s.startedAt || s.createdAt).toISOString().split('T')[0];
+      table[dateStr] = (table[dateStr] || 0) + s.accumulatedSeconds;
+    });
+    return table;
+  }, [sessions]);
+
+  const getColorClass = (seconds: number) => {
+    if (!seconds || seconds <= 0) return 'bg-slate-100 border-slate-200/20';
+    const hours = seconds / 3600;
+    if (hours <= 1) return 'bg-blue-50 border-blue-100';
+    if (hours <= 3) return 'bg-blue-200 border-blue-300';
+    if (hours <= 5) return 'bg-blue-400 border-blue-500';
+    return 'bg-blue-600 border-blue-700';
+  };
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  if (timeframe === 'week') {
+    return (
+      <div className="flex flex-col gap-6 w-full h-full justify-center">
+        <div className="flex items-center justify-around gap-2.5 py-4 max-w-lg mx-auto w-full select-none">
+          {days.map(d => {
+            const dStr = d.toISOString().split('T')[0];
+            const seconds = focusTimeByDate[dStr] || 0;
+            const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+            return (
+              <div key={dStr} className="flex flex-col items-center gap-2 group relative">
+                <span className="text-[10px] font-bold text-slate-400">{dayName}</span>
+                <div 
+                  className={cn(
+                    "w-9 h-9 rounded-xl border transition-all duration-300 cursor-pointer shadow-2xs hover:scale-110",
+                    getColorClass(seconds)
+                  )}
+                />
+                <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-50">
+                  <div className="bg-slate-900 text-white text-[10px] font-black py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap">
+                    {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: {formatSecondsFriendly(seconds)}
+                  </div>
+                  <div className="w-1.5 h-1.5 bg-slate-900 rotate-45 -mt-1" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <HeatmapLegend />
+      </div>
+    );
   }
-  if (t.deadline && !t.deadline.startsWith('0001-01-01')) {
-    return new Date(t.deadline);
+
+  if (timeframe === 'month') {
+    const firstDayIndex = new Date(days[0].getFullYear(), days[0].getMonth(), 1).getDay();
+    const paddingBlocks = Array.from({ length: firstDayIndex });
+    
+    return (
+      <div className="flex flex-col gap-6 w-full h-full justify-center">
+        <div className="grid grid-cols-7 gap-2.5 max-w-sm mx-auto py-2 select-none">
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+            <div key={`header-${i}`} className="text-center text-[10px] font-black text-slate-400 w-8">
+              {day}
+            </div>
+          ))}
+          
+          {paddingBlocks.map((_, i) => (
+            <div key={`pad-${i}`} className="w-8 h-8 opacity-0" />
+          ))}
+          
+          {days.map(d => {
+            const dStr = d.toISOString().split('T')[0];
+            const seconds = focusTimeByDate[dStr] || 0;
+            return (
+              <div key={dStr} className="group relative flex justify-center items-center">
+                <div 
+                  className={cn(
+                    "w-8 h-8 rounded-lg border transition-all duration-300 cursor-pointer flex items-center justify-center text-[10px] font-bold shadow-2xs hover:scale-110",
+                    getColorClass(seconds),
+                    seconds > 0 ? "text-slate-800" : "text-slate-400"
+                  )}
+                >
+                  {d.getDate()}
+                </div>
+                <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-50">
+                  <div className="bg-slate-900 text-white text-[10px] font-black py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap">
+                    {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: {formatSecondsFriendly(seconds)}
+                  </div>
+                  <div className="w-1.5 h-1.5 bg-slate-900 rotate-45 -mt-1" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <HeatmapLegend />
+      </div>
+    );
   }
-  if (t.earliestStart && !t.earliestStart.startsWith('0001-01-01')) {
-    return new Date(t.earliestStart);
-  }
-  // Soft fallback: Spread task IDs across the past 15 days to populate charts gracefully
-  const offsetDays = (t.id % 15);
-  const fallback = new Date();
-  fallback.setDate(fallback.getDate() - offsetDays);
-  return fallback;
-};
+
+  // Timeframe: Year/Custom contribution grid
+  const weekGrid = React.useMemo(() => {
+    const grid: Date[][] = [];
+    let currentWeek: Date[] = [];
+    const startDay = days[0];
+    const leadingEmptyCount = startDay.getDay();
+    const firstWeek: (Date | null)[] = Array(leadingEmptyCount).fill(null);
+    
+    days.forEach(d => {
+      if (firstWeek.length < 7) {
+        firstWeek.push(d);
+        if (firstWeek.length === 7) {
+          grid.push(firstWeek as Date[]);
+        }
+      } else {
+        currentWeek.push(d);
+        if (currentWeek.length === 7) {
+          grid.push(currentWeek);
+          currentWeek = [];
+        }
+      }
+    });
+    
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push(null as any);
+      }
+      grid.push(currentWeek);
+    }
+    
+    return grid;
+  }, [days]);
+
+  return (
+    <div className="flex flex-col gap-6 w-full h-full justify-center">
+      <div className="flex items-start gap-1 overflow-x-auto py-2 scrollbar-thin select-none max-w-full">
+        <div className="flex flex-col justify-around h-[84px] text-[8px] font-bold text-slate-400 pr-1.5 pt-1">
+          <span>Sun</span>
+          <span>Tue</span>
+          <span>Thu</span>
+          <span>Sat</span>
+        </div>
+
+        <div className="flex gap-1">
+          {weekGrid.map((week, weekIdx) => {
+            const firstValidDay = week.find(d => d !== null);
+            const showMonthLabel = firstValidDay && firstValidDay.getDate() <= 7 && firstValidDay.getDay() === 0;
+            
+            return (
+              <div key={`wk-${weekIdx}`} className="flex flex-col gap-1 relative">
+                {showMonthLabel && (
+                  <span className="absolute -top-3.5 left-0 text-[8px] font-black text-slate-400 whitespace-nowrap">
+                    {monthNames[firstValidDay.getMonth()]}
+                  </span>
+                )}
+                
+                {week.map((day, dayIdx) => {
+                  if (!day) return <div key={`day-${dayIdx}`} className="w-2.5 h-2.5 opacity-0 rounded-xs" />;
+                  
+                  const dStr = day.toISOString().split('T')[0];
+                  const seconds = focusTimeByDate[dStr] || 0;
+                  
+                  return (
+                    <div key={dStr} className="group relative">
+                      <div 
+                        className={cn(
+                          "w-2.5 h-2.5 rounded-xs border transition-all duration-300 cursor-pointer shadow-2xs hover:scale-125",
+                          getColorClass(seconds)
+                        )}
+                      />
+                      <div className="absolute bottom-full mb-1.5 hidden group-hover:flex flex-col items-center z-50 left-1/2 transform -translate-x-1/2">
+                        <div className="bg-slate-900 text-white text-[9px] font-black py-1 px-2.5 rounded-md shadow-xl whitespace-nowrap">
+                          {day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: {formatSecondsFriendly(seconds)}
+                        </div>
+                        <div className="w-1 h-1 bg-slate-900 rotate-45 -mt-0.5" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <HeatmapLegend />
+    </div>
+  );
+}
+
+function HeatmapLegend() {
+  return (
+    <div className="flex items-center gap-3.5 justify-center mt-2.5 py-1 text-[9px] font-black text-slate-400 select-none uppercase tracking-wider">
+      <span>Less</span>
+      <div className="flex gap-1 items-center">
+        <div className="w-2.5 h-2.5 rounded-xs border bg-slate-100 border-slate-200/20" title="0m focus" />
+        <div className="w-2.5 h-2.5 rounded-xs border bg-blue-50 border-blue-100" title="0-1h focus" />
+        <div className="w-2.5 h-2.5 rounded-xs border bg-blue-200 border-blue-300" title="1-3h focus" />
+        <div className="w-2.5 h-2.5 rounded-xs border bg-blue-400 border-blue-500" title="3-5h focus" />
+        <div className="w-2.5 h-2.5 rounded-xs border bg-blue-600 border-blue-700" title=">5h focus" />
+      </div>
+      <span>More</span>
+    </div>
+  );
+}
 
 export function AnalyticsView() {
   const { tasks, categories, tags, fetchTasks, fetchCategories, fetchTags } = useTaskStore();
@@ -218,47 +629,40 @@ export function AnalyticsView() {
 
   // --- CARD INDEPENDENT FILTER STATES ---
   
-  // Overview: Activity Summary
-  const [overviewActivityTimeframe, setOverviewActivityTimeframe] = React.useState<'day' | 'week' | 'month' | 'custom'>('week');
-  const [overviewActivityCustomStart, setOverviewActivityCustomStart] = React.useState(defaultStartDate);
-  const [overviewActivityCustomEnd, setOverviewActivityCustomEnd] = React.useState(defaultEndDate);
-  const [overviewActivityHover, setOverviewActivityHover] = React.useState<number | null>(null);
+  // Overview: Completed Tasks Overview Chart
+  const [overviewTasksTimeframe, setOverviewTasksTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('week');
+  const [overviewTasksCustomStart, setOverviewTasksCustomStart] = React.useState(defaultStartDate);
+  const [overviewTasksCustomEnd, setOverviewTasksCustomEnd] = React.useState(defaultEndDate);
+  const [overviewTasksBarHover, setOverviewTasksBarHover] = React.useState<number | null>(null);
 
-  // Overview: Daily Active Rhythm
-  const [overviewRhythmTimeframe, setOverviewRhythmTimeframe] = React.useState<'day' | 'week' | 'month' | 'custom'>('week');
-  const [overviewRhythmCustomStart, setOverviewRhythmCustomStart] = React.useState(defaultStartDate);
-  const [overviewRhythmCustomEnd, setOverviewRhythmCustomEnd] = React.useState(defaultEndDate);
-  
-  // Tasks: Task Status & Volume
-  const [tasksVolumeTimeframe, setTasksVolumeTimeframe] = React.useState<'day' | 'week' | 'month' | 'custom'>('week');
+  // Overview: Focus Hours Overview Chart
+  const [overviewFocusTimeframe, setOverviewFocusTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('week');
+  const [overviewFocusCustomStart, setOverviewFocusCustomStart] = React.useState(defaultStartDate);
+  const [overviewFocusCustomEnd, setOverviewFocusCustomEnd] = React.useState(defaultEndDate);
+
+  // Overview Hover Scale State
+  const [overviewHover, setOverviewHover] = React.useState<'task' | 'focus' | null>(null);
+
+  // Tasks: Task Progress Breakdown Chart
+  const [tasksVolumeTimeframe, setTasksVolumeTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('week');
   const [tasksVolumeCustomStart, setTasksVolumeCustomStart] = React.useState(defaultStartDate);
   const [tasksVolumeCustomEnd, setTasksVolumeCustomEnd] = React.useState(defaultEndDate);
   const [tasksVolumeHover, setTasksVolumeHover] = React.useState<number | null>(null);
 
-  // Tasks: Completion Ratio
-  const [tasksRatioTimeframe, setTasksRatioTimeframe] = React.useState<'day' | 'week' | 'month' | 'custom'>('week');
+  // Tasks: Completion Rate Card
+  const [tasksRatioTimeframe, setTasksRatioTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('week');
   const [tasksRatioCustomStart, setTasksRatioCustomStart] = React.useState(defaultStartDate);
   const [tasksRatioCustomEnd, setTasksRatioCustomEnd] = React.useState(defaultEndDate);
   const [tasksRatioCategory, setTasksRatioCategory] = React.useState<number | 'all'>('all');
-  const [tasksRatioPriority, setTasksRatioPriority] = React.useState<'all' | 'high' | 'medium' | 'low'>('all');
+  const [tasksRatioTag, setTasksRatioTag] = React.useState<string | 'all'>('all');
   const [ratioCatOpen, setRatioCatOpen] = React.useState(false);
-  const [ratioPrioOpen, setRatioPrioOpen] = React.useState(false);
+  const [ratioTagOpen, setRatioTagOpen] = React.useState(false);
 
-  // Tasks: Completed Tasks Trend
-  const [tasksTrendTimeframe, setTasksTrendTimeframe] = React.useState<'day' | 'week' | 'month' | 'custom'>('week');
-  const [tasksTrendCustomStart, setTasksTrendCustomStart] = React.useState(defaultStartDate);
-  const [tasksTrendCustomEnd, setTasksTrendCustomEnd] = React.useState(defaultEndDate);
-  const [tasksTrendCategory, setTasksTrendCategory] = React.useState<number | 'all'>('all');
-  const [trendCatOpen, setTrendCatOpen] = React.useState(false);
+  // Tasks Hover Scale State
+  const [tasksHover, setTasksHover] = React.useState<'breakdown' | 'rate' | null>(null);
 
-  // Tasks: Tasks by Priority
-  const [tasksPriorityTimeframe, setTasksPriorityTimeframe] = React.useState<'day' | 'week' | 'month' | 'custom'>('week');
-  const [tasksPriorityCustomStart, setTasksPriorityCustomStart] = React.useState(defaultStartDate);
-  const [tasksPriorityCustomEnd, setTasksPriorityCustomEnd] = React.useState(defaultEndDate);
-  const [tasksPriorityHover, setTasksPriorityHover] = React.useState<number | null>(null);
-
-  // Focus: Focus Pie Chart
-  const [focusPieTimeframe, setFocusPieTimeframe] = React.useState<'day' | 'week' | 'month' | 'custom'>('week');
+  // Focus: Focus Distribution Pie Chart
+  const [focusPieTimeframe, setFocusPieTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('week');
   const [focusPieCustomStart, setFocusPieCustomStart] = React.useState(defaultStartDate);
   const [focusPieCustomEnd, setFocusPieCustomEnd] = React.useState(defaultEndDate);
   const [focusPieCategory, setFocusPieCategory] = React.useState<number | 'all'>('all');
@@ -266,22 +670,25 @@ export function AnalyticsView() {
   const [focusPieCatOpen, setFocusPieCatOpen] = React.useState(false);
   const [focusPieTagOpen, setFocusPieTagOpen] = React.useState(false);
 
-  // Focus: Focused Hours Trend
-  const [focusTrendTimeframe, setFocusTrendTimeframe] = React.useState<'day' | 'week' | 'month' | 'custom'>('week');
+  // Focus: Focus Time Trend Chart
+  const [focusTrendTimeframe, setFocusTrendTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('week');
   const [focusTrendCustomStart, setFocusTrendCustomStart] = React.useState(defaultStartDate);
   const [focusTrendCustomEnd, setFocusTrendCustomEnd] = React.useState(defaultEndDate);
 
+  // Focus: Heatmap Card
+  const [focusHeatmapTimeframe, setFocusHeatmapTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('week');
+  const [focusHeatmapCustomStart, setFocusHeatmapCustomStart] = React.useState(defaultStartDate);
+  const [focusHeatmapCustomEnd, setFocusHeatmapCustomEnd] = React.useState(defaultEndDate);
+
   // Focus: Session Length Buckets
-  const [focusLengthTimeframe, setFocusLengthTimeframe] = React.useState<'day' | 'week' | 'month' | 'custom'>('week');
+  const [focusLengthTimeframe, setFocusLengthTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('week');
   const [focusLengthCustomStart, setFocusLengthCustomStart] = React.useState(defaultStartDate);
   const [focusLengthCustomEnd, setFocusLengthCustomEnd] = React.useState(defaultEndDate);
   const [focusLengthHover, setFocusLengthHover] = React.useState<number | null>(null);
 
-  // Focus: Focus Time by Category
-  const [focusCatTimeframe, setFocusCatTimeframe] = React.useState<'day' | 'week' | 'month' | 'custom'>('week');
-  const [focusCatCustomStart, setFocusCatCustomStart] = React.useState(defaultStartDate);
-  const [focusCatCustomEnd, setFocusCatCustomEnd] = React.useState(defaultEndDate);
-  const [focusCatHover, setFocusCatHover] = React.useState<number | null>(null);
+  // Focus Hover Scale States
+  const [focusRow1Hover, setFocusRow1Hover] = React.useState<'task' | 'trend' | null>(null);
+  const [focusRow2Hover, setFocusRow2Hover] = React.useState<'heatmap' | 'durations' | null>(null);
 
   // --- API DATA INGESTION ---
   React.useEffect(() => {
@@ -303,21 +710,13 @@ export function AnalyticsView() {
   
   // High-performance Date Filter builder
   const getDateFilter = React.useCallback((
-    timeframe: 'day' | 'week' | 'month' | 'custom',
+    timeframe: 'week' | 'month' | 'year' | 'custom',
     customStart: string,
     customEnd: string
   ) => {
     const now = new Date();
     return (date: Date) => {
       const targetTime = date.getTime();
-      
-      if (timeframe === 'day') {
-        const todayStart = new Date(now);
-        todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date(now);
-        todayEnd.setHours(23, 59, 59, 999);
-        return targetTime >= todayStart.getTime() && targetTime <= todayEnd.getTime();
-      }
       
       if (timeframe === 'week') {
         const weekStart = new Date(now);
@@ -329,12 +728,17 @@ export function AnalyticsView() {
       }
       
       if (timeframe === 'month') {
-        const monthStart = new Date(now);
-        monthStart.setDate(now.getDate() - 30);
-        monthStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date(now);
-        todayEnd.setHours(23, 59, 59, 999);
-        return targetTime >= monthStart.getTime() && targetTime <= todayEnd.getTime();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const monthStart = new Date(year, month, 1, 0, 0, 0, 0);
+        const monthEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
+        return targetTime >= monthStart.getTime() && targetTime <= monthEnd.getTime();
+      }
+      
+      if (timeframe === 'year') {
+        const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+        const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+        return targetTime >= yearStart.getTime() && targetTime <= yearEnd.getTime();
       }
       
       if (timeframe === 'custom') {
@@ -351,34 +755,11 @@ export function AnalyticsView() {
 
   // Dynamic X-axis Chart aggregate binning generator
   const generateChartDataPoints = React.useCallback((
-    timeframe: 'day' | 'week' | 'month' | 'custom',
+    timeframe: 'week' | 'month' | 'year' | 'custom',
     customStart: string,
     customEnd: string
   ) => {
     const now = new Date();
-    
-    if (timeframe === 'day') {
-      return [
-        { label: '12am', minHour: 0, maxHour: 3 },
-        { label: '3am', minHour: 3, maxHour: 6 },
-        { label: '6am', minHour: 6, maxHour: 9 },
-        { label: '9am', minHour: 9, maxHour: 12 },
-        { label: '12pm', minHour: 12, maxHour: 15 },
-        { label: '3pm', minHour: 15, maxHour: 18 },
-        { label: '6pm', minHour: 18, maxHour: 21 },
-        { label: '9pm', minHour: 21, maxHour: 24 },
-      ].map(item => ({
-        key: item.label,
-        label: item.label,
-        filter: (d: Date) => {
-          const isToday = d.getFullYear() === now.getFullYear() &&
-                          d.getMonth() === now.getMonth() &&
-                          d.getDate() === now.getDate();
-          const hour = d.getHours();
-          return isToday && hour >= item.minHour && hour < item.maxHour;
-        }
-      }));
-    }
     
     if (timeframe === 'week') {
       const days = [];
@@ -400,21 +781,38 @@ export function AnalyticsView() {
     }
     
     if (timeframe === 'month') {
-      const periods = [
-        { label: 'Week 1', startDay: 28, endDay: 22 },
-        { label: 'Week 2', startDay: 21, endDay: 15 },
-        { label: 'Week 3', startDay: 14, endDay: 8 },
-        { label: 'Week 4', startDay: 7, endDay: 0 },
-      ];
-      return periods.map(p => ({
-        key: p.label,
-        label: p.label,
-        filter: (date: Date) => {
-          const diffTime = now.getTime() - date.getTime();
-          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-          return diffDays >= p.endDay && diffDays <= p.startDay;
-        }
-      }));
+      const days = [];
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const lastDay = new Date(year, month + 1, 0);
+      const totalDays = lastDay.getDate();
+      
+      for (let i = 1; i <= totalDays; i++) {
+        const d = new Date(year, month, i);
+        days.push(d);
+      }
+      
+      return days.map(d => {
+        const dStr = d.toISOString().split('T')[0];
+        const label = `${monthNames[d.getMonth()]} ${d.getDate()}`;
+        return {
+          key: dStr,
+          label,
+          filter: (date: Date) => date.toISOString().split('T')[0] === dStr
+        };
+      });
+    }
+
+    if (timeframe === 'year') {
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return monthNames.map((mName, idx) => {
+        return {
+          key: `month-${idx}`,
+          label: mName,
+          filter: (date: Date) => date.getFullYear() === now.getFullYear() && date.getMonth() === idx
+        };
+      });
     }
     
     // Custom Timeframe Range Segmenting
@@ -510,68 +908,39 @@ export function AnalyticsView() {
 
   // --- CHART DATA GENERATION FUNCTIONS ---
 
-  // Overview View: Activity Summary (Dual Bar Chart)
-  const overviewActivityData = React.useMemo(() => {
-    const bins = generateChartDataPoints(overviewActivityTimeframe, overviewActivityCustomStart, overviewActivityCustomEnd);
+  // Overview View: Completed Tasks (Split Card 1)
+  const overviewTasksData = React.useMemo(() => {
+    const bins = generateChartDataPoints(overviewTasksTimeframe, overviewTasksCustomStart, overviewTasksCustomEnd);
     return bins.map(bin => {
-      const binSessions = sessions.filter(s => {
-        const d = new Date(s.startedAt || s.createdAt);
-        return bin.filter(d);
-      });
       const binCompleted = tasks.filter(t => {
         if (t.status !== 2) return false;
         const d = getTaskAnchorDate(t);
         return bin.filter(d);
       });
+      return {
+        name: bin.label,
+        'Tasks Completed': binCompleted.length
+      };
+    });
+  }, [tasks, overviewTasksTimeframe, overviewTasksCustomStart, overviewTasksCustomEnd, generateChartDataPoints]);
 
+  // Overview View: Focus Hours (Split Card 2)
+  const overviewFocusData = React.useMemo(() => {
+    const bins = generateChartDataPoints(overviewFocusTimeframe, overviewFocusCustomStart, overviewFocusCustomEnd);
+    return bins.map(bin => {
+      const binSessions = sessions.filter(s => {
+        const d = new Date(s.startedAt || s.createdAt);
+        return bin.filter(d);
+      });
       const totalSeconds = binSessions.reduce((acc, s) => acc + s.accumulatedSeconds, 0);
       return {
         name: bin.label,
-        'Focused Hours': parseFloat((totalSeconds / 3600).toFixed(2)),
-        'Completed Tasks': binCompleted.length
+        'Focus Time': parseFloat((totalSeconds / 3600).toFixed(2))
       };
     });
-  }, [sessions, tasks, overviewActivityTimeframe, overviewActivityCustomStart, overviewActivityCustomEnd, generateChartDataPoints]);
+  }, [sessions, overviewFocusTimeframe, overviewFocusCustomStart, overviewFocusCustomEnd, generateChartDataPoints]);
 
-  // Overview View: Hourly Active Rhythm (Area Chart)
-  const overviewRhythmData = React.useMemo(() => {
-    const filter = getDateFilter(overviewRhythmTimeframe, overviewRhythmCustomStart, overviewRhythmCustomEnd);
-    
-    // Filter sessions & completed tasks in range
-    const inRangeSessions = sessions.filter(s => filter(new Date(s.startedAt || s.createdAt)));
-    const inRangeCompleted = tasks.filter(t => t.status === 2 && filter(getTaskAnchorDate(t)));
-
-    const hourlyBlocks = [
-      { label: '12am - 3am', minHour: 0, maxHour: 3 },
-      { label: '3am - 6am', minHour: 3, maxHour: 6 },
-      { label: '6am - 9am', minHour: 6, maxHour: 9 },
-      { label: '9am - 12pm', minHour: 9, maxHour: 12 },
-      { label: '12pm - 3pm', minHour: 12, maxHour: 15 },
-      { label: '3pm - 6pm', minHour: 15, maxHour: 18 },
-      { label: '6pm - 9pm', minHour: 18, maxHour: 21 },
-      { label: '9pm - 12am', minHour: 21, maxHour: 24 }
-    ];
-
-    return hourlyBlocks.map(block => {
-      const blockSessions = inRangeSessions.filter(s => {
-        const h = new Date(s.startedAt || s.createdAt).getHours();
-        return h >= block.minHour && h < block.maxHour;
-      });
-      const blockTasks = inRangeCompleted.filter(t => {
-        const h = getTaskAnchorDate(t).getHours();
-        return h >= block.minHour && h < block.maxHour;
-      });
-
-      const seconds = blockSessions.reduce((acc, s) => acc + s.accumulatedSeconds, 0);
-      return {
-        name: block.label,
-        'Focus Minutes': Math.round(seconds / 60),
-        'Task Completions': blockTasks.length
-      };
-    });
-  }, [sessions, tasks, overviewRhythmTimeframe, overviewRhythmCustomStart, overviewRhythmCustomEnd, getDateFilter]);
-
-  // Tasks View: Status & Volume (Stacked Bar Chart)
+  // Tasks View: Status & Volume (Stacked Bar Chart with warm names)
   const tasksVolumeData = React.useMemo(() => {
     const bins = generateChartDataPoints(tasksVolumeTimeframe, tasksVolumeCustomStart, tasksVolumeCustomEnd);
     return bins.map(bin => {
@@ -583,9 +952,9 @@ export function AnalyticsView() {
 
       return {
         name: bin.label,
-        'Active Tasks': active,
-        'Completed Tasks': completed,
-        'Cancelled Tasks': cancelled
+        'In Progress': active,
+        'Completed': completed,
+        'Cancelled': cancelled
       };
     });
   }, [tasks, tasksVolumeTimeframe, tasksVolumeCustomStart, tasksVolumeCustomEnd, generateChartDataPoints]);
@@ -597,11 +966,9 @@ export function AnalyticsView() {
     const filtered = tasks.filter(t => {
       // Category filter
       if (tasksRatioCategory !== 'all' && t.categoryId !== tasksRatioCategory) return false;
-      // Priority filter
-      if (tasksRatioPriority !== 'all') {
-        if (tasksRatioPriority === 'high' && t.priority < 8) return false;
-        if (tasksRatioPriority === 'medium' && (t.priority < 4 || t.priority > 7)) return false;
-        if (tasksRatioPriority === 'low' && t.priority > 3) return false;
+      // Tag filter
+      if (tasksRatioTag !== 'all') {
+        if (!t.tags || !t.tags.includes(tasksRatioTag)) return false;
       }
       // Timeframe
       return filter(getTaskAnchorDate(t));
@@ -614,52 +981,7 @@ export function AnalyticsView() {
     const ratio = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     return { total, completed, active, cancelled, ratio };
-  }, [tasks, tasksRatioTimeframe, tasksRatioCustomStart, tasksRatioCustomEnd, tasksRatioCategory, tasksRatioPriority, getDateFilter]);
-
-  // Tasks View: Completed Tasks Cumulative Trend (Area Chart)
-  const completedTasksTrendData = React.useMemo(() => {
-    const bins = generateChartDataPoints(tasksTrendTimeframe, tasksTrendCustomStart, tasksTrendCustomEnd);
-    
-    let cumulative = 0;
-    return bins.map(bin => {
-      const binCompleted = tasks.filter(t => {
-        if (t.status !== 2) return false;
-        if (tasksTrendCategory !== 'all' && t.categoryId !== tasksTrendCategory) return false;
-        return bin.filter(getTaskAnchorDate(t));
-      }).length;
-
-      cumulative += binCompleted;
-      return {
-        name: bin.label,
-        'Daily Completed': binCompleted,
-        'Total Completed': cumulative
-      };
-    });
-  }, [tasks, tasksTrendTimeframe, tasksTrendCustomStart, tasksTrendCustomEnd, tasksTrendCategory, generateChartDataPoints]);
-
-  // Tasks View: Tasks by Priority (Stacked Horizontal Bar Chart)
-  const tasksByPriorityData = React.useMemo(() => {
-    const filter = getDateFilter(tasksPriorityTimeframe, tasksPriorityCustomStart, tasksPriorityCustomEnd);
-    const active = tasks.filter(t => filter(getTaskAnchorDate(t)));
-
-    const categories = [
-      { name: 'High (8-10)', min: 8, max: 10 },
-      { name: 'Medium (4-7)', min: 4, max: 7 },
-      { name: 'Low (1-3)', min: 1, max: 3 }
-    ];
-
-    return categories.map(cat => {
-      const catTasks = active.filter(t => t.priority >= cat.min && t.priority <= cat.max);
-      const completed = catTasks.filter(t => t.status === 2).length;
-      const todo = catTasks.filter(t => t.status === 0 || t.status === 1 || t.status === 4).length;
-
-      return {
-        name: cat.name,
-        'Completed Tasks': completed,
-        'Active Tasks': todo
-      };
-    });
-  }, [tasks, tasksPriorityTimeframe, tasksPriorityCustomStart, tasksPriorityCustomEnd, getDateFilter]);
+  }, [tasks, tasksRatioTimeframe, tasksRatioCustomStart, tasksRatioCustomEnd, tasksRatioCategory, tasksRatioTag, getDateFilter]);
 
   // Focus View: Interactive Focus Pie Chart
   const focusPieData = React.useMemo(() => {
@@ -736,7 +1058,7 @@ export function AnalyticsView() {
 
       return {
         name: bin.label,
-        'Focused Hours': parseFloat((seconds / 3600).toFixed(2))
+        'Focused Time': parseFloat((seconds / 3600).toFixed(2))
       };
     });
   }, [sessions, focusTrendTimeframe, focusTrendCustomStart, focusTrendCustomEnd, generateChartDataPoints]);
@@ -762,37 +1084,6 @@ export function AnalyticsView() {
       };
     });
   }, [sessions, focusLengthTimeframe, focusLengthCustomStart, focusLengthCustomEnd, getDateFilter]);
-
-  // Focus View: Focus Time by Category (Bar Chart with matching colors)
-  const focusTimeByCategoryData = React.useMemo(() => {
-    const filter = getDateFilter(focusCatTimeframe, focusCatCustomStart, focusCatCustomEnd);
-    const rangeSessions = sessions.filter(s => filter(new Date(s.startedAt || s.createdAt)));
-
-    const accumulations: Record<string, { seconds: number; color: string }> = {};
-    
-    // Initialize standard categories for consistency
-    categories.forEach(c => {
-      accumulations[c.name] = { seconds: 0, color: c.color || '#3b82f6' };
-    });
-    accumulations['Inbox/Uncategorized'] = { seconds: 0, color: '#8b919f' };
-
-    rangeSessions.forEach(s => {
-      const assocTask = tasks.find(t => t.id === s.taskId);
-      if (!assocTask || !assocTask.categoryId) {
-        accumulations['Inbox/Uncategorized'].seconds += s.accumulatedSeconds;
-      } else {
-        const cat = categories.find(c => c.id === assocTask.categoryId);
-        const name = cat ? cat.name : 'Inbox/Uncategorized';
-        accumulations[name].seconds += s.accumulatedSeconds;
-      }
-    });
-
-    return Object.entries(accumulations).map(([name, val]) => ({
-      name,
-      'Hours': parseFloat((val.seconds / 3600).toFixed(2)),
-      color: val.color
-    })).filter(item => item.Hours > 0 || item.name !== 'Inbox/Uncategorized'); // Only show uncategorized if it has values
-  }, [sessions, tasks, categories, focusCatTimeframe, focusCatCustomStart, focusCatCustomEnd, getDateFilter]);
 
   // --- STAT CARD TOP ROW AGGREGATES ---
   const headerStats = React.useMemo(() => {
@@ -872,25 +1163,25 @@ export function AnalyticsView() {
           {/* Quick High-Level Stats Dashboard */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             <StatCard 
-              title="All-Time Completions" 
+              title="Tasks Completed" 
               value={String(headerStats.completions)} 
               icon={CheckCircle2} 
               iconColor="text-emerald-600 bg-emerald-50"
             />
             <StatCard 
-              title="All-Time Focus Hours" 
+              title="Total Time Focused" 
               value={headerStats.focusTime} 
               icon={Clock} 
               iconColor="text-blue-600 bg-blue-50"
             />
             <StatCard 
-              title="Active Work Queue" 
+              title="Tasks Active" 
               value={String(headerStats.activeTasks)} 
               icon={Flame} 
               iconColor="text-orange-600 bg-orange-50"
             />
             <StatCard 
-              title="Total Categories" 
+              title="Total Lists" 
               value={String(headerStats.categories)} 
               icon={LayoutGrid} 
               iconColor="text-purple-600 bg-purple-50"
@@ -904,53 +1195,46 @@ export function AnalyticsView() {
             {activeTab === 'overview' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 pb-12">
                 
-                {/* Activity Summary Dual Bar Chart Card */}
-                <Card className="lg:col-span-2 bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden">
+                {/* Completed Tasks Overview Card (Card 1) */}
+                <Card 
+                  onMouseEnter={() => setOverviewHover('task')}
+                  onMouseLeave={() => setOverviewHover(null)}
+                  className={cn(
+                    "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out",
+                    overviewHover === 'focus' ? "lg:col-span-1" : "lg:col-span-2"
+                  )}
+                >
                   <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
-                    <div>
-                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <BarChart3 className="h-5 w-5 text-blue-600" />
-                        Activity Summary
-                      </CardTitle>
-                      <CardDescription className="text-xs text-slate-400">Comparing focus time against completed items</CardDescription>
-                    </div>
+                    <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                      Completed Tasks
+                    </CardTitle>
                     <CardTimeframeSelector 
-                      timeframe={overviewActivityTimeframe}
-                      onChangeTimeframe={setOverviewActivityTimeframe}
-                      customStart={overviewActivityCustomStart}
-                      customEnd={overviewActivityCustomEnd}
-                      onChangeCustomRange={(s: string, e: string) => { setOverviewActivityCustomStart(s); setOverviewActivityCustomEnd(e); }}
+                      timeframe={overviewTasksTimeframe}
+                      onChangeTimeframe={setOverviewTasksTimeframe}
+                      customStart={overviewTasksCustomStart}
+                      customEnd={overviewTasksCustomEnd}
+                      onChangeCustomRange={(s: string, e: string) => { setOverviewTasksCustomStart(s); setOverviewTasksCustomEnd(e); }}
                     />
                   </CardHeader>
                   <CardContent className="h-[320px] p-6 md:p-8 pt-0">
-                    {overviewActivityData.every(d => d['Focused Hours'] === 0 && d['Completed Tasks'] === 0) ? (
-                      <EmptyStateIcon Icon={BarChart3} />
+                    {overviewTasksData.every(d => d['Tasks Completed'] === 0) ? (
+                      <EmptyStateIcon Icon={CheckCircle2} />
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={overviewActivityData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+                        <BarChart data={overviewTasksData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} dy={5} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} />
-                          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(37,99,235,0.08)', radius: 8 }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} tickFormatter={(val) => Math.round(val).toString()} />
+                          <Tooltip content={<CustomTooltip sessions={sessions} tasks={tasks} timeframe={overviewTasksTimeframe} showFocus={true} showTasks={true} />} cursor={{ fill: 'rgba(16,185,129,0.08)', radius: 8 }} />
                           <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-                          <Bar dataKey="Focused Hours" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={30}>
-                            {overviewActivityData.map((_, idx) => (
+                          <Bar dataKey="Tasks Completed" name="Tasks Completed" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={30}>
+                            {overviewTasksData.map((_, idx) => (
                               <Cell 
-                                key={`cell-focus-${idx}`}
-                                fill={overviewActivityHover === idx ? '#2563eb' : '#3b82f6'}
-                                onMouseEnter={() => setOverviewActivityHover(idx)}
-                                onMouseLeave={() => setOverviewActivityHover(null)}
-                                className="transition-all duration-200 cursor-pointer"
-                              />
-                            ))}
-                          </Bar>
-                          <Bar dataKey="Completed Tasks" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={30}>
-                            {overviewActivityData.map((_, idx) => (
-                              <Cell 
-                                key={`cell-task-${idx}`}
-                                fill={overviewActivityHover === idx ? '#059669' : '#10b981'}
-                                onMouseEnter={() => setOverviewActivityHover(idx)}
-                                onMouseLeave={() => setOverviewActivityHover(null)}
+                                key={`cell-task-comp-${idx}`}
+                                fill={overviewTasksBarHover === idx ? '#059669' : '#10b981'}
+                                onMouseEnter={() => setOverviewTasksBarHover(idx)}
+                                onMouseLeave={() => setOverviewTasksBarHover(null)}
                                 className="transition-all duration-200 cursor-pointer"
                               />
                             ))}
@@ -961,43 +1245,46 @@ export function AnalyticsView() {
                   </CardContent>
                 </Card>
 
-                {/* Daily Active Rhythm Area Chart */}
-                <Card className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden">
+                {/* Focus Hours Overview Card (Card 2) */}
+                <Card 
+                  onMouseEnter={() => setOverviewHover('focus')}
+                  onMouseLeave={() => setOverviewHover(null)}
+                  className={cn(
+                    "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out",
+                    overviewHover === 'focus' ? "lg:col-span-2" : "lg:col-span-1"
+                  )}
+                >
                   <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
-                    <div>
-                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <Activity className="h-5 w-5 text-blue-600" />
-                        Active Rhythm
-                      </CardTitle>
-                      <CardDescription className="text-xs text-slate-400">Peak performance hours of your day</CardDescription>
-                    </div>
+                    <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-blue-600" />
+                      Focus Hours
+                    </CardTitle>
                     <CardTimeframeSelector 
-                      timeframe={overviewRhythmTimeframe}
-                      onChangeTimeframe={setOverviewRhythmTimeframe}
-                      customStart={overviewRhythmCustomStart}
-                      customEnd={overviewRhythmCustomEnd}
-                      onChangeCustomRange={(s: string, e: string) => { setOverviewRhythmCustomStart(s); setOverviewRhythmCustomEnd(e); }}
+                      timeframe={overviewFocusTimeframe}
+                      onChangeTimeframe={setOverviewFocusTimeframe}
+                      customStart={overviewFocusCustomStart}
+                      customEnd={overviewFocusCustomEnd}
+                      onChangeCustomRange={(s: string, e: string) => { setOverviewFocusCustomStart(s); setOverviewFocusCustomEnd(e); }}
                     />
                   </CardHeader>
                   <CardContent className="h-[320px] p-6 md:p-8 pt-0">
-                    {overviewRhythmData.every(d => d['Focus Minutes'] === 0 && d['Task Completions'] === 0) ? (
-                      <EmptyStateIcon Icon={Activity} />
+                    {overviewFocusData.every(d => d['Focus Time'] === 0) ? (
+                      <EmptyStateIcon Icon={Clock} />
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={overviewRhythmData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
+                        <AreaChart data={overviewFocusData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
                           <defs>
-                            <linearGradient id="colorFocusRhythm" x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient id="colorOverviewFocus" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
                               <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0}/>
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} dy={5} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} />
-                          <Tooltip content={<CustomTooltip />} />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} dy={5} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} tickFormatter={(val) => formatSecondsFriendly(Math.round(val * 3600))} />
+                          <Tooltip content={<CustomTooltip sessions={sessions} tasks={tasks} timeframe={overviewFocusTimeframe} showFocus={true} showTasks={true} />} />
                           <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-                          <Area type="monotone" dataKey="Focus Minutes" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorFocusRhythm)" />
-                          <Area type="monotone" dataKey="Task Completions" stroke="#9333ea" strokeWidth={2} fill="transparent" />
+                          <Area type="monotone" dataKey="Focus Time" name="Focused Hours" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorOverviewFocus)" />
                         </AreaChart>
                       </ResponsiveContainer>
                     )}
@@ -1008,416 +1295,292 @@ export function AnalyticsView() {
 
             {/* VIEW 2: TASKS TAB */}
             {activeTab === 'tasks' && (
-              <div className="space-y-8 pb-12">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-                  
-                  {/* Task Status & Volume Card */}
-                  <Card className="lg:col-span-2 bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden">
-                    <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
-                      <div>
-                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                          <CheckSquare className="h-5 w-5 text-blue-600" />
-                          Task Status & Volume
-                        </CardTitle>
-                        <CardDescription className="text-xs text-slate-400">Chronological distribution of tasks by status</CardDescription>
-                      </div>
-                      <CardTimeframeSelector 
-                        timeframe={tasksVolumeTimeframe}
-                        onChangeTimeframe={setTasksVolumeTimeframe}
-                        customStart={tasksVolumeCustomStart}
-                        customEnd={tasksVolumeCustomEnd}
-                        onChangeCustomRange={(s: string, e: string) => { setTasksVolumeCustomStart(s); setTasksVolumeCustomEnd(e); }}
-                      />
-                    </CardHeader>
-                    <CardContent className="h-[320px] p-6 md:p-8 pt-0">
-                      {tasksVolumeData.every(d => d['Active Tasks'] === 0 && d['Completed Tasks'] === 0 && d['Cancelled Tasks'] === 0) ? (
-                        <EmptyStateIcon Icon={CheckSquare} />
-                      ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={tasksVolumeData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} dy={5} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} />
-                            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(37,99,235,0.08)', radius: 8 }} />
-                            <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-                            <Bar dataKey="Completed Tasks" fill="#10b981" stackId="a" radius={[0, 0, 0, 0]} maxBarSize={35}>
-                              {tasksVolumeData.map((_, idx) => (
-                                <Cell 
-                                  key={`cell-vol-comp-${idx}`}
-                                  fill={tasksVolumeHover === idx ? '#059669' : '#10b981'}
-                                  onMouseEnter={() => setTasksVolumeHover(idx)}
-                                  onMouseLeave={() => setTasksVolumeHover(null)}
-                                  className="transition-all duration-200 cursor-pointer"
-                                />
-                              ))}
-                            </Bar>
-                            <Bar dataKey="Active Tasks" fill="#3b82f6" stackId="a" radius={[0, 0, 0, 0]} maxBarSize={35}>
-                              {tasksVolumeData.map((_, idx) => (
-                                <Cell 
-                                  key={`cell-vol-act-${idx}`}
-                                  fill={tasksVolumeHover === idx ? '#2563eb' : '#3b82f6'}
-                                  onMouseEnter={() => setTasksVolumeHover(idx)}
-                                  onMouseLeave={() => setTasksVolumeHover(null)}
-                                  className="transition-all duration-200 cursor-pointer"
-                                />
-                              ))}
-                            </Bar>
-                            <Bar dataKey="Cancelled Tasks" fill="#ef4444" stackId="a" radius={[4, 4, 0, 0]} maxBarSize={35}>
-                              {tasksVolumeData.map((_, idx) => (
-                                <Cell 
-                                  key={`cell-vol-canc-${idx}`}
-                                  fill={tasksVolumeHover === idx ? '#dc2626' : '#ef4444'}
-                                  onMouseEnter={() => setTasksVolumeHover(idx)}
-                                  onMouseLeave={() => setTasksVolumeHover(null)}
-                                  className="transition-all duration-200 cursor-pointer"
-                                />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      )}
-                    </CardContent>
-                  </Card>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 pb-12">
+                
+                {/* Task Progress Breakdown (Card 1) */}
+                <Card 
+                  onMouseEnter={() => setTasksHover('breakdown')}
+                  onMouseLeave={() => setTasksHover(null)}
+                  className={cn(
+                    "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out",
+                    tasksHover === 'rate' ? "lg:col-span-1" : "lg:col-span-2"
+                  )}
+                >
+                  <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
+                    <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <CheckSquare className="h-5 w-5 text-blue-600" />
+                      Progress Breakdown
+                    </CardTitle>
+                    <CardTimeframeSelector 
+                      timeframe={tasksVolumeTimeframe}
+                      onChangeTimeframe={setTasksVolumeTimeframe}
+                      customStart={tasksVolumeCustomStart}
+                      customEnd={tasksVolumeCustomEnd}
+                      onChangeCustomRange={(s: string, e: string) => { setTasksVolumeCustomStart(s); setTasksVolumeCustomEnd(e); }}
+                    />
+                  </CardHeader>
+                  <CardContent className="h-[320px] p-6 md:p-8 pt-0">
+                    {tasksVolumeData.every(d => d['In Progress'] === 0 && d['Completed'] === 0 && d['Cancelled'] === 0) ? (
+                      <EmptyStateIcon Icon={CheckSquare} />
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={tasksVolumeData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} dy={5} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} tickFormatter={(val) => Math.round(val).toString()} />
+                          <Tooltip content={<CustomTooltip sessions={sessions} tasks={tasks} timeframe={tasksVolumeTimeframe} showFocus={false} showTasks={true} />} cursor={{ fill: 'rgba(37,99,235,0.08)', radius: 8 }} />
+                          <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
+                          <Bar dataKey="Completed" name="Completed" fill="#10b981" stackId="a" radius={[0, 0, 0, 0]} maxBarSize={35}>
+                            {tasksVolumeData.map((_, idx) => (
+                              <Cell 
+                                key={`cell-vol-comp-${idx}`}
+                                fill={tasksVolumeHover === idx ? '#059669' : '#10b981'}
+                                onMouseEnter={() => setTasksVolumeHover(idx)}
+                                onMouseLeave={() => setTasksVolumeHover(null)}
+                                className="transition-all duration-200 cursor-pointer"
+                              />
+                            ))}
+                          </Bar>
+                          <Bar dataKey="In Progress" name="In Progress" fill="#3b82f6" stackId="a" radius={[0, 0, 0, 0]} maxBarSize={35}>
+                            {tasksVolumeData.map((_, idx) => (
+                              <Cell 
+                                key={`cell-vol-act-${idx}`}
+                                fill={tasksVolumeHover === idx ? '#2563eb' : '#3b82f6'}
+                                onMouseEnter={() => setTasksVolumeHover(idx)}
+                                onMouseLeave={() => setTasksVolumeHover(null)}
+                                className="transition-all duration-200 cursor-pointer"
+                              />
+                            ))}
+                          </Bar>
+                          <Bar dataKey="Cancelled" name="Cancelled" fill="#ef4444" stackId="a" radius={[4, 4, 0, 0]} maxBarSize={35}>
+                            {tasksVolumeData.map((_, idx) => (
+                              <Cell 
+                                key={`cell-vol-canc-${idx}`}
+                                fill={tasksVolumeHover === idx ? '#dc2626' : '#ef4444'}
+                                onMouseEnter={() => setTasksVolumeHover(idx)}
+                                onMouseLeave={() => setTasksVolumeHover(null)}
+                                className="transition-all duration-200 cursor-pointer"
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </CardContent>
+                </Card>
 
-                  {/* Completion Ratio Ring Gauge Card */}
-                  <Card className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden flex flex-col justify-between">
-                    <CardHeader className="p-6 md:p-8 pb-4 flex flex-col gap-3">
-                      <div>
-                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                          <Target className="h-5 w-5 text-blue-600" />
-                          Completion Ratio
-                        </CardTitle>
-                        <CardDescription className="text-xs text-slate-400">Total matched tasks completed ratio</CardDescription>
-                      </div>
+                {/* Completion Rate (Card 2) */}
+                <Card 
+                  onMouseEnter={() => setTasksHover('rate')}
+                  onMouseLeave={() => setTasksHover(null)}
+                  className={cn(
+                    "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out flex flex-col justify-between",
+                    tasksHover === 'rate' ? "lg:col-span-2" : "lg:col-span-1"
+                  )}
+                >
+                  <CardHeader className="p-6 md:p-8 pb-4 flex flex-col gap-3">
+                    <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <Target className="h-5 w-5 text-blue-600" />
+                      Completion Rate
+                    </CardTitle>
+                    
+                    {/* Sub-Filters Inside Header */}
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <CardTimeframeSelector 
+                        timeframe={tasksRatioTimeframe}
+                        onChangeTimeframe={setTasksRatioTimeframe}
+                        customStart={tasksRatioCustomStart}
+                        customEnd={tasksRatioCustomEnd}
+                        onChangeCustomRange={(s: string, e: string) => { setTasksRatioCustomStart(s); setTasksRatioCustomEnd(e); }}
+                      />
+
+                      {/* Category Selector */}
+                      <Popover open={ratioCatOpen} onOpenChange={setRatioCatOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                            <Sliders className="h-3.5 w-3.5 text-slate-400" />
+                            <span className="text-[11px] truncate max-w-[70px]">
+                              {tasksRatioCategory === 'all' ? 'All Lists' : categories.find(c => c.id === tasksRatioCategory)?.name || 'List'}
+                            </span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-44 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by List</span>
+                            <button
+                              onClick={() => { setTasksRatioCategory('all'); setRatioCatOpen(false); }}
+                              className={cn(
+                                "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                tasksRatioCategory === 'all' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                              )}
+                            >
+                              All Lists
+                            </button>
+                            {categories.map(c => (
+                              <button
+                                key={c.id}
+                                onClick={() => { setTasksRatioCategory(c.id); setRatioCatOpen(false); }}
+                                className={cn(
+                                  "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                  tasksRatioCategory === c.id ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                )}
+                              >
+                                <div className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />
+                                {c.name}
+                              </button>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                       
-                      {/* Sub-Filters Inside Header */}
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <CardTimeframeSelector 
-                          timeframe={tasksRatioTimeframe}
-                          onChangeTimeframe={setTasksRatioTimeframe}
-                          customStart={tasksRatioCustomStart}
-                          customEnd={tasksRatioCustomEnd}
-                          onChangeCustomRange={(s: string, e: string) => { setTasksRatioCustomStart(s); setTasksRatioCustomEnd(e); }}
-                        />
+                      {/* Clear List Badge */}
+                      {tasksRatioCategory !== 'all' && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 rounded-xl hover:bg-red-50 text-red-500 shrink-0 border border-slate-200/40 cursor-pointer"
+                          onClick={() => setTasksRatioCategory('all')}
+                          title="Clear List Filter"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
 
-                        {/* Category Selector */}
-                        <Popover open={ratioCatOpen} onOpenChange={setRatioCatOpen}>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1.5 cursor-pointer">
-                              <Sliders className="h-3.5 w-3.5 text-slate-400" />
-                              <span className="text-[11px] truncate max-w-[70px]">
-                                {tasksRatioCategory === 'all' ? 'All Lists' : categories.find(c => c.id === tasksRatioCategory)?.name || 'List'}
-                              </span>
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-44 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50">
+                      {/* Tag Selector */}
+                      <Popover open={ratioTagOpen} onOpenChange={setRatioTagOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                            <Filter className="h-3.5 w-3.5 text-slate-400" />
+                            <span className="text-[11px] truncate max-w-[70px]">
+                              {tasksRatioTag === 'all' ? 'All Tags' : tasksRatioTag}
+                            </span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-44 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 max-h-[220px]">
+                          <ScrollArea className="h-full">
                             <div className="flex flex-col gap-0.5">
-                              <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by List</span>
+                              <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by Tag</span>
                               <button
-                                onClick={() => { setTasksRatioCategory('all'); setRatioCatOpen(false); }}
+                                onClick={() => { setTasksRatioTag('all'); setRatioTagOpen(false); }}
                                 className={cn(
                                   "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  tasksRatioCategory === 'all' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                  tasksRatioTag === 'all' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
                                 )}
                               >
-                                All Lists
+                                All Tags
                               </button>
-                              {categories.map(c => (
+                              {tags.map(t => (
                                 <button
-                                  key={c.id}
-                                  onClick={() => { setTasksRatioCategory(c.id); setRatioCatOpen(false); }}
+                                  key={t.id}
+                                  onClick={() => { setTasksRatioTag(t.name); setRatioTagOpen(false); }}
                                   className={cn(
                                     "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                    tasksRatioCategory === c.id ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                    tasksRatioTag === t.name ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
                                   )}
                                 >
-                                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />
-                                  {c.name}
+                                  #{t.name}
                                 </button>
                               ))}
                             </div>
-                          </PopoverContent>
-                        </Popover>
+                          </ScrollArea>
+                        </PopoverContent>
+                      </Popover>
 
-                        {/* Priority Selector */}
-                        <Popover open={ratioPrioOpen} onOpenChange={setRatioPrioOpen}>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1.5 cursor-pointer">
-                              <Target className="h-3.5 w-3.5 text-slate-400" />
-                              <span className="text-[11px] capitalize">
-                                {tasksRatioPriority === 'all' ? 'All Priorities' : tasksRatioPriority}
-                              </span>
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-44 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50">
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by Priority</span>
-                              <button
-                                onClick={() => { setTasksRatioPriority('all'); setRatioPrioOpen(false); }}
-                                className={cn(
-                                  "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  tasksRatioPriority === 'all' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
-                                )}
-                              >
-                                All Priorities
-                              </button>
-                              <button
-                                onClick={() => { setTasksRatioPriority('high'); setRatioPrioOpen(false); }}
-                                className={cn(
-                                  "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  tasksRatioPriority === 'high' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
-                                )}
-                              >
-                                High Priority (8-10)
-                              </button>
-                              <button
-                                onClick={() => { setTasksRatioPriority('medium'); setRatioPrioOpen(false); }}
-                                className={cn(
-                                  "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  tasksRatioPriority === 'medium' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
-                                )}
-                              >
-                                Medium Priority (4-7)
-                              </button>
-                              <button
-                                onClick={() => { setTasksRatioPriority('low'); setRatioPrioOpen(false); }}
-                                className={cn(
-                                  "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  tasksRatioPriority === 'low' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
-                                )}
-                              >
-                                Low Priority (1-3)
-                              </button>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="flex flex-col items-center justify-center p-6 md:p-8 pt-0">
-                      {tasksCompletionRatio.total === 0 ? (
-                        <EmptyStateIcon Icon={Target} />
-                      ) : (
-                        <div className="flex flex-col items-center w-full">
+                      {/* Clear Tag Badge */}
+                      {tasksRatioTag !== 'all' && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 rounded-xl hover:bg-red-50 text-red-500 shrink-0 border border-slate-200/40 cursor-pointer"
+                          onClick={() => setTasksRatioTag('all')}
+                          title="Clear Tag Filter"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center justify-center p-6 md:p-8 pt-0">
+                    {tasksCompletionRatio.total === 0 ? (
+                      <EmptyStateIcon Icon={Target} />
+                    ) : (
+                      <div className="flex flex-col items-center w-full">
+                        
+                        {/* Circular SVG Progress Ring */}
+                        <div className="relative flex items-center justify-center h-[160px] w-[160px]">
+                          <svg className="transform -rotate-90 w-[140px] h-[140px]">
+                            <circle 
+                              stroke="#f1f5f9"
+                              strokeWidth="12"
+                              fill="transparent"
+                              r="55"
+                              cx="70"
+                              cy="70"
+                            />
+                            <circle 
+                              stroke="#2563eb"
+                              strokeWidth="12"
+                              strokeDasharray={String(2 * Math.PI * 55)}
+                              strokeDashoffset={2 * Math.PI * 55 - (tasksCompletionRatio.ratio / 100) * (2 * Math.PI * 55)}
+                              strokeLinecap="round"
+                              fill="transparent"
+                              r="55"
+                              cx="70"
+                              cy="70"
+                              className="transition-all duration-500 ease-out"
+                            />
+                          </svg>
                           
-                          {/* Circular SVG Progress Ring */}
-                          <div className="relative flex items-center justify-center h-[160px] w-[160px]">
-                            <svg className="transform -rotate-90 w-[140px] h-[140px]">
-                              {/* Background Circle */}
-                              <circle 
-                                stroke="#f1f5f9"
-                                strokeWidth="12"
-                                fill="transparent"
-                                r="55"
-                                cx="70"
-                                cy="70"
-                              />
-                              {/* Progress Circle */}
-                              <circle 
-                                stroke="#2563eb"
-                                strokeWidth="12"
-                                strokeDasharray={String(2 * Math.PI * 55)}
-                                strokeDashoffset={2 * Math.PI * 55 - (tasksCompletionRatio.ratio / 100) * (2 * Math.PI * 55)}
-                                strokeLinecap="round"
-                                fill="transparent"
-                                r="55"
-                                cx="70"
-                                cy="70"
-                                className="transition-all duration-500 ease-out"
-                              />
-                            </svg>
-                            
-                            {/* Central Text */}
-                            <div className="absolute flex flex-col items-center text-center">
-                              <span className="text-3xl font-black text-slate-900 tracking-tight">{tasksCompletionRatio.ratio}%</span>
-                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Success Rate</span>
-                            </div>
+                          <div className="absolute flex flex-col items-center text-center">
+                            <span className="text-3xl font-black text-slate-900 tracking-tight">{tasksCompletionRatio.ratio}%</span>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Rate</span>
                           </div>
-
-                          {/* Stat Metric Grid */}
-                          <div className="grid grid-cols-3 gap-2 w-full mt-4">
-                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-center">
-                              <span className="text-[8px] font-black text-slate-400 uppercase block tracking-wider">Completed</span>
-                              <span className="text-sm font-bold text-emerald-600">{tasksCompletionRatio.completed}</span>
-                            </div>
-                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-center">
-                              <span className="text-[8px] font-black text-slate-400 uppercase block tracking-wider">Active</span>
-                              <span className="text-sm font-bold text-blue-600">{tasksCompletionRatio.active}</span>
-                            </div>
-                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-center">
-                              <span className="text-[8px] font-black text-slate-400 uppercase block tracking-wider">Total</span>
-                              <span className="text-sm font-bold text-slate-800">{tasksCompletionRatio.total}</span>
-                            </div>
-                          </div>
-
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
 
-                </div>
+                        {/* Stat Metric Grid */}
+                        <div className="grid grid-cols-3 gap-2 w-full mt-4">
+                          <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-center">
+                            <span className="text-[8px] font-black text-slate-400 uppercase block tracking-wider">Completed</span>
+                            <span className="text-sm font-bold text-emerald-600">{tasksCompletionRatio.completed}</span>
+                          </div>
+                          <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-center">
+                            <span className="text-[8px] font-black text-slate-400 uppercase block tracking-wider">In Progress</span>
+                            <span className="text-sm font-bold text-blue-600">{tasksCompletionRatio.active}</span>
+                          </div>
+                          <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-center">
+                            <span className="text-[8px] font-black text-slate-400 uppercase block tracking-wider">Total</span>
+                            <span className="text-sm font-bold text-slate-800">{tasksCompletionRatio.total}</span>
+                          </div>
+                        </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-                  
-                  {/* Completed Tasks Cumulative Trend Card */}
-                  <Card className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden">
-                    <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
-                      <div>
-                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                          <TrendingUp className="h-5 w-5 text-blue-600" />
-                          Completed Tasks Over Time
-                        </CardTitle>
-                        <CardDescription className="text-xs text-slate-400">Cumulative completed tasks showing productivity momentum</CardDescription>
                       </div>
-                      <div className="flex gap-2 items-center">
-                        <CardTimeframeSelector 
-                          timeframe={tasksTrendTimeframe}
-                          onChangeTimeframe={setTasksTrendTimeframe}
-                          customStart={tasksTrendCustomStart}
-                          customEnd={tasksTrendCustomEnd}
-                          onChangeCustomRange={(s: string, e: string) => { setTasksTrendCustomStart(s); setTasksTrendCustomEnd(e); }}
-                        />
-
-                        {/* List/Category Filter */}
-                        <Popover open={trendCatOpen} onOpenChange={setTrendCatOpen}>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1 cursor-pointer">
-                              <span className="text-[11px] truncate max-w-[80px]">
-                                {tasksTrendCategory === 'all' ? 'All Lists' : categories.find(c => c.id === tasksTrendCategory)?.name || 'List'}
-                              </span>
-                              <ChevronDown className="h-3 w-3 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-44 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50">
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by List</span>
-                              <button
-                                onClick={() => { setTasksTrendCategory('all'); setTrendCatOpen(false); }}
-                                className={cn(
-                                  "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  tasksTrendCategory === 'all' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
-                                )}
-                              >
-                                All Lists
-                              </button>
-                              {categories.map(c => (
-                                <button
-                                  key={c.id}
-                                  onClick={() => { setTasksTrendCategory(c.id); setTrendCatOpen(false); }}
-                                  className={cn(
-                                    "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                    tasksTrendCategory === c.id ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
-                                  )}
-                                >
-                                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />
-                                  {c.name}
-                                </button>
-                              ))}
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="h-[280px] p-6 md:p-8 pt-0">
-                      {completedTasksTrendData.every(d => d['Total Completed'] === 0) ? (
-                        <EmptyStateIcon Icon={TrendingUp} />
-                      ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={completedTasksTrendData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="colorTotalCompleted" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
-                                <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} dy={5} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-                            <Area type="monotone" dataKey="Total Completed" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorTotalCompleted)" />
-                            <Area type="monotone" dataKey="Daily Completed" stroke="#3b82f6" strokeWidth={2} fill="transparent" strokeDasharray="4 4" />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Tasks by Priority Card */}
-                  <Card className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden">
-                    <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
-                      <div>
-                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                          <Award className="h-5 w-5 text-blue-600" />
-                          Tasks by Priority
-                        </CardTitle>
-                        <CardDescription className="text-xs text-slate-400">Distribution of active and completed tasks by priority category</CardDescription>
-                      </div>
-                      <CardTimeframeSelector 
-                        timeframe={tasksPriorityTimeframe}
-                        onChangeTimeframe={setTasksPriorityTimeframe}
-                        customStart={tasksPriorityCustomStart}
-                        customEnd={tasksPriorityCustomEnd}
-                        onChangeCustomRange={(s: string, e: string) => { setTasksPriorityCustomStart(s); setTasksPriorityCustomEnd(e); }}
-                      />
-                    </CardHeader>
-                    <CardContent className="h-[280px] p-6 md:p-8 pt-0">
-                      {tasksByPriorityData.every(d => d['Completed Tasks'] === 0 && d['Active Tasks'] === 0) ? (
-                        <EmptyStateIcon Icon={Award} />
-                      ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={tasksByPriorityData} layout="vertical" margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                            <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} />
-                            <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#475569', fontSize: 11, fontWeight: 700 }} width={80} />
-                            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(37,99,235,0.08)', radius: 8 }} />
-                            <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-                            <Bar dataKey="Completed Tasks" fill="#10b981" radius={[0, 4, 4, 0]} maxBarSize={20}>
-                              {tasksByPriorityData.map((_, idx) => (
-                                <Cell 
-                                  key={`cell-prio-comp-${idx}`}
-                                  fill={tasksPriorityHover === idx ? '#059669' : '#10b981'}
-                                  onMouseEnter={() => setTasksPriorityHover(idx)}
-                                  onMouseLeave={() => setTasksPriorityHover(null)}
-                                  className="transition-all duration-200 cursor-pointer"
-                                />
-                              ))}
-                            </Bar>
-                            <Bar dataKey="Active Tasks" fill="#3b82f6" radius={[0, 4, 4, 0]} maxBarSize={20}>
-                              {tasksByPriorityData.map((_, idx) => (
-                                <Cell 
-                                  key={`cell-prio-act-${idx}`}
-                                  fill={tasksPriorityHover === idx ? '#2563eb' : '#3b82f6'}
-                                  onMouseEnter={() => setTasksPriorityHover(idx)}
-                                  onMouseLeave={() => setTasksPriorityHover(null)}
-                                  className="transition-all duration-200 cursor-pointer"
-                                />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                </div>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             )}
 
             {/* VIEW 3: FOCUS TAB */}
             {activeTab === 'focus' && (
               <div className="space-y-8 pb-12">
+                
+                {/* ROW 1: Donut Distribution & Spline Area Trend */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
                   
-                  {/* Interactive Focus Pie Chart Card */}
-                  <Card className="lg:col-span-2 bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden flex flex-col justify-between">
+                  {/* Focus Distribution (Card 1) */}
+                  <Card 
+                    onMouseEnter={() => setFocusRow1Hover('task')}
+                    onMouseLeave={() => setFocusRow1Hover(null)}
+                    className={cn(
+                      "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out flex flex-col justify-between",
+                      focusRow1Hover === 'trend' ? "lg:col-span-1" : "lg:col-span-2"
+                    )}
+                  >
                     <CardHeader className="p-6 md:p-8 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div>
-                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                          <LayoutGrid className="h-5 w-5 text-blue-600" />
-                          Focus Distribution By Task
-                        </CardTitle>
-                        <CardDescription className="text-xs text-slate-400">Share of focused seconds tracked across specific tasks</CardDescription>
-                      </div>
+                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <LayoutGrid className="h-5 w-5 text-blue-600" />
+                        Focus Distribution
+                      </CardTitle>
                       
                       {/* Dynamic Dropdown Filters */}
                       <div className="flex flex-wrap gap-2 items-center">
@@ -1468,6 +1631,19 @@ export function AnalyticsView() {
                           </PopoverContent>
                         </Popover>
 
+                        {/* Clear List Badge */}
+                        {focusPieCategory !== 'all' && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-9 w-9 rounded-xl hover:bg-red-50 text-red-500 shrink-0 border border-slate-200/40 cursor-pointer"
+                            onClick={() => setFocusPieCategory('all')}
+                            title="Clear List Filter"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+
                         {/* Tag Dropdown */}
                         <Popover open={focusPieTagOpen} onOpenChange={setFocusPieTagOpen}>
                           <PopoverTrigger asChild>
@@ -1507,6 +1683,19 @@ export function AnalyticsView() {
                             </ScrollArea>
                           </PopoverContent>
                         </Popover>
+
+                        {/* Clear Tag Badge */}
+                        {focusPieTag !== 'all' && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-9 w-9 rounded-xl hover:bg-red-50 text-red-500 shrink-0 border border-slate-200/40 cursor-pointer"
+                            onClick={() => setFocusPieTag('all')}
+                            title="Clear Tag Filter"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-6 p-6 md:p-8 pt-0 min-h-[300px]">
@@ -1532,7 +1721,7 @@ export function AnalyticsView() {
                                     <Cell key={`cell-${index}`} fill={focusPieData.data[index].color} />
                                   ))}
                                 </Pie>
-                                <Tooltip content={<CustomTooltip />} />
+                                <Tooltip content={<CustomTooltip sessions={sessions} tasks={tasks} timeframe={focusPieTimeframe} showFocus={true} showTasks={false} />} />
                               </PieChart>
                             </ResponsiveContainer>
                           </div>
@@ -1567,16 +1756,20 @@ export function AnalyticsView() {
                     </CardContent>
                   </Card>
 
-                  {/* Focused Hours Trend Spline Area Chart */}
-                  <Card className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden flex flex-col justify-between">
+                  {/* Focus Trend (Card 2) */}
+                  <Card 
+                    onMouseEnter={() => setFocusRow1Hover('trend')}
+                    onMouseLeave={() => setFocusRow1Hover(null)}
+                    className={cn(
+                      "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out flex flex-col justify-between",
+                      focusRow1Hover === 'trend' ? "lg:col-span-2" : "lg:col-span-1"
+                    )}
+                  >
                     <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
-                      <div>
-                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                          <BarChart3 className="h-5 w-5 text-blue-600" />
-                          Focused Hours Trend
-                        </CardTitle>
-                        <CardDescription className="text-xs text-slate-400">Total session time over this timeframe</CardDescription>
-                      </div>
+                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-blue-600" />
+                        Focus Trend
+                      </CardTitle>
                       <CardTimeframeSelector 
                         timeframe={focusTrendTimeframe}
                         onChangeTimeframe={setFocusTrendTimeframe}
@@ -1586,8 +1779,8 @@ export function AnalyticsView() {
                       />
                     </CardHeader>
                     <CardContent className="h-[280px] p-6 md:p-8 pt-0">
-                      {focusTrendData.every(d => d['Focused Hours'] === 0) ? (
-                        <EmptyStateIcon Icon={BarChart3} />
+                      {focusTrendData.every(d => d['Focused Time'] === 0) ? (
+                        <EmptyStateIcon Icon={Clock} />
                       ) : (
                         <ResponsiveContainer width="100%" height="100%">
                           <AreaChart data={focusTrendData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
@@ -1599,30 +1792,66 @@ export function AnalyticsView() {
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} dy={5} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} />
-                            <Tooltip content={<CustomTooltip />} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} tickFormatter={(val) => formatSecondsFriendly(Math.round(val * 3600))} />
+                            <Tooltip content={<CustomTooltip sessions={sessions} tasks={tasks} timeframe={focusTrendTimeframe} showFocus={true} showTasks={false} />} />
                             <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-                            <Area type="monotone" dataKey="Focused Hours" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorFocusTrend)" />
+                            <Area type="monotone" dataKey="Focused Time" name="Focused Hours" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorFocusTrend)" />
                           </AreaChart>
                         </ResponsiveContainer>
                       )}
                     </CardContent>
                   </Card>
-
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                {/* ROW 2: Heatmap Activity Grid & Session Durations */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 mt-6 md:mt-8">
                   
-                  {/* Focus Session Length Buckets Card */}
-                  <Card className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden">
+                  {/* Heatmap Activity Grid (Card 1) */}
+                  <Card 
+                    onMouseEnter={() => setFocusRow2Hover('heatmap')}
+                    onMouseLeave={() => setFocusRow2Hover(null)}
+                    className={cn(
+                      "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out flex flex-col justify-between",
+                      focusRow2Hover === 'durations' ? "lg:col-span-1" : "lg:col-span-2"
+                    )}
+                  >
                     <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
-                      <div>
-                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                          <Zap className="h-5 w-5 text-blue-600" />
-                          Session Length Breakdown
-                        </CardTitle>
-                        <CardDescription className="text-xs text-slate-400">Total sessions matching each duration interval</CardDescription>
-                      </div>
+                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <Activity className="h-5 w-5 text-blue-600" />
+                        Focus Activity Map
+                      </CardTitle>
+                      <CardTimeframeSelector 
+                        timeframe={focusHeatmapTimeframe}
+                        onChangeTimeframe={setFocusHeatmapTimeframe}
+                        customStart={focusHeatmapCustomStart}
+                        customEnd={focusHeatmapCustomEnd}
+                        onChangeCustomRange={(s: string, e: string) => { setFocusHeatmapCustomStart(s); setFocusHeatmapCustomEnd(e); }}
+                      />
+                    </CardHeader>
+                    <CardContent className="p-6 md:p-8 pt-0 flex-1 flex flex-col justify-center min-h-[280px]">
+                      <FocusHeatmap 
+                        timeframe={focusHeatmapTimeframe}
+                        customStart={focusHeatmapCustomStart}
+                        customEnd={focusHeatmapCustomEnd}
+                        sessions={sessions}
+                      />
+                    </CardContent>
+                  </Card>
+
+                  {/* Focus Session Lengths (Card 2) */}
+                  <Card 
+                    onMouseEnter={() => setFocusRow2Hover('durations')}
+                    onMouseLeave={() => setFocusRow2Hover(null)}
+                    className={cn(
+                      "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out flex flex-col justify-between",
+                      focusRow2Hover === 'durations' ? "lg:col-span-2" : "lg:col-span-1"
+                    )}
+                  >
+                    <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
+                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <Zap className="h-5 w-5 text-blue-600" />
+                        Session Durations
+                      </CardTitle>
                       <CardTimeframeSelector 
                         timeframe={focusLengthTimeframe}
                         onChangeTimeframe={setFocusLengthTimeframe}
@@ -1639,10 +1868,10 @@ export function AnalyticsView() {
                           <BarChart data={focusLengthData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 700 }} dy={5} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} />
-                            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(37,99,235,0.08)', radius: 8 }} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} tickFormatter={(val) => Math.round(val).toString()} />
+                            <Tooltip content={<CustomTooltip sessions={sessions} tasks={tasks} timeframe={focusLengthTimeframe} showFocus={true} showTasks={false} />} cursor={{ fill: 'rgba(37,99,235,0.08)', radius: 8 }} />
                             <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-                            <Bar dataKey="Sessions" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={35}>
+                            <Bar dataKey="Sessions" name="Focus Sessions" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={35}>
                               {focusLengthData.map((_, idx) => (
                                 <Cell 
                                   key={`cell-length-${idx}`}
@@ -1658,52 +1887,6 @@ export function AnalyticsView() {
                       )}
                     </CardContent>
                   </Card>
-
-                  {/* Focus Time by Category Card */}
-                  <Card className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden">
-                    <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
-                      <div>
-                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                          <Sliders className="h-5 w-5 text-blue-600" />
-                          Focus Hours by List
-                        </CardTitle>
-                        <CardDescription className="text-xs text-slate-400">Total focus hours logged for tasks in each list</CardDescription>
-                      </div>
-                      <CardTimeframeSelector 
-                        timeframe={focusCatTimeframe}
-                        onChangeTimeframe={setFocusCatTimeframe}
-                        customStart={focusCatCustomStart}
-                        customEnd={focusCatCustomEnd}
-                        onChangeCustomRange={(s: string, e: string) => { setFocusCatCustomStart(s); setFocusCatCustomEnd(e); }}
-                      />
-                    </CardHeader>
-                    <CardContent className="h-[280px] p-6 md:p-8 pt-0">
-                      {focusTimeByCategoryData.length === 0 || focusTimeByCategoryData.every(d => d['Hours'] === 0) ? (
-                        <EmptyStateIcon Icon={Sliders} />
-                      ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={focusTimeByCategoryData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 700 }} dy={5} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} />
-                            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(37,99,235,0.08)', radius: 8 }} />
-                            <Bar dataKey="Hours" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                              {focusTimeByCategoryData.map((entry, idx) => (
-                                <Cell 
-                                  key={`cell-focus-cat-${idx}`}
-                                  fill={focusCatHover === idx ? '#2563eb' : entry.color}
-                                  onMouseEnter={() => setFocusCatHover(idx)}
-                                  onMouseLeave={() => setFocusCatHover(null)}
-                                  className="transition-all duration-200 cursor-pointer"
-                                />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      )}
-                    </CardContent>
-                  </Card>
-
                 </div>
               </div>
             )}
@@ -1750,8 +1933,8 @@ function EmptyStateIcon({ Icon }: { Icon: any }) {
       <div className="h-11 w-11 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mb-3">
         <Icon className="h-5 w-5 text-slate-400/80" />
       </div>
-      <p className="text-xs font-bold text-slate-500 mb-0.5">No activity recorded</p>
-      <p className="text-[10px] text-slate-400/80 max-w-[200px] leading-normal font-medium">Log focused stopwatch sessions or complete tasks during this timeframe to populate metrics.</p>
+      <p className="text-xs font-bold text-slate-500 mb-0.5">No focus activity logged yet</p>
+      <p className="text-[10px] text-slate-400/80 max-w-[200px] leading-normal font-medium">Start focus sessions or complete tasks during this period to see your insights here!</p>
     </div>
   );
 }
