@@ -8,6 +8,7 @@ import { type Task, type Category, type Tag, type UpdateTaskDto, TaskStatus } fr
 import { DetailRow } from './DetailRow';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar as DayPickerCalendar } from '@/components/ui/calendar';
+import { getTaskTotalSeconds } from '@/features/focus/services/timeTrackingService';
 
 // Format date to local friendly representation
 const formatDateFriendly = (dateStr?: string | null) => {
@@ -502,6 +503,36 @@ export function TaskDetailFields({
   const [durationVal, setDurationVal] = React.useState(task.durationInMinutes);
   const [durationError, setDurationError] = React.useState<'min' | 'max' | null>(null);
 
+  // Focused time state for time-tracking summation
+  const [focusedSeconds, setFocusedSeconds] = React.useState<number>(0);
+
+  React.useEffect(() => {
+    async function loadFocusedTime() {
+      try {
+        const seconds = await getTaskTotalSeconds(task.id);
+        setFocusedSeconds(seconds);
+      } catch (err) {
+        console.error('Failed to load focused time', err);
+        setFocusedSeconds(0);
+      }
+    }
+    loadFocusedTime();
+  }, [task.id]);
+
+  const formatFocusedTime = (totalSeconds: number) => {
+    if (totalSeconds <= 0) return '0m';
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    
+    const parts = [];
+    if (hrs > 0) parts.push(`${hrs}h`);
+    if (mins > 0 || hrs > 0) parts.push(`${mins}m`);
+    if (secs > 0) parts.push(`${secs}s`);
+    
+    return parts.join(' ');
+  };
+
   React.useEffect(() => {
     setDurationVal(task.durationInMinutes);
   }, [task.durationInMinutes]);
@@ -646,7 +677,7 @@ export function TaskDetailFields({
                       e.currentTarget.blur();
                     }
                   }}
-                  className="w-12 text-center bg-transparent border-none outline-none text-xs font-bold text-slate-800 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0 focus:outline-none"
+                  className="w-5 text-center bg-transparent border-none outline-none text-xs font-bold text-slate-800 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0 focus:outline-none"
                 />
                 <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">min</span>
               </div>
@@ -664,6 +695,15 @@ export function TaskDetailFields({
                 {durationError === 'max' ? '⚠️ Maximum duration is 180 minutes' : '⚠️ Minimum duration is 5 minutes'}
               </span>
             )}
+          </div>
+        </DetailRow>
+
+        {/* Focused Time display */}
+        <DetailRow icon={Clock} label="Focused Time">
+          <div className="flex items-center bg-white border border-slate-200/50 rounded-xl px-3 py-2 shadow-sm w-full min-h-[38px] transition-colors select-none text-slate-800 text-xs font-bold">
+            <span className={cn(focusedSeconds > 0 ? "text-blue-600 font-extrabold" : "text-slate-400 font-semibold")}>
+              {formatFocusedTime(focusedSeconds)}
+            </span>
           </div>
         </DetailRow>
 

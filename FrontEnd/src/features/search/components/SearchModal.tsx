@@ -247,7 +247,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                           </span>
                         )}
                         
-                        {task.deadline && (
+                        {task.deadline && !task.deadline.startsWith('0001-01-01') && (
                           <span className="flex items-center gap-1 text-[10px] text-slate-400 font-bold bg-slate-100/50 px-2 py-0.5 rounded border border-slate-200/40">
                             <Calendar className="h-3 w-3 text-slate-400/80" />
                             {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}

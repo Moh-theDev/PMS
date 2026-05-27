@@ -67,14 +67,22 @@ export function InboxView() {
   // Group tasks
   const today = new Date().toISOString().split('T')[0];
   const overdueTasks = currentTasks.filter(
-    (t) => t.status !== TaskStatus.Done && t.deadline && t.deadline.split('T')[0] < today
+    (t) =>
+      t.status !== TaskStatus.Done &&
+      t.status !== TaskStatus.Cancelled &&
+      t.deadline &&
+      !t.deadline.startsWith('0001-01-01') &&
+      t.deadline.split('T')[0] < today
   );
   const activeTasks = currentTasks.filter(
     (t) =>
       t.status !== TaskStatus.Done &&
-      (!t.deadline || t.deadline.split('T')[0] >= today)
+      t.status !== TaskStatus.Cancelled &&
+      (!t.deadline || t.deadline.startsWith('0001-01-01') || t.deadline.split('T')[0] >= today)
   );
-  const completedTasks = currentTasks.filter((t) => t.status === TaskStatus.Done);
+  const completedTasks = currentTasks.filter(
+    (t) => t.status === TaskStatus.Done || t.status === TaskStatus.Cancelled
+  );
 
   // View title
   const viewTitle = (() => {
@@ -102,7 +110,7 @@ export function InboxView() {
           durationInMinutes: 30,
           priority,
           effortLevel: 3,
-          deadline,
+          ...(deadline ? { deadline } : {}),
         },
         categoryIdNum
       );

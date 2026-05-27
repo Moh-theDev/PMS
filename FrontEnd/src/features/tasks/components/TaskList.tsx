@@ -1,6 +1,7 @@
-import { type ReactNode } from 'react';
-import { Clock, Calendar, Inbox as InboxIcon } from 'lucide-react';
+import { type ReactNode, useState } from 'react';
+import { Clock, Calendar, Inbox as InboxIcon, ChevronRight } from 'lucide-react';
 import { type Task, type Category, type Tag } from '@/types/index';
+import { cn } from '@/lib/utils';
 import { TaskItem } from './TaskItem';
 
 interface TaskListProps {
@@ -21,9 +22,11 @@ interface SectionHeaderProps {
   label: string;
   count: number;
   color: 'red' | 'blue' | 'green';
+  isCollapsed: boolean;
+  onToggle: () => void;
 }
 
-function SectionHeader({ icon, label, count, color }: SectionHeaderProps) {
+function SectionHeader({ icon, label, count, color, isCollapsed, onToggle }: SectionHeaderProps) {
   const colorMap = {
     red: { bg: 'bg-red-50', text: 'text-red-600', badge: 'bg-red-100 text-red-600' },
     blue: { bg: 'bg-blue-50', text: 'text-blue-600', badge: 'bg-blue-100 text-blue-600' },
@@ -32,10 +35,19 @@ function SectionHeader({ icon, label, count, color }: SectionHeaderProps) {
   const c = colorMap[color];
 
   return (
-    <div className="flex items-center gap-2 mb-3">
-      <div className={`p-1 ${c.bg} ${c.text} rounded-md`}>{icon}</div>
+    <div 
+      className="flex items-center gap-2 mb-3 cursor-pointer select-none group/hdr hover:opacity-85 transition-opacity"
+      onClick={onToggle}
+    >
+      <div className={`p-1 ${c.bg} ${c.text} rounded-md shrink-0`}>{icon}</div>
       <span className="text-xs font-bold text-slate-700">{label}</span>
-      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${c.badge}`}>{count}</span>
+      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${c.badge} shrink-0`}>{count}</span>
+      <ChevronRight 
+        className={cn(
+          "h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ml-auto mr-1",
+          !isCollapsed && "rotate-90 text-slate-600"
+        )}
+      />
     </div>
   );
 }
@@ -53,6 +65,10 @@ export function TaskList({
   onToggleStatus,
 }: TaskListProps) {
   const totalTasks = overdueTasks.length + activeTasks.length + completedTasks.length;
+
+  const [isOverdueCollapsed, setIsOverdueCollapsed] = useState(false);
+  const [isActiveCollapsed, setIsActiveCollapsed] = useState(false);
+  const [isCompletedCollapsed, setIsCompletedCollapsed] = useState(false);
 
   if (isLoading && totalTasks === 0) {
     return (
@@ -85,22 +101,26 @@ export function TaskList({
             label="Overdue"
             count={overdueTasks.length}
             color="red"
+            isCollapsed={isOverdueCollapsed}
+            onToggle={() => setIsOverdueCollapsed(!isOverdueCollapsed)}
           />
-          <div className="space-y-1.5">
-            {overdueTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                categories={categories}
-                tags={tags}
-                onRemoveTag={onRemoveTag}
-                isSelected={selectedTaskId === task.id}
-                onClick={() => onSelectTask(task.id)}
-                onToggle={(checked) => onToggleStatus(task, checked)}
-                isOverdue
-              />
-            ))}
-          </div>
+          {!isOverdueCollapsed && (
+            <div className="space-y-1.5">
+              {overdueTasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  categories={categories}
+                  tags={tags}
+                  onRemoveTag={onRemoveTag}
+                  isSelected={selectedTaskId === task.id}
+                  onClick={() => onSelectTask(task.id)}
+                  onToggle={(checked) => onToggleStatus(task, checked)}
+                  isOverdue
+                />
+              ))}
+            </div>
+          )}
         </section>
       )}
 
@@ -112,25 +132,29 @@ export function TaskList({
             label="Active"
             count={activeTasks.length}
             color="blue"
+            isCollapsed={isActiveCollapsed}
+            onToggle={() => setIsActiveCollapsed(!isActiveCollapsed)}
           />
-          <div className="space-y-1.5">
-            {activeTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                categories={categories}
-                tags={tags}
-                onRemoveTag={onRemoveTag}
-                isSelected={selectedTaskId === task.id}
-                onClick={() => onSelectTask(task.id)}
-                onToggle={(checked) => onToggleStatus(task, checked)}
-              />
-            ))}
-          </div>
+          {!isActiveCollapsed && (
+            <div className="space-y-1.5">
+              {activeTasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  categories={categories}
+                  tags={tags}
+                  onRemoveTag={onRemoveTag}
+                  isSelected={selectedTaskId === task.id}
+                  onClick={() => onSelectTask(task.id)}
+                  onToggle={(checked) => onToggleStatus(task, checked)}
+                />
+              ))}
+            </div>
+          )}
         </section>
       )}
 
-      {/* Completed */}
+      {/* Completed & Cancelled */}
       {completedTasks.length > 0 && (
         <section>
           <SectionHeader
@@ -139,24 +163,28 @@ export function TaskList({
                 <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             }
-            label="Completed"
+            label="Completed & Cancelled"
             count={completedTasks.length}
             color="green"
+            isCollapsed={isCompletedCollapsed}
+            onToggle={() => setIsCompletedCollapsed(!isCompletedCollapsed)}
           />
-          <div className="space-y-1.5">
-            {completedTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                categories={categories}
-                tags={tags}
-                onRemoveTag={onRemoveTag}
-                isSelected={selectedTaskId === task.id}
-                onClick={() => onSelectTask(task.id)}
-                onToggle={(checked) => onToggleStatus(task, checked)}
-              />
-            ))}
-          </div>
+          {!isCompletedCollapsed && (
+            <div className="space-y-1.5">
+              {completedTasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  categories={categories}
+                  tags={tags}
+                  onRemoveTag={onRemoveTag}
+                  isSelected={selectedTaskId === task.id}
+                  onClick={() => onSelectTask(task.id)}
+                  onToggle={(checked) => onToggleStatus(task, checked)}
+                />
+              ))}
+            </div>
+          )}
         </section>
       )}
     </div>

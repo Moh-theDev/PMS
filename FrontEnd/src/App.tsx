@@ -5,6 +5,7 @@ import { MainLayout } from './components/layout/MainLayout';
 import { InboxView } from './features/tasks/components/InboxView';
 import { FocusView } from './features/focus/components/FocusView';
 import { AnalyticsView } from './features/analytics/components/AnalyticsView';
+import { AiAssistantView } from './features/ai-assistant/components/AiAssistantView';
 import { LoginView } from './features/auth/components/LoginView';
 import { SignupView } from './features/auth/components/SignupView';
 import { Loader2 } from 'lucide-react';
@@ -95,6 +96,7 @@ export default function App() {
           <Route path="tasks/tag/:tagId" element={<InboxView />} />
           <Route path="focus" element={<FocusView />} />
           <Route path="analytics" element={<AnalyticsView />} />
+          <Route path="ai-assistant" element={<AiAssistantView />} />
         </Route>
 
         {/* Fallback route */}

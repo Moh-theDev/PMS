@@ -356,7 +356,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   getTasksByList: (listId) => {
     const { tasks } = get();
     if (listId === 'inbox') {
-      return tasks;
+      return tasks.filter((t) => !t.categoryId || t.categoryId === 0);
     }
     if (listId === 'today') {
       const today = new Date().toISOString().split('T')[0];

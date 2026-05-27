@@ -16,6 +16,7 @@ import {
   Check,
   X,
   FolderOpen,
+  Sparkles,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '../../lib/utils';
@@ -129,6 +130,8 @@ export function Sidebar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isListsCollapsed, setIsListsCollapsed] = useState(false);
+  const [isTagsCollapsed, setIsTagsCollapsed] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   /* Global keyboard listener for search modal toggling */
@@ -166,9 +169,9 @@ export function Sidebar() {
     return () => document.removeEventListener('mousedown', handler);
   }, [isDropdownOpen]);
 
-  const inboxCount = tasks.filter((t) => t.status !== 2).length;
-  const todayCount = getTasksByList('today').filter((t) => t.status !== 2).length;
-  const upcomingCount = getTasksByList('upcoming').filter((t) => t.status !== 2).length;
+  const inboxCount = tasks.filter((t) => t.status !== 2 && t.status !== 3 && (!t.categoryId || t.categoryId === 0)).length;
+  const todayCount = getTasksByList('today').filter((t) => t.status !== 2 && t.status !== 3).length;
+  const upcomingCount = getTasksByList('upcoming').filter((t) => t.status !== 2 && t.status !== 3).length;
 
   const navItems = [
     { icon: Inbox, label: 'Inbox', path: '/tasks/inbox', count: inboxCount },
@@ -176,6 +179,7 @@ export function Sidebar() {
     { icon: CalendarDays, label: 'Upcoming', path: '/tasks/upcoming', count: upcomingCount },
     { icon: Target, label: 'Focus Mode', path: '/focus' },
     { icon: BarChart3, label: 'Analytics', path: '/analytics' },
+    { icon: Sparkles, label: 'AI Assistant', path: '/ai-assistant' },
   ];
 
   const categoryLists = lists.filter((l) => !['inbox', 'today', 'upcoming'].includes(l.id));
@@ -293,7 +297,13 @@ export function Sidebar() {
         {/* ── Categories ──────────────────────────────── */}
         <section>
           <div className="px-2 py-1 mb-1 flex items-center justify-between group">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Lists</span>
+            <div 
+              onClick={() => setIsListsCollapsed(!isListsCollapsed)}
+              className="flex items-center gap-1.5 cursor-pointer select-none"
+            >
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Lists</span>
+              <ChevronDown className={cn("h-3 w-3 text-slate-400 transition-transform duration-150", isListsCollapsed && "-rotate-90")} />
+            </div>
             <button
               onClick={() => setCreatingCategory(true)}
               className="h-5 w-5 flex items-center justify-center rounded-md bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-300 opacity-0 group-hover:opacity-100 transition-all"
@@ -302,94 +312,104 @@ export function Sidebar() {
             </button>
           </div>
 
-          {/* Inline create */}
-          {creatingCategory && (
-            <InlineCreate
-              placeholder="Category name..."
-              onSave={(name) => { addCategory(name); setCreatingCategory(false); }}
-              onCancel={() => setCreatingCategory(false)}
-            />
-          )}
+          {!isListsCollapsed && (
+            <>
+              {/* Inline create */}
+              {creatingCategory && (
+                <InlineCreate
+                  placeholder="Category name..."
+                  onSave={(name) => { addCategory(name); setCreatingCategory(false); }}
+                  onCancel={() => setCreatingCategory(false)}
+                />
+              )}
 
-          <nav className="space-y-0.5">
-            {categoryLists.map((list) => {
-              const cat = categories.find((c) => String(c.id) === list.id);
-              const catId = cat?.id ?? -1;
-              const taskCount = tasks.filter((t) => t.categoryId === catId && t.status !== 2).length;
-              const isEditing = editingCategoryId === catId;
+              <nav className="space-y-0.5">
+                {categoryLists.map((list) => {
+                  const cat = categories.find((c) => String(c.id) === list.id);
+                  const catId = cat?.id ?? -1;
+                  const taskCount = tasks.filter((t) => t.categoryId === catId && t.status !== 2 && t.status !== 3).length;
+                  const isEditing = editingCategoryId === catId;
 
-              return (
-                <div
-                  key={list.id}
-                  className="relative"
-                  onMouseEnter={() => setHoveredCatId(catId)}
-                  onMouseLeave={() => setHoveredCatId(null)}
-                >
-                  {isEditing ? (
-                    <div className="flex items-center gap-2 px-2 py-1.5">
-                      <FolderOpen className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                      <InlineNameEditor
-                        initial={list.name}
-                        onSave={(val) => { updateCategory(catId, val); setEditingCategoryId(null); }}
-                        onCancel={() => setEditingCategoryId(null)}
-                      />
-                    </div>
-                  ) : (
-                    <NavLink
-                      to={`/tasks/list/${list.id}`}
-                      className={({ isActive }) =>
-                        cn(
-                          'sidebar-item text-slate-500 hover:text-slate-900 hover:bg-white group/cat',
-                          isActive && 'sidebar-item-active text-white bg-blue-600'
-                        )
-                      }
+                  return (
+                    <div
+                      key={list.id}
+                      className="relative"
+                      onMouseEnter={() => setHoveredCatId(catId)}
+                      onMouseLeave={() => setHoveredCatId(null)}
                     >
-                      <div
-                        className="h-2 w-2 rounded-full ring-1 ring-white/60 shrink-0"
-                        style={{ backgroundColor: list.color || COLORS[catId % COLORS.length] }}
-                      />
-                      <span className="flex-1 truncate">{list.name}</span>
-                      {taskCount > 0 && (
-                        <span className={cn(
-                          'text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0',
-                          location.pathname.includes(list.id)
-                            ? 'bg-blue-700/50 text-white'
-                            : 'bg-slate-100 text-slate-500'
-                        )}>
-                          {taskCount}
-                        </span>
-                      )}
-                      {/* Action buttons — show on row hover */}
-                      {hoveredCatId === catId && (
-                        <div className="flex items-center gap-0.5 ml-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingCategoryId(catId); }}
-                            className="h-5 w-5 flex items-center justify-center rounded text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteCategory(catId); }}
-                            className="h-5 w-5 flex items-center justify-center rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
+                      {isEditing ? (
+                        <div className="flex items-center gap-2 px-2 py-1.5">
+                          <FolderOpen className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                          <InlineNameEditor
+                            initial={list.name}
+                            onSave={(val) => { updateCategory(catId, val); setEditingCategoryId(null); }}
+                            onCancel={() => setEditingCategoryId(null)}
+                          />
                         </div>
+                      ) : (
+                        <NavLink
+                          to={`/tasks/list/${list.id}`}
+                          className={({ isActive }) =>
+                            cn(
+                              'sidebar-item text-slate-500 hover:text-slate-900 hover:bg-white group/cat',
+                              isActive && 'sidebar-item-active text-white bg-blue-600'
+                            )
+                          }
+                        >
+                          <div
+                            className="h-2 w-2 rounded-full ring-1 ring-white/60 shrink-0"
+                            style={{ backgroundColor: list.color || COLORS[catId % COLORS.length] }}
+                          />
+                          <span className="flex-1 truncate">{list.name}</span>
+                          {taskCount > 0 && (
+                            <span className={cn(
+                              'text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0',
+                              location.pathname.includes(list.id)
+                                ? 'bg-blue-700/50 text-white'
+                                : 'bg-slate-100 text-slate-500'
+                            )}>
+                              {taskCount}
+                            </span>
+                          )}
+                          {/* Action buttons — show on row hover */}
+                          {hoveredCatId === catId && (
+                            <div className="flex items-center gap-0.5 ml-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingCategoryId(catId); }}
+                                className="h-5 w-5 flex items-center justify-center rounded text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteCategory(catId); }}
+                                className="h-5 w-5 flex items-center justify-center rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
+                        </NavLink>
                       )}
-                    </NavLink>
-                  )}
-                </div>
-              );
-            })}
-          </nav>
+                    </div>
+                  );
+                })}
+              </nav>
+            </>
+          )}
         </section>
 
         {/* ── Tags ───────────────────────────────────────── */}
         <section>
           <div className="px-2 py-1 mb-1 flex items-center justify-between group">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Tags</span>
+            <div 
+              onClick={() => setIsTagsCollapsed(!isTagsCollapsed)}
+              className="flex items-center gap-1.5 cursor-pointer select-none"
+            >
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Tags</span>
+              <ChevronDown className={cn("h-3 w-3 text-slate-400 transition-transform duration-150", isTagsCollapsed && "-rotate-90")} />
+            </div>
             <button
               onClick={() => setCreatingTag(true)}
               className="h-5 w-5 flex items-center justify-center rounded-md bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-300 opacity-0 group-hover:opacity-100 transition-all"
@@ -397,84 +417,87 @@ export function Sidebar() {
               <Plus className="h-3 w-3" />
             </button>
           </div>
+          {!isTagsCollapsed && (
+            <>
+              {creatingTag && (
+                <InlineCreate
+                  placeholder="Label name..."
+                  onSave={(name) => { addTag(name); setCreatingTag(false); }}
+                  onCancel={() => setCreatingTag(false)}
+                />
+              )}
 
-          {creatingTag && (
-            <InlineCreate
-              placeholder="Label name..."
-              onSave={(name) => { addTag(name); setCreatingTag(false); }}
-              onCancel={() => setCreatingTag(false)}
-            />
-          )}
+              <nav className="space-y-0.5">
+                {tags.map((tag) => {
+                  const tagTaskCount = tasks.filter(
+                    (t) => t.tags?.includes(tag.name) && t.status !== 2 && t.status !== 3
+                  ).length;
+                  const isEditing = editingTagId === tag.id;
 
-          <nav className="space-y-0.5">
-            {tags.map((tag) => {
-              const tagTaskCount = tasks.filter(
-                (t) => t.tags?.includes(tag.name) && t.status !== 2
-              ).length;
-              const isEditing = editingTagId === tag.id;
-
-              return (
-                <div
-                  key={tag.id}
-                  className="relative"
-                  onMouseEnter={() => setHoveredTagId(tag.id)}
-                  onMouseLeave={() => setHoveredTagId(null)}
-                >
-                  {isEditing ? (
-                    <div className="flex items-center gap-2 px-2 py-1.5">
-                      <Hash className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                      <InlineNameEditor
-                        initial={tag.name}
-                        onSave={(val) => { updateTag(tag.id, val); setEditingTagId(null); }}
-                        onCancel={() => setEditingTagId(null)}
-                      />
-                    </div>
-                  ) : (
-                    <NavLink
-                      to={`/tasks/tag/${tag.id}`}
-                      className={({ isActive }) =>
-                        cn(
-                          'sidebar-item text-slate-500 hover:text-slate-900 hover:bg-white',
-                          isActive && 'sidebar-item-active text-white bg-blue-600'
-                        )
-                      }
+                  return (
+                    <div
+                      key={tag.id}
+                      className="relative"
+                      onMouseEnter={() => setHoveredTagId(tag.id)}
+                      onMouseLeave={() => setHoveredTagId(null)}
                     >
-                      <Hash className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                      <span className="flex-1 truncate capitalize">{tag.name}</span>
-                      {tagTaskCount > 0 && (
-                        <span className={cn(
-                          'text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0',
-                          location.pathname.includes(String(tag.id))
-                            ? 'bg-blue-700/50 text-white'
-                            : 'bg-slate-100 text-slate-500'
-                        )}>
-                          {tagTaskCount}
-                        </span>
-                      )}
-                      {hoveredTagId === tag.id && (
-                        <div className="flex items-center gap-0.5 ml-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingTagId(tag.id); }}
-                            className="h-5 w-5 flex items-center justify-center rounded text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteTag(tag.id); }}
-                            className="h-5 w-5 flex items-center justify-center rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
+                      {isEditing ? (
+                        <div className="flex items-center gap-2 px-2 py-1.5">
+                          <Hash className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                          <InlineNameEditor
+                            initial={tag.name}
+                            onSave={(val) => { updateTag(tag.id, val); setEditingTagId(null); }}
+                            onCancel={() => setEditingTagId(null)}
+                          />
                         </div>
+                      ) : (
+                        <NavLink
+                          to={`/tasks/tag/${tag.id}`}
+                          className={({ isActive }) =>
+                            cn(
+                              'sidebar-item text-slate-500 hover:text-slate-900 hover:bg-white',
+                              isActive && 'sidebar-item-active text-white bg-blue-600'
+                            )
+                          }
+                        >
+                          <Hash className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                          <span className="flex-1 truncate capitalize">{tag.name}</span>
+                          {tagTaskCount > 0 && (
+                            <span className={cn(
+                              'text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0',
+                              location.pathname.includes(String(tag.id))
+                                ? 'bg-blue-700/50 text-white'
+                                : 'bg-slate-100 text-slate-500'
+                            )}>
+                              {tagTaskCount}
+                            </span>
+                          )}
+                          {hoveredTagId === tag.id && (
+                            <div className="flex items-center gap-0.5 ml-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingTagId(tag.id); }}
+                                className="h-5 w-5 flex items-center justify-center rounded text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteTag(tag.id); }}
+                                className="h-5 w-5 flex items-center justify-center rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
+                        </NavLink>
                       )}
-                    </NavLink>
-                  )}
-                </div>
-              );
-            })}
-          </nav>
+                    </div>
+                  );
+                })}
+              </nav>
+            </>
+          )}
         </section>
       </div>
 

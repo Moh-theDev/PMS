@@ -1,0 +1,47 @@
+import { create } from 'zustand';
+
+export interface ChatMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  text?: string;
+  timestamp: Date;
+  type: 'text' | 'options' | 'deadline-wizard' | 'report-view' | 'loading';
+  payload?: any;
+}
+
+interface AiAssistantState {
+  messages: ChatMessage[];
+  isProcessing: boolean;
+  inputValue: string;
+  setMessages: (messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
+  setIsProcessing: (isProcessing: boolean) => void;
+  setInputValue: (inputValue: string) => void;
+  resetChat: () => void;
+}
+
+const initialWelcomeMessage: ChatMessage = {
+  id: 'welcome',
+  sender: 'assistant',
+  text: 'Hello! I am your AI Productivity Coach. I can analyze your time trackings or run the Smart Scheduling engine to optimize your calendar timeline.',
+  timestamp: new Date(),
+  type: 'options'
+};
+
+export const useAiAssistantStore = create<AiAssistantState>((set) => ({
+  messages: [
+    { ...initialWelcomeMessage }
+  ],
+  isProcessing: false,
+  inputValue: '',
+  setMessages: (updater) => set((state) => {
+    const nextMessages = typeof updater === 'function' ? updater(state.messages) : updater;
+    return { messages: nextMessages };
+  }),
+  setIsProcessing: (isProcessing) => set({ isProcessing }),
+  setInputValue: (inputValue) => set({ inputValue }),
+  resetChat: () => set({
+    messages: [{ ...initialWelcomeMessage, timestamp: new Date() }],
+    isProcessing: false,
+    inputValue: ''
+  })
+}));

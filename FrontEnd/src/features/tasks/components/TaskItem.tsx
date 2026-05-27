@@ -24,13 +24,16 @@ const CATEGORY_COLORS = [
 export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categories, tags, onRemoveTag }: TaskItemProps) {
   const navigate = useNavigate();
   const isCompleted = task.status === TaskStatus.Done;
+  const isCancelled = task.status === TaskStatus.Cancelled;
+  const isClosed = isCompleted || isCancelled;
   const category = categories?.find((c) => c.id === task.categoryId);
   const categoryColor = category ? CATEGORY_COLORS[category.id % CATEGORY_COLORS.length] : null;
 
   const badgeText = (() => {
     if (isCompleted) return 'Done';
+    if (isCancelled) return 'Cancelled';
     if (isOverdue) return 'Overdue';
-    if (task.deadline) {
+    if (task.deadline && !task.deadline.startsWith('0001-01-01')) {
       return new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
     return null;
@@ -43,14 +46,14 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
         isSelected
           ? 'border-blue-500 ring-2 ring-blue-500/10 shadow-sm'
           : 'border-slate-100 hover:border-slate-200 hover:shadow-sm',
-        isCompleted && 'opacity-55'
+        isClosed && 'opacity-55'
       )}
       onClick={onClick}
     >
       {/* Checkbox */}
       <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
         <Checkbox
-          checked={isCompleted}
+          checked={isClosed}
           onCheckedChange={(val) => onToggle(val === true)}
           className={cn(
             'h-4 w-4 rounded transition-all',
@@ -76,7 +79,7 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
       <span
         className={cn(
           'flex-1 text-sm font-medium truncate text-slate-800',
-          isCompleted && 'line-through text-slate-400'
+          isClosed && 'line-through text-slate-400'
         )}
       >
         {task.title}
@@ -142,7 +145,8 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
             className={cn(
               'h-5 px-2 text-[10px] font-semibold rounded-md gap-1',
               isCompleted && 'bg-emerald-100 text-emerald-600 hover:bg-emerald-100',
-              !isOverdue && !isCompleted && 'bg-slate-100 text-slate-500'
+              isCancelled && 'bg-rose-100 text-rose-600 hover:bg-rose-100',
+              !isOverdue && !isClosed && 'bg-slate-100 text-slate-500'
             )}
           >
             {isOverdue && <span className="h-1.5 w-1.5 rounded-full bg-red-400 inline-block" />}
@@ -151,7 +155,12 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
                 <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
-            {!isOverdue && !isCompleted && <Clock className="h-2.5 w-2.5 text-slate-400" />}
+            {isCancelled && (
+              <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+            {!isOverdue && !isClosed && <Clock className="h-2.5 w-2.5 text-slate-400" />}
             {badgeText}
           </Badge>
         )}
