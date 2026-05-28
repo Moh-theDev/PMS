@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useParams, useSearchParams, useOutletContext } from 'react-router-dom';
-import { Filter, ListFilter, MoreHorizontal, SlidersHorizontal } from 'lucide-react';
+import { Filter, ListFilter, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -67,6 +67,9 @@ export function InboxView() {
   const [priorityFilters, setPriorityFilters] = React.useState<('high' | 'medium' | 'low')[]>(['high', 'medium', 'low']);
   const [selectedListIds, setSelectedListIds] = React.useState<string[]>([]);
   const [selectedTagNames, setSelectedTagNames] = React.useState<string[]>([]);
+  const [dateFilter, setDateFilter] = React.useState<'all' | 'today' | 'tomorrow' | 'week' | 'month' | 'no-deadline' | 'custom'>('all');
+  const [filterCustomStart, setFilterCustomStart] = React.useState<string>('');
+  const [filterCustomEnd, setFilterCustomEnd] = React.useState<string>('');
 
   // Client-side Sorting settings
   const [sortBy, setSortBy] = React.useState<'none' | 'dueDate' | 'priority' | 'alphabetical'>('none');
@@ -141,6 +144,56 @@ export function InboxView() {
           return selectedTagNames.includes('none');
         }
         return t.tags.some((tagName) => selectedTagNames.includes(tagName));
+      });
+    }
+
+    // 4.5 Date Filter
+    if (dateFilter !== 'all') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
+
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+      const oneWeekLater = new Date(today);
+      oneWeekLater.setDate(oneWeekLater.getDate() + 7);
+      const oneWeekLaterStr = oneWeekLater.toISOString().split('T')[0];
+
+      const oneMonthLater = new Date(today);
+      oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+      const oneMonthLaterStr = oneMonthLater.toISOString().split('T')[0];
+
+      result = result.filter((t) => {
+        const hasDeadline = t.deadline && !t.deadline.startsWith('0001-01-01');
+        
+        if (dateFilter === 'no-deadline') {
+          return !hasDeadline;
+        }
+        
+        if (!t.deadline || t.deadline.startsWith('0001-01-01')) return false;
+        const tDateStr = t.deadline.split('T')[0];
+
+        if (dateFilter === 'today') {
+          return tDateStr === todayStr;
+        } else if (dateFilter === 'tomorrow') {
+          return tDateStr === tomorrowStr;
+        } else if (dateFilter === 'week') {
+          return tDateStr >= todayStr && tDateStr <= oneWeekLaterStr;
+        } else if (dateFilter === 'month') {
+          return tDateStr >= todayStr && tDateStr <= oneMonthLaterStr;
+        } else if (dateFilter === 'custom') {
+          if (filterCustomStart && filterCustomEnd) {
+            return tDateStr >= filterCustomStart && tDateStr <= filterCustomEnd;
+          } else if (filterCustomStart) {
+            return tDateStr >= filterCustomStart;
+          } else if (filterCustomEnd) {
+            return tDateStr <= filterCustomEnd;
+          }
+          return true;
+        }
+        return true;
       });
     }
 
@@ -295,11 +348,6 @@ export function InboxView() {
     );
   };
 
-  const handleToggleListFilter = (idStr: string) => {
-    setSelectedListIds((prev) =>
-      prev.includes(idStr) ? prev.filter((x) => x !== idStr) : [...prev, idStr]
-    );
-  };
 
   const handleToggleTagFilter = (tagName: string) => {
     setSelectedTagNames((prev) =>
@@ -312,9 +360,12 @@ export function InboxView() {
     setPriorityFilters(['high', 'medium', 'low']);
     setSelectedListIds([]);
     setSelectedTagNames([]);
+    setDateFilter('all');
+    setFilterCustomStart('');
+    setFilterCustomEnd('');
   };
 
-  const isAnyFilterActive = searchQuery || selectedListIds.length > 0 || selectedTagNames.length > 0 || priorityFilters.length < 3;
+  const isAnyFilterActive = searchQuery || selectedListIds.length > 0 || selectedTagNames.length > 0 || priorityFilters.length < 3 || dateFilter !== 'all';
 
   // Render content according to layouts
   const renderMainContent = () => {
@@ -339,7 +390,6 @@ export function InboxView() {
             categories={categories}
             selectedTaskId={selectedTaskId}
             onSelectTask={setSelectedTaskId}
-            onUpdateTask={handleUpdateTask}
           />
         </div>
       );
@@ -405,18 +455,27 @@ export function InboxView() {
                   </div>
 
                   <div className="space-y-3">
-                    <label className="flex items-center gap-3 cursor-pointer select-none">
-                      <Checkbox checked={showOverdue} onCheckedChange={(val) => setShowOverdue(val === true)} />
+                    <div 
+                      onClick={() => setShowOverdue(!showOverdue)} 
+                      className="flex items-center gap-3 cursor-pointer select-none py-1 hover:opacity-80 transition-opacity"
+                    >
+                      <Checkbox checked={showOverdue} onCheckedChange={undefined} />
                       <span className="text-xs font-bold text-slate-700">Show Overdue Tasks</span>
-                    </label>
-                    <label className="flex items-center gap-3 cursor-pointer select-none">
-                      <Checkbox checked={showCompleted} onCheckedChange={(val) => setShowCompleted(val === true)} />
+                    </div>
+                    <div 
+                      onClick={() => setShowCompleted(!showCompleted)} 
+                      className="flex items-center gap-3 cursor-pointer select-none py-1 hover:opacity-80 transition-opacity"
+                    >
+                      <Checkbox checked={showCompleted} onCheckedChange={undefined} />
                       <span className="text-xs font-bold text-slate-700">Show Completed Tasks</span>
-                    </label>
-                    <label className="flex items-center gap-3 cursor-pointer select-none">
-                      <Checkbox checked={showCancelled} onCheckedChange={(val) => setShowCancelled(val === true)} />
+                    </div>
+                    <div 
+                      onClick={() => setShowCancelled(!showCancelled)} 
+                      className="flex items-center gap-3 cursor-pointer select-none py-1 hover:opacity-80 transition-opacity"
+                    >
+                      <Checkbox checked={showCancelled} onCheckedChange={undefined} />
                       <span className="text-xs font-bold text-slate-700">Show Cancelled Tasks</span>
-                    </label>
+                    </div>
                   </div>
 
                   {listId === 'upcoming' && (
@@ -521,72 +580,114 @@ export function InboxView() {
                     </div>
                   </div>
 
-                  {/* Categories Checklist */}
+                  {/* Date Filter */}
                   <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Lists</label>
-                      {selectedListIds.length > 0 && (
+                    <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Date Due</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {([
+                        { id: 'all', label: 'All Time' },
+                        { id: 'today', label: 'Today' },
+                        { id: 'tomorrow', label: 'Tomorrow' },
+                        { id: 'week', label: 'This Week' },
+                        { id: 'month', label: 'This Month' },
+                        { id: 'no-deadline', label: 'No Due Date' },
+                        { id: 'custom', label: 'Custom Range...' }
+                      ] as const).map((opt) => (
                         <button
-                          onClick={() => setSelectedListIds([])}
+                          key={opt.id}
                           type="button"
-                          className="text-[9px] font-bold text-slate-400 hover:text-red-500"
+                          onClick={() => setDateFilter(opt.id)}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border",
+                            dateFilter === opt.id
+                              ? "bg-blue-600 blue-slate-900 text-white shadow-xs"
+                              : "bg-white border-slate-200 text-slate-500 hover:text-blue-500 hover:border-slate-300"
+                          )}
                         >
-                          Clear
+                          {opt.label}
                         </button>
-                      )}
-                    </div>
-                    <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
-                      <label className="flex items-center gap-2 cursor-pointer py-0.5 select-none">
-                        <Checkbox
-                          checked={selectedListIds.includes('none')}
-                          onCheckedChange={() => handleToggleListFilter('none')}
-                        />
-                        <span className="text-xs font-bold text-slate-700">No List (Inbox)</span>
-                      </label>
-                      {categories.map((cat) => (
-                        <label key={cat.id} className="flex items-center gap-2 cursor-pointer py-0.5 select-none">
-                          <Checkbox
-                            checked={selectedListIds.includes(String(cat.id))}
-                            onCheckedChange={() => handleToggleListFilter(String(cat.id))}
-                          />
-                          <span className="text-xs font-bold text-slate-700 truncate">{cat.name}</span>
-                        </label>
                       ))}
                     </div>
+
+                    {/* Expandable Custom Date Inputs inside the filter */}
+                    {dateFilter === 'custom' && (
+                      <div className="mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-2 animate-in fade-in slide-in-from-top-1">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Start Date</span>
+                          <input
+                            type="date"
+                            value={filterCustomStart}
+                            onChange={(e) => setFilterCustomStart(e.target.value)}
+                            className="w-full h-8 px-2 py-0.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">End Date</span>
+                          <input
+                            type="date"
+                            value={filterCustomEnd}
+                            onChange={(e) => setFilterCustomEnd(e.target.value)}
+                            className="w-full h-8 px-2 py-0.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Tags checklist */}
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Tags</label>
-                      {selectedTagNames.length > 0 && (
-                        <button
-                          onClick={() => setSelectedTagNames([])}
-                          type="button"
-                          className="text-[9px] font-bold text-slate-400 hover:text-red-500"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                    <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
-                      <label className="flex items-center gap-2 cursor-pointer py-0.5 select-none">
-                        <Checkbox
-                          checked={selectedTagNames.includes('none')}
-                          onCheckedChange={() => handleToggleTagFilter('none')}
-                        />
-                        <span className="text-xs font-bold text-slate-700">No Tag</span>
-                      </label>
-                      {tags.map((tag) => (
-                        <label key={tag.id} className="flex items-center gap-2 cursor-pointer py-0.5 select-none">
+                  {/* Tags checklist - only show if NOT in a specific category list or tag view */}
+                  {!tagId && (listId === 'inbox' || listId === 'today' || listId === 'upcoming') && (
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Tags</label>
+                        {selectedTagNames.length > 0 && (
+                          <button
+                            onClick={() => setSelectedTagNames([])}
+                            type="button"
+                            className="text-[9px] font-bold text-slate-400 hover:text-red-500"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
+                        <label className="flex items-center gap-2 cursor-pointer py-0.5 select-none">
                           <Checkbox
-                            checked={selectedTagNames.includes(tag.name)}
-                            onCheckedChange={() => handleToggleTagFilter(tag.name)}
+                            checked={selectedTagNames.includes('none')}
+                            onCheckedChange={() => handleToggleTagFilter('none')}
                           />
-                          <span className="text-xs font-bold text-slate-700 truncate">#{tag.name}</span>
+                          <span className="text-xs font-bold text-slate-700">No Tag</span>
                         </label>
-                      ))}
+                        {tags.map((tag) => (
+                          <label key={tag.id} className="flex items-center gap-2 cursor-pointer py-0.5 select-none">
+                            <Checkbox
+                              checked={selectedTagNames.includes(tag.name)}
+                              onCheckedChange={() => handleToggleTagFilter(tag.name)}
+                            />
+                            <span className="text-xs font-bold text-slate-700 truncate">#{tag.name}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
+                  )}
+
+                  {/* Reset & Summary info */}
+                  <div className="flex flex-col gap-2 pt-3 border-t border-slate-100 mt-1">
+                    <div className="text-[10px] font-semibold text-slate-400 mb-1">
+                      Showing {processedTasks.length} of {baseTasks.length} tasks
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearFilters}
+                      disabled={!isAnyFilterActive}
+                      className={cn(
+                        "w-full py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
+                        isAnyFilterActive
+                          ? "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200/50"
+                          : "bg-slate-50 text-slate-400 border border-slate-100 cursor-not-allowed"
+                      )}
+                    >
+                      Reset all filters
+                    </button>
                   </div>
 
                 </PopoverContent>
@@ -675,27 +776,6 @@ export function InboxView() {
               </Popover>
 
             </div>
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="icon" className="h-9 w-9 bg-white border-slate-200 text-slate-400 cursor-pointer">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56 p-2 border border-slate-150 bg-white shadow-lg rounded-xl flex flex-col gap-0.5">
-                <button
-                  type="button"
-                  onClick={handleClearFilters}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 w-full text-left cursor-pointer"
-                >
-                  Reset all filters
-                </button>
-                <div className="border-t border-slate-100 my-1" />
-                <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-400">
-                  Showing {processedTasks.length} of {baseTasks.length} tasks
-                </div>
-              </PopoverContent>
-            </Popover>
 
           </div>
         </header>

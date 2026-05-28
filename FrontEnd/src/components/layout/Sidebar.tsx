@@ -208,10 +208,8 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-slate-900 leading-none truncate">{user?.name}</span>
-              <span className="text-[10px] text-slate-400 capitalize leading-none mt-0.5 font-semibold">
-                {user?.plan} Plan
-              </span>
+              <span className="text-xs font-bold text-slate-900 truncate overflow-hidden">{user?.name}</span>
+              
             </div>
           </div>
           <ChevronDown
@@ -226,7 +224,7 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
         <button
           type="button"
           onClick={toggleSidebar}
-          className="ml-2 h-9 w-9 bg-white border border-slate-200 hover:border-blue-200 hover:text-blue-600 rounded-xl shadow-2xs flex items-center justify-center shrink-0 cursor-pointer text-slate-400 hover:bg-slate-50 transition-all active:scale-95"
+          className="ml-2 h-11 w-11 bg-white border border-slate-300 hover:border-red-200 hover:text-red-400 rounded-xl shadow-2xs flex items-center justify-center shrink-0 cursor-pointer text-slate-400 hover:bg-slate-50 transition-all active:scale-95"
           title="Collapse Sidebar"
         >
           <X className="h-4.5 w-4.5" />
@@ -254,7 +252,7 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
       </div>
 
       {/* ── Search ─────────────────────────────────────────────────── */}
-      <div className="px-3 pb-2">
+      <div className="px-3 pb-2 mt-4">
         <button 
           onClick={() => setIsSearchOpen(true)}
           className="flex items-center justify-between w-full px-3 py-2 bg-white border border-slate-200 hover:border-blue-200 rounded-xl text-slate-400 text-xs font-semibold transition-all shadow-sm group"

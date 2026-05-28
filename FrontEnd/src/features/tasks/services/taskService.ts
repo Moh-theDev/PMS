@@ -71,3 +71,7 @@ export async function searchTasks(keyword: string): Promise<Task[]> {
   });
   return res.data;
 }
+
+export async function clearStartEnd(id: number): Promise<void> {
+  await api.patch(`/tasks/clear-start-end/${id}`);
+}

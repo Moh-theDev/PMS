@@ -21,6 +21,7 @@ interface TaskState {
   updateTaskStatus: (id: number, status: TaskStatus) => Promise<void>;
   deleteTask: (id: number) => Promise<DeleteTaskResult>;
   resolveDelete: (id: number, option: string, newTaskId?: number) => Promise<void>;
+  clearStartEnd: (id: number) => Promise<void>;
 
   addCategory: (name: string) => Promise<void>;
   updateCategory: (id: number, name: string) => Promise<void>;
@@ -154,6 +155,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   updateTask: async (id, updates) => {
     const previousTasks = get().tasks;
+    const task = previousTasks.find((t) => t.id === id);
+    if (!task) return;
+
+    // Optimistic update in client state
     set((state) => ({
       tasks: state.tasks.map((t) => {
         if (t.id === id) {
@@ -169,7 +174,73 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }));
 
     try {
-      await taskService.updateTask(id, updates);
+      let apiUpdates = { ...updates };
+
+      const isScheduled = !!(task.earliestStart && !task.earliestStart.startsWith('0001-01-01') && 
+                             task.latestEnd && !task.latestEnd.startsWith('0001-01-01'));
+
+      // 1. Enrich date fields to satisfy backend "EarliestStart < LatestEnd" constraint
+      if (updates.earliestStart !== undefined || updates.latestEnd !== undefined) {
+        const currentStart = updates.earliestStart !== undefined ? updates.earliestStart : task.earliestStart;
+        const currentEnd = updates.latestEnd !== undefined ? updates.latestEnd : task.latestEnd;
+
+        const hasStart = currentStart && !currentStart.startsWith('0001-01-01');
+        const hasEnd = currentEnd && !currentEnd.startsWith('0001-01-01');
+
+        if (hasStart && !hasEnd) {
+          const duration = updates.durationInMinutes !== undefined 
+            ? updates.durationInMinutes 
+            : (task.durationInMinutes || 30);
+          try {
+            const startDate = new Date(currentStart);
+            const endDate = new Date(startDate.getTime() + duration * 60000);
+            apiUpdates.earliestStart = currentStart;
+            apiUpdates.latestEnd = endDate.toISOString();
+          } catch (e) {
+            console.error(e);
+          }
+        } else if (!hasStart && hasEnd) {
+          const duration = updates.durationInMinutes !== undefined 
+            ? updates.durationInMinutes 
+            : (task.durationInMinutes || 30);
+          try {
+            const endDate = new Date(currentEnd);
+            const startDate = new Date(endDate.getTime() - duration * 60000);
+            apiUpdates.earliestStart = startDate.toISOString();
+            apiUpdates.latestEnd = currentEnd;
+          } catch (e) {
+            console.error(e);
+          }
+        } else if (hasStart && hasEnd) {
+          apiUpdates.earliestStart = currentStart;
+          apiUpdates.latestEnd = currentEnd;
+        }
+      }
+
+      // 2. Handle deadline updates with respect to backend constraints
+      if (updates.deadline !== undefined && updates.deadline) {
+        if (isScheduled) {
+          // Send earliestStart and latestEnd to ensure "latestEnd <= deadline" backend check succeeds
+          apiUpdates.earliestStart = apiUpdates.earliestStart !== undefined ? apiUpdates.earliestStart : task.earliestStart;
+          apiUpdates.latestEnd = apiUpdates.latestEnd !== undefined ? apiUpdates.latestEnd : task.latestEnd;
+        } else {
+          // WORKAROUND for backend bug: if task is unscheduled, backend's UpdateAsync ignores deadline updates.
+          // We temporarily set dummy schedule dates, update the task, then immediately clear the schedule.
+          const deadlineDate = new Date(updates.deadline);
+          const dummyEndDate = deadlineDate.toISOString();
+          const dummyStartDate = new Date(deadlineDate.getTime() - 5 * 60000).toISOString();
+
+          await taskService.updateTask(id, {
+            ...apiUpdates,
+            earliestStart: dummyStartDate,
+            latestEnd: dummyEndDate,
+          });
+          await taskService.clearStartEnd(id);
+          return; // Skip standard update call since we did it above
+        }
+      }
+
+      await taskService.updateTask(id, apiUpdates);
     } catch (err: any) {
       set({ tasks: previousTasks, error: 'Failed to update task' });
       throw err;
@@ -232,6 +303,30 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       }
     } catch (err: any) {
       set({ error: 'Failed to resolve deletion conflict', isLoading: false });
+      throw err;
+    }
+  },
+
+  clearStartEnd: async (id) => {
+    const previousTasks = get().tasks;
+    set((state) => ({
+      tasks: state.tasks.map((t) => {
+        if (t.id === id) {
+          return {
+            ...t,
+            earliestStart: null,
+            latestEnd: null,
+          };
+        }
+        return t;
+      }),
+      error: null,
+    }));
+
+    try {
+      await taskService.clearStartEnd(id);
+    } catch (err: any) {
+      set({ tasks: previousTasks, error: 'Failed to clear task schedule dates' });
       throw err;
     }
   },
@@ -370,10 +465,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     if (listId === 'upcoming') {
       const today = new Date().toISOString().split('T')[0];
       return tasks.filter((t) => {
-        const deadline = t.deadline?.split('T')[0];
         const start = t.earliestStart?.split('T')[0];
         const end = t.latestEnd?.split('T')[0];
-        return (deadline && deadline > today) || (start && start > today) || (end && end > today);
+        const isScheduled = start && !t.earliestStart?.startsWith('0001-01-01') &&
+                            end && !t.latestEnd?.startsWith('0001-01-01');
+        if (!isScheduled) return false;
+        return start > today || end > today;
       });
     }
     // Check if listId represents a dynamic category

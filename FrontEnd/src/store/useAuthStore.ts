@@ -7,7 +7,6 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
-  plan: 'free' | 'pro' | 'standard';
 }
 
 interface AuthState {
@@ -50,7 +49,6 @@ export const useAuthStore = create<AuthState>((set, get) => {
             name: profile.name,
             email: profile.email,
             avatar: profile.avatar || 'https://github.com/shadcn.png',
-            plan: 'standard', // default plan for simplicity
           },
           isAuthenticated: true,
           isLoading: false,

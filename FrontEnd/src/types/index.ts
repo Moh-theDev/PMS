@@ -84,5 +84,4 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
-  plan: 'free' | 'pro' | 'standard';
 }

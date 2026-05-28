@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { Circle, Flag, Clock, Calendar, Tag as TagIcon, FolderOpen, X, ChevronDown, Plus, Minus, Check } from 'lucide-react';
+import { Circle, Flag, Clock, Calendar, Tag as TagIcon, FolderOpen, X, ChevronDown, Plus, Minus, Check, Trash2, Dumbbell } from 'lucide-react';
+import { useTaskStore } from '@/store/useTaskStore';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -173,12 +174,14 @@ function ClickableDatePicker({
   value,
   onChange,
   isOpen,
-  onOpenChange
+  onOpenChange,
+  showClear = true
 }: {
   value?: string | null;
   onChange: (val: string | null) => void;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  showClear?: boolean;
 }) {
   const { date, hour, minute, ampm } = React.useMemo(() => parseDateTime(value), [value]);
   const hasValidValue = value && !value.startsWith('0001-01-01');
@@ -246,7 +249,7 @@ function ClickableDatePicker({
           </span>
           
           <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-            {hasValidValue && (
+            {hasValidValue && showClear && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -393,7 +396,7 @@ function ClickableDatePicker({
             >
               Use Today
             </button>
-            {hasValidValue && (
+            {hasValidValue && showClear && (
               <button
                 type="button"
                 onClick={() => {
@@ -499,6 +502,7 @@ export function TaskDetailFields({
   onAssignTags,
   onRemoveTag,
 }: TaskDetailFieldsProps) {
+  const clearStartEnd = useTaskStore((state) => state.clearStartEnd);
   // Duration controlled state
   const [durationVal, setDurationVal] = React.useState(task.durationInMinutes);
   const [durationError, setDurationError] = React.useState<'min' | 'max' | null>(null);
@@ -717,7 +721,7 @@ export function TaskDetailFields({
         </DetailRow>
 
         {/* Effort level dropdown */}
-        <DetailRow icon={Flag} label="Effort">
+        <DetailRow icon={Dumbbell} label="Effort">
           <CustomDropdown
             value={task.effortLevel}
             options={effortOptions}
@@ -748,6 +752,7 @@ export function TaskDetailFields({
             onChange={(val) => onUpdateTask(task.id, { earliestStart: val })}
             isOpen={startOpen}
             onOpenChange={setStartOpen}
+            showClear={false}
           />
         </DetailRow>
 
@@ -762,8 +767,26 @@ export function TaskDetailFields({
             onChange={(val) => onUpdateTask(task.id, { latestEnd: val })}
             isOpen={endOpen}
             onOpenChange={setEndOpen}
+            showClear={false}
           />
         </DetailRow>
+
+        {/* Clear Schedule Action utilizing dedicated backend endpoint */}
+        {((task.earliestStart && !task.earliestStart.startsWith('0001-01-01')) || 
+          (task.latestEnd && !task.latestEnd.startsWith('0001-01-01'))) && (
+          <div className="flex px-4 py-1.5 justify-end animate-fade-in">
+            <button
+              type="button"
+              onClick={() => clearStartEnd(task.id)}
+              className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100/80 text-rose-600 hover:text-rose-700 text-xs font-bold rounded-xl border border-rose-100 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Clear Schedule
+            </button>
+          </div>
+        )}
+
+        <Separator className="my-1.5 opacity-60" />
 
         {/* Deadline picker */}
         <DetailRow 
@@ -776,14 +799,17 @@ export function TaskDetailFields({
             onChange={(val) => onUpdateTask(task.id, { deadline: val })}
             isOpen={deadlineOpen}
             onOpenChange={setDeadlineOpen}
+            showClear={true}
           />
         </DetailRow>
 
+
+
         {/* Tags Label Row */}
         <div className="flex gap-4 items-start pt-2 mt-1 border-t border-slate-200/50">
-          <div className="w-24 flex items-center gap-2 shrink-0 mt-2">
-            <TagIcon className="h-4 w-4 text-slate-400" />
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Labels</span>
+          <div className="w-28 flex items-center gap-2.5 shrink-0 mt-2 select-none">
+            <TagIcon className="h-4.5 w-4.5 text-slate-400" />
+            <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest">Labels</span>
           </div>
           <div className="flex-1 flex flex-wrap gap-1.5 items-center pt-1.5">
             {task.tags?.map((tag: string) => (

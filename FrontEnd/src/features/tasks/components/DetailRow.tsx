@@ -20,13 +20,13 @@ export function DetailRow({ icon: Icon, label, children, onClick, className }: D
       )}
       onClick={onClick}
     >
-      <div className="w-24 flex items-center gap-2.5 shrink-0 select-none">
+      <div className="w-28 flex items-center gap-2.5 shrink-0 select-none">
         <Icon className={cn(
-          "h-4 w-4 text-slate-400/80 transition-colors duration-200",
+          "h-4.5 w-4.5 text-slate-400/80 transition-colors duration-200",
           onClick && "group-hover:text-blue-500"
         )} />
         <span className={cn(
-          "text-[10px] font-bold text-slate-400 uppercase tracking-widest transition-colors duration-200",
+          "text-[10.5px] font-bold text-slate-400 uppercase tracking-widest transition-colors duration-200",
           onClick && "group-hover:text-slate-700"
         )}>
           {label}
