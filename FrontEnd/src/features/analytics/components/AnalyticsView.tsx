@@ -33,7 +33,8 @@ import {
   Sliders,
   Target,
   Flame,
-  Zap
+  Zap,
+  Check
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -858,8 +859,9 @@ export function AnalyticsView() {
   const [focusPieTimeframe, setFocusPieTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('week');
   const [focusPieCustomStart, setFocusPieCustomStart] = React.useState(defaultStartDate);
   const [focusPieCustomEnd, setFocusPieCustomEnd] = React.useState(defaultEndDate);
-  const [focusPieCategory, setFocusPieCategory] = React.useState<number | 'all' | 'none'>('none');
-  const [focusPieTag, setFocusPieTag] = React.useState<string | 'all'>('none');
+  const [focusPieCategories, setFocusPieCategories] = React.useState<number[]>([]);
+  const [focusPieTags, setFocusPieTags] = React.useState<string[]>([]);
+  const [focusPieShowTasks, setFocusPieShowTasks] = React.useState(false);
   const [focusPieCatOpen, setFocusPieCatOpen] = React.useState(false);
   const [focusPieTagOpen, setFocusPieTagOpen] = React.useState(false);
 
@@ -1240,37 +1242,133 @@ export function AnalyticsView() {
   const focusPieData = React.useMemo(() => {
     const filter = getDateFilter(focusPieTimeframe, focusPieCustomStart, focusPieCustomEnd, focusPieRefDate);
     
-    // Gather matching sessions
+    // Gather matching sessions in the active date range
     const rangeSessions = sessions.filter(s => filter(new Date(s.startedAt || s.createdAt)));
     
     const taskAccumulations: Record<string, { seconds: number; color: string }> = {};
     let totalSeconds = 0;
 
+    // Check if any filters are active
+    const isCategoryFilterActive = focusPieCategories.length > 0;
+    const isTagFilterActive = focusPieTags.length > 0;
+
+    // ── Mode A: Displaying Category/Tag total times (focusPieShowTasks === false) ──
+    if (!focusPieShowTasks) {
+      const groupAccumulations: Record<string, { seconds: number; color: string }> = {};
+
+      rangeSessions.forEach(s => {
+        const assocTask = tasks.find(t => t.id === s.taskId);
+        
+        // If filters are active, only include sessions that match the selected filters
+        if (isCategoryFilterActive || isTagFilterActive) {
+          let matchesCategory = false;
+          let matchesTag = false;
+
+          if (isCategoryFilterActive && assocTask && assocTask.categoryId !== undefined && assocTask.categoryId !== null) {
+            if (focusPieCategories.includes(assocTask.categoryId)) {
+              matchesCategory = true;
+            }
+          }
+          if (isTagFilterActive && assocTask && assocTask.tags && assocTask.tags.length > 0) {
+            if (assocTask.tags.some(tag => focusPieTags.includes(tag))) {
+              matchesTag = true;
+            }
+          }
+
+          // If both category and tag filters are active, include if matching either (OR logic)
+          const matches = (isCategoryFilterActive && isTagFilterActive)
+            ? (matchesCategory || matchesTag)
+            : (isCategoryFilterActive ? matchesCategory : matchesTag);
+
+          if (!matches) return;
+        }
+
+        // Attribute focus time to selected categories/tags
+        if (!isCategoryFilterActive && !isTagFilterActive) {
+          // Default: group by Category
+          if (assocTask && assocTask.categoryId) {
+            const cat = categories.find(c => c.id === assocTask.categoryId);
+            if (cat) {
+              const name = cat.name;
+              if (!groupAccumulations[name]) {
+                groupAccumulations[name] = { seconds: 0, color: cat.color || '#3b82f6' };
+              }
+              groupAccumulations[name].seconds += s.accumulatedSeconds;
+              totalSeconds += s.accumulatedSeconds;
+            }
+          } else {
+            const name = 'Inbox';
+            if (!groupAccumulations[name]) {
+              groupAccumulations[name] = { seconds: 0, color: '#94a3b8' };
+            }
+            groupAccumulations[name].seconds += s.accumulatedSeconds;
+            totalSeconds += s.accumulatedSeconds;
+          }
+        } else {
+          // Attribute to each selected category
+          if (isCategoryFilterActive && assocTask && assocTask.categoryId !== undefined && assocTask.categoryId !== null) {
+            if (focusPieCategories.includes(assocTask.categoryId)) {
+              const cat = categories.find(c => c.id === assocTask.categoryId);
+              if (cat) {
+                const name = cat.name;
+                if (!groupAccumulations[name]) {
+                  groupAccumulations[name] = { seconds: 0, color: cat.color || '#3b82f6' };
+                }
+                groupAccumulations[name].seconds += s.accumulatedSeconds;
+                totalSeconds += s.accumulatedSeconds;
+              }
+            }
+          }
+          // Attribute to each selected tag
+          if (isTagFilterActive && assocTask && assocTask.tags && assocTask.tags.length > 0) {
+            assocTask.tags.forEach(tag => {
+              if (focusPieTags.includes(tag)) {
+                const name = `#${tag}`;
+                if (!groupAccumulations[name]) {
+                  groupAccumulations[name] = { seconds: 0, color: '#a855f7' }; // Violet color for tags
+                }
+                groupAccumulations[name].seconds += s.accumulatedSeconds;
+                totalSeconds += s.accumulatedSeconds;
+              }
+            });
+          }
+        }
+      });
+
+      const data = Object.entries(groupAccumulations).map(([name, data]) => ({
+        name,
+        value: data.seconds,
+        hours: parseFloat((data.seconds / 3600).toFixed(2)),
+        percentage: totalSeconds > 0 ? Math.round((data.seconds / totalSeconds) * 100) : 0,
+        color: data.color
+      })).sort((a, b) => b.value - a.value);
+
+      return { data, totalSeconds };
+    }
+
+    // ── Mode B: Displaying Tasks inside selected filters (focusPieShowTasks === true) ──
     rangeSessions.forEach(s => {
       const assocTask = tasks.find(t => t.id === s.taskId);
-      
-      // Filter Category
-      if (focusPieCategory === 'none') {
-        if (assocTask && assocTask.categoryId !== undefined && assocTask.categoryId !== null) return;
-      } else if (focusPieCategory === 'all') {
-        if (!assocTask || assocTask.categoryId === undefined || assocTask.categoryId === null) return;
-      } else {
-        if (!assocTask || assocTask.categoryId !== focusPieCategory) return;
-      }
-      
-      // Filter Tag
-      if (focusPieTag === 'none') {
-        if (assocTask && assocTask.tags && assocTask.tags.length > 0) return;
-      } else if (focusPieTag === 'all') {
-        if (!assocTask || !assocTask.tags || assocTask.tags.length === 0) return;
-      } else {
-        if (!assocTask || !assocTask.tags || !assocTask.tags.includes(focusPieTag)) return;
+      if (!assocTask) return;
+
+      // Filter by Category
+      if (isCategoryFilterActive) {
+        if (assocTask.categoryId === undefined || assocTask.categoryId === null || !focusPieCategories.includes(assocTask.categoryId)) {
+          return;
+        }
       }
 
-      const taskTitle = assocTask ? assocTask.title : 'Orphaned/Deleted Task';
+      // Filter by Tag
+      if (isTagFilterActive) {
+        if (!assocTask.tags || !assocTask.tags.some(tag => focusPieTags.includes(tag))) {
+          return;
+        }
+      }
+
+      const taskTitle = assocTask.title;
       let categoryColor = '#8b919f'; // Default gray
       
-      if (assocTask && assocTask.categoryId) {
+      if (assocTask.categoryId) {
         const cat = categories.find(c => c.id === assocTask.categoryId);
         if (cat) categoryColor = cat.color || '#3b82f6';
       }
@@ -1290,7 +1388,7 @@ export function AnalyticsView() {
       color: data.color
     })).sort((a, b) => b.value - a.value);
 
-    // Apply vibrant, premium color rotation to ensure visual distinction!
+    // Apply vibrant, premium color rotation
     const premiumColors = [
       '#3b82f6', // Blue
       '#10b981', // Emerald
@@ -1314,7 +1412,7 @@ export function AnalyticsView() {
       };
     });
 
-    // Limit to top 5 and bundle others to ensure premium donut aesthetics
+    // Limit to top 5 and bundle others
     if (coloredEntries.length <= 5) {
       return { data: coloredEntries, totalSeconds };
     }
@@ -1328,11 +1426,23 @@ export function AnalyticsView() {
       value: restSeconds,
       hours: parseFloat((restSeconds / 3600).toFixed(2)),
       percentage: totalSeconds > 0 ? Math.round((restSeconds / totalSeconds) * 100) : 0,
-      color: '#cbd5e1'
+      color: '#94a3b8'
     });
 
     return { data: top5, totalSeconds };
-  }, [sessions, tasks, categories, focusPieTimeframe, focusPieCustomStart, focusPieCustomEnd, focusPieRefDate, focusPieCategory, focusPieTag, getDateFilter]);
+  }, [
+    sessions,
+    tasks,
+    categories,
+    focusPieTimeframe,
+    focusPieCustomStart,
+    focusPieCustomEnd,
+    focusPieRefDate,
+    focusPieCategories,
+    focusPieTags,
+    focusPieShowTasks,
+    getDateFilter
+  ]);
 
   // Focus View: Focused Hours Trend (Spline Area Chart)
   const focusTrendData = React.useMemo(() => {
@@ -2040,16 +2150,22 @@ export function AnalyticsView() {
                         </div>
                       </div>
                       
-                      {/* Row 2: Category and Tag Selector Dropdowns */}
-                      <div className="flex flex-row items-center gap-2 mt-1">
+                      {/* Row 2: Category and Tag Selector Dropdowns & Tasks Toggle */}
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
 
                         {/* Category Dropdown */}
                         <Popover open={focusPieCatOpen} onOpenChange={setFocusPieCatOpen}>
                           <PopoverTrigger asChild>
                             <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1.5 cursor-pointer">
                               <Sliders className="h-3.5 w-3.5 text-slate-400" />
-                              <span className="text-[11px] truncate max-w-[70px]">
-                                {focusPieCategory === 'all' ? 'All Lists' : focusPieCategory === 'none' ? 'No List' : categories.find(c => c.id === focusPieCategory)?.name || 'List'}
+                              <span className="text-[11px] truncate max-w-[90px]">
+                                {focusPieCategories.length === 0
+                                  ? 'List'
+                                  : focusPieCategories.length === categories.length
+                                    ? 'All Lists'
+                                    : focusPieCategories.length === 1
+                                      ? categories.find(c => c.id === focusPieCategories[0])?.name || 'List'
+                                      : `${focusPieCategories.length} Lists`}
                               </span>
                             </Button>
                           </PopoverTrigger>
@@ -2057,36 +2173,49 @@ export function AnalyticsView() {
                             <div className="flex flex-col gap-0.5">
                               <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by List</span>
                               <button
-                                onClick={() => { setFocusPieCategory('none'); setFocusPieCatOpen(false); }}
+                                onClick={() => setFocusPieCategories([])}
                                 className={cn(
-                                  "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  focusPieCategory === 'none' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                  "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                  focusPieCategories.length === 0 ? "bg-rose-50/60 text-rose-605 font-extrabold" : "text-slate-500 hover:bg-slate-50"
                                 )}
                               >
-                                No List
+                                <span>Clear Filters</span>
+                                {focusPieCategories.length === 0 && <Check className="h-3.5 w-3.5 text-rose-500" />}
                               </button>
                               <button
-                                onClick={() => { setFocusPieCategory('all'); setFocusPieCatOpen(false); }}
+                                onClick={() => setFocusPieCategories(categories.map(c => c.id))}
                                 className={cn(
-                                  "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  focusPieCategory === 'all' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                  "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                  focusPieCategories.length === categories.length ? "bg-blue-50 text-blue-600 font-extrabold" : "text-slate-750 hover:bg-slate-50"
                                 )}
                               >
-                                All Lists
+                                <span>All Lists</span>
+                                {focusPieCategories.length === categories.length && <Check className="h-3.5 w-3.5 text-blue-500" />}
                               </button>
-                              {categories.map(c => (
-                                <button
-                                  key={c.id}
-                                  onClick={() => { setFocusPieCategory(c.id); setFocusPieCatOpen(false); }}
-                                  className={cn(
-                                    "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                    focusPieCategory === c.id ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
-                                  )}
-                                >
-                                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />
-                                  {c.name}
-                                </button>
-                              ))}
+                              <div className="h-[1px] bg-slate-100 my-1" />
+                              {categories.map(c => {
+                                const isSelected = focusPieCategories.includes(c.id);
+                                return (
+                                  <button
+                                    key={c.id}
+                                    onClick={() => {
+                                      setFocusPieCategories(prev => 
+                                        prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                                      );
+                                    }}
+                                    className={cn(
+                                      "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                      isSelected ? "bg-blue-50/50 text-blue-600" : "text-slate-750 hover:bg-slate-50"
+                                    )}
+                                  >
+                                    <div className="flex items-center gap-2 truncate">
+                                      <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                                      <span className="truncate">{c.name}</span>
+                                    </div>
+                                    {isSelected && <Check className="h-3.5 w-3.5 text-blue-500" />}
+                                  </button>
+                                );
+                              })}
                             </div>
                           </PopoverContent>
                         </Popover>
@@ -2096,8 +2225,14 @@ export function AnalyticsView() {
                           <PopoverTrigger asChild>
                             <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1.5 cursor-pointer">
                               <Filter className="h-3.5 w-3.5 text-slate-400" />
-                              <span className="text-[11px] truncate max-w-[70px]">
-                                {focusPieTag === 'all' ? 'All Tags' : focusPieTag === 'none' ? 'No Tags' : focusPieTag}
+                              <span className="text-[11px] truncate max-w-[90px]">
+                                {focusPieTags.length === 0
+                                  ? 'Tag'
+                                  : focusPieTags.length === tags.length
+                                    ? 'All Tags'
+                                    : focusPieTags.length === 1
+                                      ? `#${focusPieTags[0]}`
+                                      : `${focusPieTags.length} Tags`}
                               </span>
                             </Button>
                           </PopoverTrigger>
@@ -2106,57 +2241,84 @@ export function AnalyticsView() {
                               <div className="flex flex-col gap-0.5">
                                 <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by Tag</span>
                                 <button
-                                  onClick={() => { setFocusPieTag('none'); setFocusPieTagOpen(false); }}
+                                  onClick={() => setFocusPieTags([])}
                                   className={cn(
-                                    "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                    focusPieTag === 'none' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                    "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                    focusPieTags.length === 0 ? "bg-rose-50/60 text-rose-605 font-extrabold" : "text-slate-500 hover:bg-slate-50"
                                   )}
                                 >
-                                  No Tags
+                                  <span>Clear Filters</span>
+                                  {focusPieTags.length === 0 && <Check className="h-3.5 w-3.5 text-rose-500" />}
                                 </button>
                                 <button
-                                  onClick={() => { setFocusPieTag('all'); setFocusPieTagOpen(false); }}
+                                  onClick={() => setFocusPieTags(tags.map(t => t.name))}
                                   className={cn(
-                                    "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                    focusPieTag === 'all' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                    "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                    focusPieTags.length === tags.length ? "bg-blue-50 text-blue-600 font-extrabold" : "text-slate-755 hover:bg-slate-50"
                                   )}
                                 >
-                                  All Tags
+                                  <span>All Tags</span>
+                                  {focusPieTags.length === tags.length && <Check className="h-3.5 w-3.5 text-blue-500" />}
                                 </button>
-                                {tags.map(t => (
-                                  <button
-                                    key={t.id}
-                                    onClick={() => { setFocusPieTag(t.name); setFocusPieTagOpen(false); }}
-                                    className={cn(
-                                      "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                      focusPieTag === t.name ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
-                                    )}
-                                  >
-                                    #{t.name}
-                                  </button>
-                                ))}
+                                <div className="h-[1px] bg-slate-100 my-1" />
+                                {tags.map(t => {
+                                  const isSelected = focusPieTags.includes(t.name);
+                                  return (
+                                    <button
+                                      key={t.id}
+                                      onClick={() => {
+                                        setFocusPieTags(prev => 
+                                          prev.includes(t.name) ? prev.filter(name => name !== t.name) : [...prev, t.name]
+                                        );
+                                      }}
+                                      className={cn(
+                                        "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                        isSelected ? "bg-blue-50/50 text-blue-600" : "text-slate-750 hover:bg-slate-50"
+                                      )}
+                                    >
+                                      <span className="truncate">#{t.name}</span>
+                                      {isSelected && <Check className="h-3.5 w-3.5 text-blue-500" />}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             </ScrollArea>
                           </PopoverContent>
                         </Popover>
+
+                        {/* Tasks Toggle button */}
+                        <Button
+                          variant={focusPieShowTasks ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFocusPieShowTasks(!focusPieShowTasks)}
+                          className={cn(
+                            "rounded-xl h-9 px-3 font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all border border-slate-200/60",
+                            focusPieShowTasks 
+                              ? "bg-slate-900 text-white border-slate-900 hover:bg-slate-800" 
+                              : "bg-slate-50 text-slate-650 hover:bg-slate-100"
+                          )}
+                        >
+                          <CheckSquare className="h-3.5 w-3.5 text-blue-500" />
+                          Tasks
+                        </Button>
                       </div>
                     </CardHeader>
-                    <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-6 p-6 md:p-8 pt-0 min-h-[300px]">
+                    <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-8 p-6 md:p-8 pt-0 min-h-[300px]">
                       {focusPieData.totalSeconds === 0 ? (
                         <div className="w-full h-full min-h-[220px] flex items-center justify-center">
                           <EmptyStateIcon Icon={LayoutGrid} />
                         </div>
                       ) : (
                         <>
-                          {/* Pie Chart Donut */}
-                          <div className="h-[200px] w-[200px] shrink-0">
+                          {/* Pie Chart Donut (Slightly Bigger) */}
+                          <div className="h-[240px] w-[240px] shrink-0">
                             <ResponsiveContainer width="100%" height="100%" debounce={0}>
                               <PieChart>
                                 <Pie
                                   data={focusPieData.data}
-                                  innerRadius={60}
-                                  outerRadius={80}
-                                  paddingAngle={5}
+                                  innerRadius={70}
+                                  outerRadius={95}
+                                  paddingAngle={4}
                                   dataKey="value"
                                   stroke="none"
                                   isAnimationActive={false}
@@ -2177,7 +2339,7 @@ export function AnalyticsView() {
                                 <div className="flex items-center justify-between text-xs font-bold mb-1">
                                   <div className="flex items-center gap-2 max-w-[70%]">
                                     <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                                    <span className="text-slate-700 truncate">{item.name}</span>
+                                    <span className="text-slate-700 truncate w-18" title={item.name}>{item.name}</span>
                                   </div>
                                   <span className="text-slate-900 shrink-0 font-extrabold">
                                     {formatSecondsFriendly(item.value)}{' '}
@@ -2185,8 +2347,8 @@ export function AnalyticsView() {
                                   </span>
                                 </div>
                                 
-                                {/* Tiny matching progress bar */}
-                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                {/* Tiny matching progress bar (Thinner for elegant look) */}
+                                <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
                                   <div 
                                     className="h-full rounded-full transition-all duration-500" 
                                     style={{ width: `${item.percentage}%`, backgroundColor: item.color }} 
