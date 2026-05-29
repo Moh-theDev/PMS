@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { Circle, Flag, Clock, Calendar, Tag as TagIcon, FolderOpen, X, ChevronDown, Plus, Minus, Check, Trash2, Dumbbell } from 'lucide-react';
+import { Circle, Flag, Clock, Calendar, Tag as TagIcon, FolderOpen, X, ChevronDown, Plus, Minus, Check, Trash2, Dumbbell, AlertCircle } from 'lucide-react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -506,6 +506,7 @@ export function TaskDetailFields({
   // Duration controlled state
   const [durationVal, setDurationVal] = React.useState(task.durationInMinutes);
   const [durationError, setDurationError] = React.useState<'min' | 'max' | null>(null);
+  const [dateError, setDateError] = React.useState<string | null>(null);
 
   // Focused time state for time-tracking summation
   const [focusedSeconds, setFocusedSeconds] = React.useState<number>(0);
@@ -681,9 +682,9 @@ export function TaskDetailFields({
                       e.currentTarget.blur();
                     }
                   }}
-                  className="w-5 text-center bg-transparent border-none outline-none text-xs font-bold text-slate-800 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0 focus:outline-none"
+                  className="w-7 mb-0.5 text-center bg-transparent border-none outline-none text-xs font-bold text-slate-800 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0 focus:outline-none"
                 />
-                <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide">min</span>
+                <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">min</span>
               </div>
               <button
                 type="button"
@@ -741,6 +742,14 @@ export function TaskDetailFields({
 
         <Separator className="my-1.5 opacity-60" />
 
+        {/* Date Validation Error Alert */}
+        {dateError && (
+          <div className="bg-rose-50 border border-rose-100 text-rose-600 rounded-xl p-3.5 flex items-start gap-2.5 text-xs font-bold shadow-xs animate-in fade-in slide-in-from-top-1 duration-200">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-500 mt-0.5" />
+            <span className="leading-relaxed">{dateError}</span>
+          </div>
+        )}
+
         {/* Start Date & Time picker */}
         <DetailRow 
           icon={Calendar} 
@@ -749,7 +758,28 @@ export function TaskDetailFields({
         >
           <ClickableDatePicker
             value={task.earliestStart}
-            onChange={(val) => onUpdateTask(task.id, { earliestStart: val })}
+            onChange={(val) => {
+              if (val) {
+                const newStart = new Date(val).getTime();
+                if (task.latestEnd && !task.latestEnd.startsWith('0001-01-01')) {
+                  const end = new Date(task.latestEnd).getTime();
+                  if (newStart > end) {
+                    setDateError("Start date cannot be after the ends date");
+                    setTimeout(() => setDateError(null), 4000);
+                    return;
+                  }
+                }
+                if (task.deadline && !task.deadline.startsWith('0001-01-01')) {
+                  const ddl = new Date(task.deadline).getTime();
+                  if (newStart > ddl) {
+                    setDateError("Start date cannot be after the deadline");
+                    setTimeout(() => setDateError(null), 4000);
+                    return;
+                  }
+                }
+              }
+              onUpdateTask(task.id, { earliestStart: val });
+            }}
             isOpen={startOpen}
             onOpenChange={setStartOpen}
             showClear={false}
@@ -764,7 +794,28 @@ export function TaskDetailFields({
         >
           <ClickableDatePicker
             value={task.latestEnd}
-            onChange={(val) => onUpdateTask(task.id, { latestEnd: val })}
+            onChange={(val) => {
+              if (val) {
+                const newEnd = new Date(val).getTime();
+                if (task.earliestStart && !task.earliestStart.startsWith('0001-01-01')) {
+                  const start = new Date(task.earliestStart).getTime();
+                  if (newEnd < start) {
+                    setDateError("Ends date cannot be before the start date");
+                    setTimeout(() => setDateError(null), 4000);
+                    return;
+                  }
+                }
+                if (task.deadline && !task.deadline.startsWith('0001-01-01')) {
+                  const ddl = new Date(task.deadline).getTime();
+                  if (newEnd > ddl) {
+                    setDateError("Ends date cannot be after the deadline");
+                    setTimeout(() => setDateError(null), 4000);
+                    return;
+                  }
+                }
+              }
+              onUpdateTask(task.id, { latestEnd: val });
+            }}
             isOpen={endOpen}
             onOpenChange={setEndOpen}
             showClear={false}
@@ -796,7 +847,28 @@ export function TaskDetailFields({
         >
           <ClickableDatePicker
             value={task.deadline}
-            onChange={(val) => onUpdateTask(task.id, { deadline: val })}
+            onChange={(val) => {
+              if (val) {
+                const newDdl = new Date(val).getTime();
+                if (task.earliestStart && !task.earliestStart.startsWith('0001-01-01')) {
+                  const start = new Date(task.earliestStart).getTime();
+                  if (newDdl < start) {
+                    setDateError("Deadline cannot be before the start date");
+                    setTimeout(() => setDateError(null), 4000);
+                    return;
+                  }
+                }
+                if (task.latestEnd && !task.latestEnd.startsWith('0001-01-01')) {
+                  const end = new Date(task.latestEnd).getTime();
+                  if (newDdl < end) {
+                    setDateError("Deadline cannot be before the ends date");
+                    setTimeout(() => setDateError(null), 4000);
+                    return;
+                  }
+                }
+              }
+              onUpdateTask(task.id, { deadline: val });
+            }}
             isOpen={deadlineOpen}
             onOpenChange={setDeadlineOpen}
             showClear={true}

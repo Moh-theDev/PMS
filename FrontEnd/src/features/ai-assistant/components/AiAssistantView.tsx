@@ -5,7 +5,6 @@ import { TaskStatus } from '@/types/index';
 import { api } from '@/api/axios';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Sparkles, 
@@ -19,10 +18,9 @@ import {
   AlertTriangle,
   Lightbulb,
   Quote,
-  Send
+  Send,
+  RotateCcw
 } from 'lucide-react';
-
-
 
 interface DeadlineWizardTask {
   id: number;
@@ -30,11 +28,8 @@ interface DeadlineWizardTask {
   deadline: string;
 }
 
-// Error formatting helper to avoid [object Object]
 const getErrorMessage = (err: any): string => {
-  if (!err) return 'Operation failed.';
-  
-  // If the error has a response from Axios
+  if (!err) return 'Something went wrong.';
   if (err.response?.data) {
     const data = err.response.data;
     if (typeof data === 'string') return data;
@@ -43,8 +38,6 @@ const getErrorMessage = (err: any): string => {
       if (data.details && typeof data.details === 'string') return data.details;
       if (data.message && typeof data.message === 'string') return data.message;
       if (data.Message && typeof data.Message === 'string') return data.Message;
-      
-      // If it's a validation errors object (e.g. ASP.NET core ModelState errors)
       if (data.errors && typeof data.errors === 'object') {
         const errorList = Object.entries(data.errors)
           .map(([key, val]) => {
@@ -54,116 +47,78 @@ const getErrorMessage = (err: any): string => {
           .join('\n');
         if (errorList) return errorList;
       }
-      
-      try {
-        return JSON.stringify(data);
-      } catch (e) {
-        return 'Invalid response object';
-      }
+      try { return JSON.stringify(data); } catch { return 'Invalid response'; }
     }
   }
-  
-  // If it's a standard JS/Axios error
   if (err.message) {
     if (typeof err.message === 'string') return err.message;
-    try {
-      return JSON.stringify(err.message);
-    } catch (e) {
-      return 'Unknown error message';
-    }
   }
-
-  // If the error itself is a string
   if (typeof err === 'string') return err;
-  
-  // If the error itself is an object
-  try {
-    return JSON.stringify(err);
-  } catch (e) {
-    return String(err) || 'Operation failed.';
-  }
+  try { return JSON.stringify(err); } catch { return 'Operation failed.'; }
 };
+
+// Simple bold-text renderer: **text** → <strong>text</strong>
+function RichText({ text }: { text: string }) {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.startsWith('**') && part.endsWith('**') ? (
+          <strong key={i} className="font-bold">{part.slice(2, -2)}</strong>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
 
 export function AiAssistantView() {
   const { 
-    tasks, 
-    tags,
-    fetchTasks, 
-    addTask, 
-    deleteTask, 
-    assignTags,
-    updateTaskStatus
+    tasks, tags,
+    fetchTasks, addTask, deleteTask, assignTags, updateTaskStatus
   } = useTaskStore();
 
   const {
-    messages,
-    isProcessing,
-    inputValue,
-    setMessages,
-    setIsProcessing,
-    setInputValue
+    messages, isProcessing, inputValue,
+    setMessages, setIsProcessing, setInputValue, resetChat
   } = useAiAssistantStore();
 
-  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
-  // Fetch tasks on mount
-  React.useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+  React.useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
-  // Auto scroll to bottom
   React.useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Reusable scheduling execution flow
+  // ── Schedule flow ────────────────────────────────────────────────────────
   const handleScheduleClickDirectly = async (addUserMessage = false) => {
     if (isProcessing) return;
-
     setIsProcessing(true);
 
     if (addUserMessage) {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: 'usr-sched-' + Date.now(),
-          sender: 'user',
-          text: 'Schedule my tasks',
-          timestamp: new Date(),
-          type: 'text'
-        }
-      ]);
+      setMessages(prev => [...prev, {
+        id: 'usr-sched-' + Date.now(), sender: 'user',
+        text: 'Schedule my tasks', timestamp: new Date(), type: 'text'
+      }]);
     }
 
-    // Identify active tasks missing deadlines
     const missingDeadlines = tasks.filter(
-      (t) =>
-        t.status !== TaskStatus.Done &&
-        t.status !== TaskStatus.Cancelled &&
-        (!t.deadline || t.deadline.startsWith('0001-01-01'))
+      t => t.status !== TaskStatus.Done &&
+           t.status !== TaskStatus.Cancelled &&
+           (!t.deadline || t.deadline.startsWith('0001-01-01'))
     );
 
     if (missingDeadlines.length > 0) {
       setTimeout(() => {
-        setMessages(prev => [
-          ...prev,
-          {
-            id: 'assistant-wizard-' + Date.now(),
-            sender: 'assistant',
-            text: `I found ${missingDeadlines.length} active tasks that are currently missing a deadline. Before running the scheduling engine, please assign a deadline date to each of them below:`,
-            timestamp: new Date(),
-            type: 'deadline-wizard',
-            payload: {
-              tasks: missingDeadlines.map(t => ({
-                id: t.id,
-                title: t.title,
-                deadline: ''
-              }))
-            }
-          }
-        ]);
+        setMessages(prev => [...prev, {
+          id: 'assistant-wizard-' + Date.now(), sender: 'assistant',
+          text: `I found **${missingDeadlines.length}** task${missingDeadlines.length > 1 ? 's' : ''} without a deadline. I need those before I can schedule everything properly — could you quickly assign dates below?`,
+          timestamp: new Date(), type: 'deadline-wizard',
+          payload: { tasks: missingDeadlines.map(t => ({ id: t.id, title: t.title, deadline: '' })) }
+        }]);
         setIsProcessing(false);
       }, 600);
     } else {
@@ -171,116 +126,67 @@ export function AiAssistantView() {
     }
   };
 
-  // Reusable report compilation flow
+  // ── Report flow ──────────────────────────────────────────────────────────
   const handleReportClickDirectly = async (addUserMessage = false) => {
     if (isProcessing) return;
-
     setIsProcessing(true);
 
     if (addUserMessage) {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: 'usr-rep-' + Date.now(),
-          sender: 'user',
-          text: 'Generate daily report',
-          timestamp: new Date(),
-          type: 'text'
-        }
-      ]);
+      setMessages(prev => [...prev, {
+        id: 'usr-rep-' + Date.now(), sender: 'user',
+        text: 'Generate report', timestamp: new Date(), type: 'text'
+      }]);
     }
 
     const loadingId = 'assistant-loading-' + Date.now();
-    setMessages(prev => [
-      ...prev,
-      {
-        id: loadingId,
-        sender: 'assistant',
-        text: 'Fetching logs and compiling your daily productivity performance metrics via Gemini AI...',
-        timestamp: new Date(),
-        type: 'loading'
-      }
-    ]);
+    setMessages(prev => [...prev, {
+      id: loadingId, sender: 'assistant',
+      text: "Crunching your day's data and putting together a report…",
+      timestamp: new Date(), type: 'loading'
+    }]);
 
     try {
       const response = await api.post('/AiReport/generate-daily');
-      
       setMessages(prev => prev.filter(m => m.id !== loadingId));
-
-      setMessages(prev => [
-        ...prev,
-        {
-          id: 'report-resp-' + Date.now(),
-          sender: 'assistant',
-          timestamp: new Date(),
-          type: 'report-view',
-          payload: {
-            score: response.data.productivityScore,
-            content: response.data.content
-          }
-        }
-      ]);
+      setMessages(prev => [...prev, {
+        id: 'report-resp-' + Date.now(), sender: 'assistant',
+        timestamp: new Date(), type: 'report-view',
+        payload: { score: response.data.productivityScore, content: response.data.content }
+      }]);
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m.id !== loadingId));
-
-      const errMsg = getErrorMessage(err);
-      setMessages(prev => [
-        ...prev,
-        {
-          id: 'assistant-resp-' + Date.now(),
-          sender: 'assistant',
-          text: `⚠️ **Report Compiler Warning**:\n\n${errMsg}`,
-          timestamp: new Date(),
-          type: 'text'
-        }
-      ]);
+      setMessages(prev => [...prev, {
+        id: 'assistant-resp-' + Date.now(), sender: 'assistant',
+        text: `Hmm, I couldn't generate the report right now. Here's what went wrong:\n\n${getErrorMessage(err)}`,
+        timestamp: new Date(), type: 'text'
+      }]);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Submit all custom deadlines from wizard
+  // ── Wizard submit ────────────────────────────────────────────────────────
   const handleWizardSubmit = async (wizardTasks: DeadlineWizardTask[]) => {
     setIsProcessing(true);
-    
-    // Add user message indicating deadlines saved
-    setMessages(prev => [
-      ...prev,
-      {
-        id: 'usr-wiz-save-' + Date.now(),
-        sender: 'user',
-        text: 'Applied deadlines, let\'s schedule!',
-        timestamp: new Date(),
-        type: 'text'
-      }
-    ]);
+    setMessages(prev => [...prev, {
+      id: 'usr-wiz-save-' + Date.now(), sender: 'user',
+      text: "Got it, deadlines set — let's schedule!", timestamp: new Date(), type: 'text'
+    }]);
 
-    // Add loading block
     const loadingId = 'assistant-loading-' + Date.now();
-    setMessages(prev => [
-      ...prev,
-      {
-        id: loadingId,
-        sender: 'assistant',
-        text: 'Saving your deadlines and launching scheduling engine...',
-        timestamp: new Date(),
-        type: 'loading'
-      }
-    ]);
+    setMessages(prev => [...prev, {
+      id: loadingId, sender: 'assistant',
+      text: 'Saving your deadlines and firing up the scheduler…',
+      timestamp: new Date(), type: 'loading'
+    }]);
 
     try {
-      // 1. Update deadlines sequentially to guarantee database integrity
       for (const wt of wizardTasks) {
         if (wt.deadline) {
-          // Re-create the task to bypass the C# backend update deadline bug!
           const original = tasks.find(t => t.id === wt.id);
           if (original) {
-            // Delete the old task
             await deleteTask(original.id);
-            // Append standard T23:59:59 ISO extension for deadline date to give the engine maximum schedule space
             const dateStr = wt.deadline.includes('T') ? wt.deadline : `${wt.deadline}T23:59:59`;
-            
-            // Create a new task with the exact same attributes and the specified deadline
             const created = await addTask({
               title: original.title,
               description: original.description || undefined,
@@ -290,495 +196,447 @@ export function AiAssistantView() {
               deadline: dateStr,
             }, original.categoryId);
 
-            // Re-assign status if not default Todo (0)
-            if (original.status !== 0) {
-              await updateTaskStatus(created.id, original.status);
-            }
+            if (original.status !== 0) await updateTaskStatus(created.id, original.status);
 
-            // Re-assign tags if the original task had tags
             if (original.tags && original.tags.length > 0) {
               const tagIdsToAssign = original.tags
                 .map(tagName => tags.find(tag => tag.name === tagName)?.id)
                 .filter((id): id is number => id !== undefined);
-              if (tagIdsToAssign.length > 0) {
-                await assignTags(created.id, tagIdsToAssign);
-              }
+              if (tagIdsToAssign.length > 0) await assignTags(created.id, tagIdsToAssign);
             }
           }
         }
       }
 
-      // Refresh Zustand store tasks list
       await fetchTasks();
-
-      // Brief delay to allow DB commits to settle completely
       await new Promise(resolve => setTimeout(resolve, 850));
-
-      // 2. Clear loading and continue to execute scheduling engine
       setMessages(prev => prev.filter(m => m.id !== loadingId));
       await runSchedulingEngine();
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m.id !== loadingId));
-      setMessages(prev => [
-        ...prev,
-        {
-          id: 'error-' + Date.now(),
-          sender: 'assistant',
-          text: `Failed to save task deadlines: ${getErrorMessage(err)}`,
-          timestamp: new Date(),
-          type: 'text'
-        }
-      ]);
+      setMessages(prev => [...prev, {
+        id: 'error-' + Date.now(), sender: 'assistant',
+        text: `Something went wrong while saving the deadlines: ${getErrorMessage(err)}`,
+        timestamp: new Date(), type: 'text'
+      }]);
       setIsProcessing(false);
     }
   };
 
-  // Execute AutoFill API call
+  // ── Scheduling engine ────────────────────────────────────────────────────
   const runSchedulingEngine = async () => {
     const loadingId = 'assistant-loading-' + Date.now();
-    setMessages(prev => [
-      ...prev,
-      {
-        id: loadingId,
-        sender: 'assistant',
-        text: 'Running Smart Scheduling engine. Calculating optimum slots around your existing commitments...',
-        timestamp: new Date(),
-        type: 'loading'
-      }
-    ]);
+    setMessages(prev => [...prev, {
+      id: loadingId, sender: 'assistant',
+      text: 'Running the scheduling engine — finding the best slots for each task…',
+      timestamp: new Date(), type: 'loading'
+    }]);
 
     try {
       const response = await api.post('/SmartSchedule/auto-fill-blank-times');
-      
-      // Update UI Task state
       await fetchTasks();
-
       setMessages(prev => prev.filter(m => m.id !== loadingId));
 
       const status = response.data?.Status;
-      const message = response.data?.Message || 'All tasks scheduled successfully.';
-
       if (status === 'No Action Needed') {
-        setMessages(prev => [
-          ...prev,
-          {
-            id: 'assistant-resp-' + Date.now(),
-            sender: 'assistant',
-            text: `ℹ️ **No Action Needed**:\n${message}`,
-            timestamp: new Date(),
-            type: 'text'
-          }
-        ]);
+        setMessages(prev => [...prev, {
+          id: 'assistant-resp-' + Date.now(), sender: 'assistant',
+          text: "All your tasks already have time slots assigned — nothing to change! You're all set 🎉",
+          timestamp: new Date(), type: 'text'
+        }]);
       } else {
-        setMessages(prev => [
-          ...prev,
-          {
-            id: 'assistant-resp-' + Date.now(),
-            sender: 'assistant',
-            text: `✅ **Tasks Scheduled**\n\nAll of your open tasks have been successfully aligned and scheduled on your calendar around your commitments! Check your Today/Upcoming views to see your new start and end slots!`,
-            timestamp: new Date(),
-            type: 'text'
-          }
-        ]);
+        setMessages(prev => [...prev, {
+          id: 'assistant-resp-' + Date.now(), sender: 'assistant',
+          text: 'Done! ✅ Your tasks have been scheduled across your calendar. Head over to **Today** or **Upcoming** to see the new time slots.',
+          timestamp: new Date(), type: 'text'
+        }]);
       }
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m.id !== loadingId));
-
       const errMsg = getErrorMessage(err);
       const isConflict = err.response?.status === 422 || errMsg.toLowerCase().includes('conflict');
-      
-      setMessages(prev => [
-        ...prev,
-        {
-          id: 'assistant-resp-' + Date.now(),
-          sender: 'assistant',
-          text: isConflict 
-            ? `⚠️ **Scheduling Conflict Detected**:\n\nThe scheduling engine was unable to allocate tasks due to a clash:\n\n*${errMsg}*\n\nTry adjusting task deadlines or duration requirements, then try again.`
-            : `❌ **Scheduling Fault**:\n${errMsg}`,
-          timestamp: new Date(),
-          type: 'text'
-        }
-      ]);
+      setMessages(prev => [...prev, {
+        id: 'assistant-resp-' + Date.now(), sender: 'assistant',
+        text: isConflict
+          ? `Looks like there's a scheduling conflict — tasks couldn't all fit in the available slots.\n\n${errMsg}\n\nTry adjusting some deadlines or durations, then try again.`
+          : `The scheduler ran into an issue:\n\n${errMsg}`,
+        timestamp: new Date(), type: 'text'
+      }]);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Bottom Input Submission handler
+  // ── Input send ───────────────────────────────────────────────────────────
   const handleSendMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const text = inputValue.trim();
     if (!text || isProcessing) return;
 
     setInputValue('');
-
-    // 1. Add User Message
-    const userMsgId = 'usr-msg-' + Date.now();
-    setMessages(prev => [
-      ...prev,
-      {
-        id: userMsgId,
-        sender: 'user',
-        text,
-        timestamp: new Date(),
-        type: 'text'
-      }
-    ]);
-
+    setMessages(prev => [...prev, {
+      id: 'usr-msg-' + Date.now(), sender: 'user',
+      text, timestamp: new Date(), type: 'text'
+    }]);
     setIsProcessing(true);
 
-    const lowerText = text.toLowerCase();
+    const lower = text.toLowerCase();
     setTimeout(async () => {
-      if (lowerText.includes('schedule') || lowerText.includes('calendar') || lowerText.includes('fill')) {
+      if (lower.includes('schedule') || lower.includes('calendar') || lower.includes('fill')) {
         setIsProcessing(false);
         await handleScheduleClickDirectly(false);
-      } else if (lowerText.includes('report') || lowerText.includes('daily') || lowerText.includes('performance')) {
+      } else if (lower.includes('report') || lower.includes('daily') || lower.includes('performance')) {
         setIsProcessing(false);
         await handleReportClickDirectly(false);
       } else {
-        // Guided Help Bubble
-        setMessages(prev => [
-          ...prev,
-          {
-            id: 'assistant-guided-' + Date.now(),
-            sender: 'assistant',
-            text: "I am operating in Guided Mode to guarantee successful API outputs! \n\nType **'schedule'** to initiate Smart Task Scheduling on your calendar, or **'report'** to compile your daily performance report.\n\nYou can also click the quick-action pills directly above the message bar below!",
-            timestamp: new Date(),
-            type: 'text'
-          }
-        ]);
+        setMessages(prev => [...prev, {
+          id: 'assistant-guided-' + Date.now(), sender: 'assistant',
+          text: "I'm not sure what you mean, but I can help with two things right now:\n\n• Type **schedule** to auto-schedule your tasks on the calendar\n• Type **report** to get a summary of your day\n\nOr just tap one of the buttons below!",
+          timestamp: new Date(), type: 'text'
+        }]);
         setIsProcessing(false);
       }
     }, 400);
   };
 
-  return (
-    <div className="absolute inset-0 flex flex-col bg-slate-50/40 overflow-hidden font-sans select-none">
-      {/* Premium Ambient Light Glows */}
-      <div className="absolute top-[-10%] left-[-5%] w-[45%] h-[45%] bg-blue-500/5 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-5%] w-[45%] h-[45%] bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none" />
+  const formatTime = (date: Date) =>
+    date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-      {/* Header */}
-      <header className="px-8 pt-7 pb-4 flex items-center justify-between shrink-0 border-b border-slate-100 bg-white/40 backdrop-blur-md z-15">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <Sparkles className="h-7 w-7 text-blue-600 animate-pulse animate-duration-2000" />
-            AI Assistant
-          </h1>
-          <p className="text-sm text-slate-400 mt-1 font-medium">Deterministic scheduler & AI Productivity Coach</p>
+  return (
+    <div className="flex flex-col h-full bg-slate-50/30 overflow-hidden">
+      {/* Ambient glows */}
+      <div className="pointer-events-none absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-[100px]" />
+      <div className="pointer-events-none absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-[100px]" />
+
+      {/* ── Header ───────────────────────────────────────────────────────── */}
+      <header className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-slate-200/80 bg-white/70 backdrop-blur-sm shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-sm shadow-blue-200">
+            <Sparkles className="h-4.5 w-4.5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-base font-black text-slate-900 tracking-tight leading-tight">AI Assistant</h1>
+            <p className="text-[11px] text-slate-400 font-medium">Smart scheduling & insights</p>
+          </div>
         </div>
+        <button
+          onClick={resetChat}
+          title="Clear chat"
+          className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer px-2.5 py-1.5 rounded-lg hover:bg-slate-100"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Clear
+        </button>
       </header>
 
-      {/* Chat Area */}
-      <div className="flex-1 overflow-hidden relative">
-        <ScrollArea className="h-full px-8 pt-6">
-          <div className="max-w-3xl mx-auto w-full pb-36 space-y-6">
-            {messages.map((message) => {
-              const isUser = message.sender === 'user';
-              return (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex flex-col max-w-[85%] w-fit animate-in fade-in slide-in-from-bottom-3 duration-300",
-                    isUser ? "ml-auto items-end" : "mr-auto items-start"
-                  )}
-                >
-                  {/* Sender Badge */}
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 px-1">
-                    {isUser ? 'You' : 'AI Assistant'}
-                  </span>
+      {/* ── Chat messages area ────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto relative z-10 px-4 md:px-8 py-6 space-y-5">
+        <div className="max-w-2xl mx-auto w-full">
+          {messages.map((message) => {
+            const isUser = message.sender === 'user';
+            return (
+              <div
+                key={message.id}
+                className={cn(
+                  "flex gap-3 mb-5 animate-in fade-in slide-in-from-bottom-2 duration-300",
+                  isUser ? "flex-row-reverse" : "flex-row"
+                )}
+              >
+                {/* Avatar */}
+                <div className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+                  isUser
+                    ? "bg-slate-800 text-white text-xs font-black"
+                    : "bg-gradient-to-br from-blue-600 to-indigo-600 shadow-sm shadow-blue-200"
+                )}>
+                  {isUser
+                    ? <span className="text-[11px] font-black">You</span>
+                    : <Sparkles className="h-3.5 w-3.5 text-white" />
+                  }
+                </div>
 
-                  {/* Message Bubble */}
-                  <div
-                    className={cn(
-                      "px-4 py-3 rounded-2xl shadow-sm text-sm font-semibold leading-relaxed border transition-all w-full",
-                      isUser
-                        ? "bg-blue-600 text-white border-blue-700 rounded-tr-none"
-                        : "bg-white/80 backdrop-blur-md text-slate-700 border-slate-100 rounded-tl-none"
-                    )}
-                  >
-                    {/* Plain Text with formatting */}
+                {/* Bubble + timestamp */}
+                <div className={cn("flex flex-col max-w-[80%]", isUser ? "items-end" : "items-start")}>
+                  <div className={cn(
+                    "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-xs",
+                    isUser
+                      ? "bg-slate-900 text-white rounded-tr-sm"
+                      : "bg-white border border-slate-200/80 text-slate-700 rounded-tl-sm"
+                  )}>
+                    {/* Text with bold support */}
                     {message.text && (
-                      <div className="whitespace-pre-line leading-relaxed font-semibold">
-                        {message.text.replace(/\*\*(.*?)\*\*/g, '$1')}
+                      <div className="whitespace-pre-line font-medium text-[13px]">
+                        <RichText text={message.text} />
                       </div>
                     )}
 
-                    {/* Controlled Options */}
+                    {/* Options cards (welcome) */}
                     {message.type === 'options' && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                         <button
                           onClick={() => handleScheduleClickDirectly(true)}
                           disabled={isProcessing}
-                          className="flex flex-col text-left p-4 rounded-xl border border-blue-100/50 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 hover:from-blue-50 hover:to-indigo-50/60 text-blue-900 shadow-xs transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer group disabled:opacity-50"
+                          className="flex flex-col text-left p-3.5 rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50/50 hover:from-blue-100 hover:to-indigo-100/50 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 group"
                         >
-                          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-600 mb-1.5">
-                            <Calendar className="h-4 w-4 shrink-0 group-hover:scale-110 transition-transform" />
-                            Schedule My Tasks
+                          <div className="flex items-center gap-2 text-xs font-bold text-blue-600 mb-1.5">
+                            <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                              <Calendar className="h-3.5 w-3.5 text-blue-600" />
+                            </div>
+                            Schedule Tasks
                           </div>
-                          <span className="text-[11px] text-slate-500 font-semibold leading-normal">
-                            Auto-schedule incomplete tasks around your existing timeline slots using logic constraints.
+                          <span className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                            Automatically fit all your tasks into open time slots on your calendar.
                           </span>
-                          <span className="flex items-center gap-1 text-[10px] font-bold text-blue-600 mt-3">
-                            Start Engine <ArrowRight className="h-3 w-3" />
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-blue-600 mt-2.5">
+                            Let's go <ArrowRight className="h-3 w-3" />
                           </span>
                         </button>
 
                         <button
                           onClick={() => handleReportClickDirectly(true)}
                           disabled={isProcessing}
-                          className="flex flex-col text-left p-4 rounded-xl border border-emerald-100/50 bg-gradient-to-br from-emerald-50/40 to-teal-50/20 hover:from-emerald-50 hover:to-teal-50/50 text-emerald-950 shadow-xs transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer group disabled:opacity-50"
+                          className="flex flex-col text-left p-3.5 rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50/50 hover:from-emerald-100 hover:to-teal-100/50 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 group"
                         >
-                          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600 mb-1.5">
-                            <BarChart3 className="h-4 w-4 shrink-0 group-hover:scale-110 transition-transform" />
-                            Daily Report
+                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 mb-1.5">
+                            <div className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                              <BarChart3 className="h-3.5 w-3.5 text-emerald-600" />
+                            </div>
+                            Report
                           </div>
-                          <span className="text-[11px] text-slate-500 font-semibold leading-normal">
-                            Generate a smart analytical report of your daily achievements, time tracking metrics, and sayings.
+                          <span className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                            Get a personalized AI summary of your productivity, focus time, and achievements today.
                           </span>
-                          <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 mt-3">
-                            Compile Analysis <ArrowRight className="h-3 w-3" />
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 mt-2.5">
+                            Generate <ArrowRight className="h-3 w-3" />
                           </span>
                         </button>
                       </div>
                     )}
 
-                    {/* Loading status */}
+                    {/* Loading indicator */}
                     {message.type === 'loading' && (
-                      <div className="flex items-center gap-3 py-1 font-semibold text-slate-500 text-xs">
-                        <Loader2 className="h-4 w-4 animate-spin text-blue-600 shrink-0" />
-                        <span>Analyzing logic matrices...</span>
+                      <div className="flex items-center gap-2.5 mt-1">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500 shrink-0" />
+                        <span className="text-xs text-slate-500 font-medium italic">
+                          {message.text}
+                        </span>
                       </div>
                     )}
 
-                    {/* Deadline Assignment Wizard */}
+                    {/* Deadline Wizard */}
                     {message.type === 'deadline-wizard' && message.payload && (
-                      <DeadlineWizard 
-                        initialTasks={message.payload.tasks} 
-                        onSubmit={handleWizardSubmit} 
+                      <DeadlineWizard
+                        initialTasks={message.payload.tasks}
+                        onSubmit={handleWizardSubmit}
                         isProcessing={isProcessing}
                       />
                     )}
 
-                    {/* AI Productivity Report Card */}
+                    {/* Report Card */}
                     {message.type === 'report-view' && message.payload && (
-                      <ReportPresenter 
-                        score={message.payload.score} 
-                        content={message.payload.content} 
+                      <ReportPresenter
+                        score={message.payload.score}
+                        content={message.payload.content}
                       />
                     )}
                   </div>
 
-                  {/* Timestamp */}
-                  <span className="text-[8px] font-bold text-slate-400 mt-1 px-1">
-                    {message.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  <span className="text-[10px] text-slate-400 font-medium mt-1 px-1">
+                    {formatTime(message.timestamp)}
                   </span>
                 </div>
-              );
-            })}
-            <div ref={scrollRef} />
-          </div>
-        </ScrollArea>
+              </div>
+            );
+          })}
+
+          {/* Typing indicator when processing but no loading message */}
+          {isProcessing && !messages.some(m => m.type === 'loading') && (
+            <div className="flex gap-3 items-start animate-in fade-in duration-200 mb-5">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shrink-0 shadow-sm shadow-blue-200">
+                <Sparkles className="h-3.5 w-3.5 text-white" />
+              </div>
+              <div className="bg-white border border-slate-200/80 rounded-2xl rounded-tl-sm px-4 py-3 shadow-xs flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      {/* Message input bar at the bottom */}
-      <footer className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-slate-50 via-slate-50/95 to-transparent border-t border-slate-100/30 shrink-0 z-10 space-y-3">
-        <div className="max-w-3xl mx-auto w-full">
-          
-          {/* Quick-action Suggestion Chips above the input */}
+      {/* ── Input bar ────────────────────────────────────────────────────── */}
+      <div className="relative z-10 border-t border-slate-200/80 bg-white/80 backdrop-blur-sm px-4 md:px-8 py-4 shrink-0">
+        <div className="max-w-2xl mx-auto w-full space-y-3">
+          {/* Quick chips */}
           {!isProcessing && (
-            <div className="flex flex-wrap items-center gap-2 mb-3.5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex flex-wrap gap-2 animate-in fade-in duration-200">
               <button
                 type="button"
                 onClick={() => handleScheduleClickDirectly(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-100 bg-blue-50/50 hover:bg-blue-50 text-blue-700 text-xs font-bold shadow-xs transition-all cursor-pointer select-none active:scale-95"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs"
               >
-                <Calendar className="h-3.5 w-3.5 shrink-0" />
-                Schedule My Tasks
+                <Calendar className="h-3 w-3" />
+                Schedule Tasks
               </button>
               <button
                 type="button"
                 onClick={() => handleReportClickDirectly(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-100 bg-emerald-50/50 hover:bg-emerald-50 text-emerald-700 text-xs font-bold shadow-xs transition-all cursor-pointer select-none active:scale-95"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs"
               >
-                <BarChart3 className="h-3.5 w-3.5 shrink-0" />
-                Daily Report
+                <BarChart3 className="h-3 w-3" />
+                Report
               </button>
             </div>
           )}
 
-          {/* Form message input */}
-          <form onSubmit={handleSendMessage} className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-200/80 focus-within:border-blue-500/80 focus-within:ring-4 focus-within:ring-blue-500/5 rounded-2xl shadow-sm transition-all">
+          {/* Input form */}
+          <form
+            onSubmit={handleSendMessage}
+            className="flex items-center gap-2 bg-white border border-slate-200 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-500/8 rounded-2xl px-4 py-2.5 shadow-xs transition-all"
+          >
             <input
+              ref={inputRef}
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               disabled={isProcessing}
-              placeholder={isProcessing ? "AI Coach is typing..." : "Type 'schedule' or 'report'..."}
-              className="flex-1 text-sm bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 font-semibold p-0 text-slate-800"
+              placeholder={isProcessing ? 'Working on it…' : 'Type a message or use the buttons above…'}
+              className="flex-1 text-sm bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 font-medium text-slate-800 p-0"
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) handleSendMessage(); }}
             />
             <Button
               type="submit"
               disabled={isProcessing || !inputValue.trim()}
               size="icon"
-              className="h-8 w-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xs transition-colors shrink-0 cursor-pointer active:scale-95 disabled:opacity-40"
+              className="h-8 w-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xs transition-all shrink-0 cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Send className="h-3.5 w-3.5" />
+              {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
             </Button>
           </form>
         </div>
-      </footer>
+      </div>
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Deadline Wizard Form Component with Bulk Assignment Features
+   Deadline Wizard
    ───────────────────────────────────────────────────────────────────────────── */
 function DeadlineWizard({
-  initialTasks,
-  onSubmit,
-  isProcessing
+  initialTasks, onSubmit, isProcessing
 }: {
   initialTasks: DeadlineWizardTask[];
   onSubmit: (tasks: DeadlineWizardTask[]) => void;
   isProcessing: boolean;
 }) {
   const [wizardTasks, setWizardTasks] = React.useState<DeadlineWizardTask[]>(initialTasks);
-  const [selectedIds, setSelectedIds] = React.useState<number[]>(
-    initialTasks.map(t => t.id) // check all by default
-  );
+  const [selectedIds, setSelectedIds] = React.useState<number[]>(initialTasks.map(t => t.id));
   const [bulkDate, setBulkDate] = React.useState('');
 
-  const toggleSelect = (id: number) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  };
+  const toggleSelect = (id: number) =>
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  const toggleSelectAll = () => {
-    if (selectedIds.length === wizardTasks.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(wizardTasks.map(t => t.id));
-    }
-  };
+  const toggleSelectAll = () =>
+    setSelectedIds(selectedIds.length === wizardTasks.length ? [] : wizardTasks.map(t => t.id));
 
   const handleApplyBulkDate = () => {
     if (!bulkDate) return;
-    setWizardTasks(prev =>
-      prev.map(t =>
-        selectedIds.includes(t.id) ? { ...t, deadline: bulkDate } : t
-      )
-    );
+    setWizardTasks(prev => prev.map(t => selectedIds.includes(t.id) ? { ...t, deadline: bulkDate } : t));
   };
 
-  const handleDateChange = (id: number, dateVal: string) => {
-    setWizardTasks(prev =>
-      prev.map(t => (t.id === id ? { ...t, deadline: dateVal } : t))
-    );
-  };
+  const handleDateChange = (id: number, dateVal: string) =>
+    setWizardTasks(prev => prev.map(t => t.id === id ? { ...t, deadline: dateVal } : t));
 
   const isFormValid = wizardTasks.every(t => !!t.deadline);
 
   return (
-    <div className="mt-4 p-4 rounded-2xl border border-slate-100 bg-slate-50/50 w-full space-y-4 max-w-full overflow-hidden text-slate-700">
-      
-      {/* Bulk Action Panel */}
-      <div className="p-3 bg-white rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50/20 to-indigo-50/10 space-y-2">
+    <div className="mt-3 space-y-3">
+      {/* Bulk assign */}
+      <div className="p-3 rounded-xl border border-blue-100 bg-blue-50/50 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold text-blue-700 uppercase tracking-widest flex items-center gap-1">
-            ⚡ Bulk Action Panel
-          </span>
+          <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">Assign to multiple</span>
           <button
             type="button"
             onClick={toggleSelectAll}
-            className="text-[10px] font-bold text-blue-600 hover:text-blue-800 transition-colors"
+            className="text-[10px] font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
           >
-            {selectedIds.length === wizardTasks.length ? 'Deselect All' : 'Select All'}
+            {selectedIds.length === wizardTasks.length ? 'Deselect all' : 'Select all'}
           </button>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex gap-2">
           <input
             type="date"
             value={bulkDate}
             onChange={(e) => setBulkDate(e.target.value)}
             disabled={isProcessing}
             min={new Date().toISOString().split('T')[0]}
-            className="flex-1 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 focus:border-blue-400 rounded-lg px-2.5 py-1.5 outline-none cursor-pointer"
+            className="flex-1 text-xs font-semibold text-slate-700 bg-white border border-slate-200 focus:border-blue-400 rounded-lg px-2.5 py-1.5 outline-none cursor-pointer"
           />
           <Button
             type="button"
             onClick={handleApplyBulkDate}
             disabled={!bulkDate || selectedIds.length === 0 || isProcessing}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] h-8 rounded-lg shadow-sm transition-all"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] h-8 px-3 rounded-lg shrink-0"
           >
-            Apply to ({selectedIds.length}) Selected
+            Apply ({selectedIds.length})
           </Button>
         </div>
       </div>
 
-      {/* Tasks List with Checkboxes */}
-      <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+      {/* Task list */}
+      <div className="space-y-1.5 max-h-52 overflow-y-auto pr-0.5">
         {wizardTasks.map((t) => {
           const isChecked = selectedIds.includes(t.id);
           return (
-            <div 
-              key={t.id} 
+            <div
+              key={t.id}
               className={cn(
-                "flex items-center gap-3 p-3 bg-white rounded-xl border transition-all",
-                isChecked ? "border-blue-100 ring-2 ring-blue-500/5 shadow-sm" : "border-slate-150 opacity-75 hover:opacity-100"
+                "flex items-center gap-2.5 p-2.5 bg-white rounded-xl border transition-all",
+                isChecked ? "border-blue-200 shadow-xs" : "border-slate-150 opacity-70"
               )}
             >
-              {/* Checkbox handles its own click */}
-              <div className="shrink-0">
-                <Checkbox
-                  checked={isChecked}
-                  onCheckedChange={() => toggleSelect(t.id)}
-                  className="h-4 w-4 rounded border-slate-350 cursor-pointer"
-                />
-              </div>
-
-              {/* Task Title click also toggles select */}
-              <span 
+              <Checkbox
+                checked={isChecked}
+                onCheckedChange={() => toggleSelect(t.id)}
+                className="h-4 w-4 shrink-0 cursor-pointer"
+              />
+              <span
                 onClick={() => toggleSelect(t.id)}
-                className="text-xs font-bold text-slate-800 truncate flex-1 pr-2 cursor-pointer select-none hover:text-blue-600 transition-colors"
+                className="text-xs font-semibold text-slate-800 truncate flex-1 cursor-pointer select-none"
               >
                 {t.title}
               </span>
-
-              {/* Date Input */}
               <input
                 type="date"
                 value={t.deadline}
                 onChange={(e) => handleDateChange(t.id, e.target.value)}
                 disabled={isProcessing}
                 min={new Date().toISOString().split('T')[0]}
-                className="text-xs font-bold text-slate-700 bg-slate-50/80 border border-slate-200 focus:border-blue-400 rounded-lg px-2 py-1 outline-none cursor-pointer shrink-0"
+                className="text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 focus:border-blue-400 rounded-lg px-2 py-1 outline-none cursor-pointer shrink-0"
               />
             </div>
           );
         })}
       </div>
 
-      {/* Action Footer */}
-      <div className="flex items-center justify-between gap-3 pt-2">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-          <AlertCircle className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-          All deadlines required
+      {/* Submit */}
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
+          <AlertCircle className="h-3 w-3 text-blue-400 shrink-0" />
+          All tasks need a deadline to schedule
         </span>
         <Button
           onClick={() => onSubmit(wizardTasks)}
           disabled={!isFormValid || isProcessing}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-9 px-4 rounded-xl shadow-sm transition-all"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-8 px-4 rounded-xl shadow-xs shrink-0"
         >
           {isProcessing ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-              Scheduling...
-            </>
+            <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Scheduling…</>
           ) : (
-            'Apply Deadlines & Schedule'
+            'Schedule Now'
           )}
         </Button>
       </div>
@@ -787,134 +645,68 @@ function DeadlineWizard({
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Premium AI Report Presenter Component
+   Report Presenter
    ───────────────────────────────────────────────────────────────────────────── */
 function ReportPresenter({ score, content }: { score: number; content: string }) {
-  const sections = React.useMemo(() => {
-    return parseReportContent(content);
-  }, [content]);
+  const sections = React.useMemo(() => parseReportContent(content), [content]);
 
-  // Color mapping utilities
   const scoreColors = (() => {
-    if (score >= 80) return { text: 'text-emerald-600', ring: 'stroke-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200/50' };
-    if (score >= 50) return { text: 'text-amber-600', ring: 'stroke-amber-500', bg: 'bg-amber-50', border: 'border-amber-200/50' };
-    return { text: 'text-rose-600', ring: 'stroke-rose-500', bg: 'bg-rose-50', border: 'border-rose-200/50' };
+    if (score >= 80) return { text: 'text-emerald-600', ring: 'stroke-emerald-500', bg: 'bg-emerald-50', label: 'Great day! 🎉' };
+    if (score >= 50) return { text: 'text-amber-600', ring: 'stroke-amber-500', bg: 'bg-amber-50', label: 'Decent progress 👍' };
+    return { text: 'text-rose-600', ring: 'stroke-rose-500', bg: 'bg-rose-50', label: 'Tough day — keep going 💪' };
   })();
 
   const getSectionStyles = (color: string) => {
     switch (color) {
-      case 'emerald':
-        return {
-          bg: 'bg-emerald-50/40 border-emerald-100/50',
-          title: 'text-emerald-700',
-          icon: <Trophy className="h-4 w-4 text-emerald-600" />,
-          iconBg: 'bg-emerald-100'
-        };
-      case 'blue':
-        return {
-          bg: 'bg-blue-50/40 border-blue-100/50',
-          title: 'text-blue-700',
-          icon: <TrendingUp className="h-4 w-4 text-blue-600" />,
-          iconBg: 'bg-blue-100'
-        };
-      case 'amber':
-        return {
-          bg: 'bg-amber-50/40 border-amber-100/50',
-          title: 'text-amber-700',
-          icon: <AlertTriangle className="h-4 w-4 text-amber-600" />,
-          iconBg: 'bg-amber-100'
-        };
-      case 'purple':
-        return {
-          bg: 'bg-purple-50/40 border-purple-100/50',
-          title: 'text-purple-700',
-          icon: <Lightbulb className="h-4 w-4 text-purple-600" />,
-          iconBg: 'bg-purple-100'
-        };
-      default:
-        return {
-          bg: 'bg-indigo-50/40 border-indigo-100/50',
-          title: 'text-indigo-700',
-          icon: <Quote className="h-4 w-4 text-indigo-600" />,
-          iconBg: 'bg-indigo-100'
-        };
+      case 'emerald': return { bg: 'bg-emerald-50/60 border-emerald-100', title: 'text-emerald-700', icon: <Trophy className="h-3.5 w-3.5 text-emerald-600" />, iconBg: 'bg-emerald-100' };
+      case 'blue': return { bg: 'bg-blue-50/60 border-blue-100', title: 'text-blue-700', icon: <TrendingUp className="h-3.5 w-3.5 text-blue-600" />, iconBg: 'bg-blue-100' };
+      case 'amber': return { bg: 'bg-amber-50/60 border-amber-100', title: 'text-amber-700', icon: <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />, iconBg: 'bg-amber-100' };
+      case 'purple': return { bg: 'bg-purple-50/60 border-purple-100', title: 'text-purple-700', icon: <Lightbulb className="h-3.5 w-3.5 text-purple-600" />, iconBg: 'bg-purple-100' };
+      default: return { bg: 'bg-indigo-50/60 border-indigo-100', title: 'text-indigo-700', icon: <Quote className="h-3.5 w-3.5 text-indigo-600" />, iconBg: 'bg-indigo-100' };
     }
   };
 
-  // SVG parameters for circular score ring
-  const radius = 24;
+  const radius = 22;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (score / 100) * circumference;
 
   return (
-    <div className="mt-4 w-full sm:min-w-[420px] max-w-full space-y-6 animate-in zoom-in-95 duration-300 text-slate-700">
-      
-      {/* 1. Circular Productivity Score Card */}
-      <div className={cn("p-5 border rounded-2xl flex items-center justify-between gap-4 shadow-xs bg-white", scoreColors.border)}>
-        <div className="space-y-1">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">AI Productivity Metric</span>
-          <h3 className="text-lg font-bold text-slate-800">Coach Performance Score</h3>
-          <p className="text-[11px] text-slate-500 font-semibold max-w-[220px]">
-            {score >= 80 ? 'Exceptional focus! Keep up this high standard of efficiency.' : score >= 50 ? 'Stable progress. Good momentum today.' : 'Challenging day. Leverage our tips to rebuild focus tomorrow.'}
-          </p>
-        </div>
-
-        {/* Circular Gauge */}
-        <div className="relative h-16 w-16 shrink-0 flex items-center justify-center">
+    <div className="mt-3 space-y-3 animate-in zoom-in-95 duration-300">
+      {/* Score card */}
+      <div className={cn("p-4 rounded-xl border flex items-center gap-4 bg-white", `border-${scoreColors.ring.split('-')[1]}-100`)}>
+        <div className="relative h-14 w-14 shrink-0 flex items-center justify-center">
           <svg className="h-full w-full rotate-[-90deg]">
-            <circle cx="32" cy="32" r={radius} className="stroke-slate-100 fill-none" strokeWidth="4" />
-            <circle
-              cx="32"
-              cy="32"
-              r={radius}
-              className={cn("fill-none transition-all duration-1000", scoreColors.ring)}
-              strokeWidth="4"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-            />
+            <circle cx="28" cy="28" r={radius} className="stroke-slate-100 fill-none" strokeWidth="4" />
+            <circle cx="28" cy="28" r={radius} className={cn("fill-none transition-all duration-1000", scoreColors.ring)}
+              strokeWidth="4" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round" />
           </svg>
-          <span className={cn("absolute text-xs font-bold tracking-tighter", scoreColors.text)}>
-            {Math.round(score)}%
-          </span>
+          <span className={cn("absolute text-[11px] font-black", scoreColors.text)}>{Math.round(score)}%</span>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Productivity Score</p>
+          <p className={cn("text-sm font-black", scoreColors.text)}>{scoreColors.label}</p>
         </div>
       </div>
 
-      {/* 2. Structured Sections Container */}
-      <div className="space-y-4">
+      {/* Sections */}
+      <div className="space-y-2.5">
         {sections.map((sect) => {
           const s = getSectionStyles(sect.color);
           const isQuote = sect.color === 'indigo';
           return (
-            <div 
-              key={sect.title} 
-              className={cn(
-                "p-4 rounded-2xl border transition-all hover:shadow-xs", 
-                s.bg,
-                isQuote && "bg-gradient-to-br from-indigo-50/50 to-pink-50/30 border-indigo-150/40 relative overflow-hidden"
-              )}
-            >
-              {/* Quote background graphic */}
+            <div key={sect.title} className={cn("p-3.5 rounded-xl border", s.bg, isQuote && "relative overflow-hidden")}>
               {isQuote && (
-                <div className="absolute right-[-10px] bottom-[-20px] text-indigo-500/10 font-serif text-8xl pointer-events-none select-none">
-                  ”
-                </div>
+                <div className="absolute right-1 bottom-[-16px] text-indigo-200 font-serif text-7xl pointer-events-none select-none">"</div>
               )}
-
-              {/* Title row */}
-              <div className="flex items-center gap-2.5 mb-2.5">
-                <div className={cn("p-1.5 rounded-lg shrink-0", s.iconBg)}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className={cn("w-5 h-5 rounded-md flex items-center justify-center shrink-0", s.iconBg)}>
                   {s.icon}
                 </div>
-                <h4 className={cn("text-xs font-bold uppercase tracking-wider", s.title)}>
-                  {sect.title}
-                </h4>
+                <h4 className={cn("text-[10px] font-bold uppercase tracking-wider", s.title)}>{sect.title}</h4>
               </div>
-
-              {/* Body */}
               <div className={cn(
-                "text-xs leading-relaxed font-semibold whitespace-pre-wrap",
-                isQuote ? "text-indigo-900/90 italic pl-1 font-serif text-sm leading-normal" : "text-slate-600 pl-1"
+                "text-xs leading-relaxed whitespace-pre-wrap",
+                isQuote ? "text-indigo-900/80 italic font-medium" : "text-slate-600 font-medium"
               )}>
                 {sect.body}
               </div>
@@ -927,18 +719,13 @@ function ReportPresenter({ score, content }: { score: number; content: string })
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Markdown Parser Function
+   Report Parser
    ───────────────────────────────────────────────────────────────────────────── */
-interface ParsedSection {
-  title: string;
-  body: string;
-  icon: string;
-  color: string;
-}
+interface ParsedSection { title: string; body: string; icon: string; color: string; }
 
 function parseReportContent(content: string): ParsedSection[] {
   const sections = [
-    { key: 'achievements', header: 'Daily Achievements Summary', icon: '🏆', color: 'emerald' },
+    { key: 'achievements', header: 'Achievements Summary', icon: '🏆', color: 'emerald' },
     { key: 'analysis', header: 'Performance and Time Analysis', icon: '📈', color: 'blue' },
     { key: 'improvements', header: 'Points for Improvement', icon: '⚠️', color: 'amber' },
     { key: 'tips', header: 'Smart Tips for the Next Day', icon: '💡', color: 'purple' },
@@ -951,44 +738,29 @@ function parseReportContent(content: string): ParsedSection[] {
   for (let i = 0; i < sections.length; i++) {
     const current = sections[i];
     const next = sections[i + 1];
-
     const currentIndex = remainingText.toLowerCase().indexOf(current.header.toLowerCase());
     if (currentIndex !== -1) {
       let endIndex = remainingText.length;
       if (next) {
         const nextIndex = remainingText.toLowerCase().indexOf(next.header.toLowerCase());
-        if (nextIndex !== -1) {
-          endIndex = nextIndex;
-        }
+        if (nextIndex !== -1) endIndex = nextIndex;
       }
-
-      // Extract the block body
       const lineEndIndex = remainingText.indexOf('\n', currentIndex);
       const startOfBody = lineEndIndex !== -1 ? lineEndIndex + 1 : currentIndex + current.header.length;
       let bodyText = remainingText.substring(startOfBody, endIndex).trim();
-
-      // Clean up markup indicators
-      bodyText = bodyText.replace(/^\s*-\s*/, ''); // Remove leading dash
-      bodyText = bodyText.replace(/\n\s*-\s*/g, '\n• '); // Convert sub-dashes to bullet unicode
-      bodyText = bodyText.replace(/\n\s*•\s*/g, '\n• '); // Standardize bullets
-      bodyText = bodyText.replace(/\*\*(.*?)\*\*/g, '$1'); // Clean bold markups if any
-
-      result.push({
-        title: current.header,
-        body: bodyText,
-        icon: current.icon,
-        color: current.color
-      });
+      bodyText = bodyText.replace(/^\s*-\s*/, '');
+      bodyText = bodyText.replace(/\n\s*-\s*/g, '\n• ');
+      bodyText = bodyText.replace(/\n\s*•\s*/g, '\n• ');
+      bodyText = bodyText.replace(/\*\*(.*?)\*\*/g, '$1');
+      result.push({ title: current.header, body: bodyText, icon: current.icon, color: current.color });
     }
   }
 
-  // Fallback if formatting was non-standard
   if (result.length === 0) {
     result.push({
-      title: 'Daily Performance Report Summary',
+      title: 'Report',
       body: content.replace(/\*\*(.*?)\*\*/g, '$1'),
-      icon: '📊',
-      color: 'indigo'
+      icon: '📊', color: 'indigo'
     });
   }
 

@@ -23,6 +23,8 @@ import {
   CheckCircle2, 
   Clock, 
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   LayoutGrid,
   Loader2,
   Filter,
@@ -31,12 +33,20 @@ import {
   Sliders,
   Target,
   Flame,
-  Zap,
-  X
+  Zap
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { eachDayOfInterval } from 'date-fns/eachDayOfInterval';
+
+// Helper to format a local Date object into a yyyy-MM-dd string in the local time zone (timezone shift immune!)
+const formatLocalDate = (date: Date): string => {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 // Helper to format seconds into a friendly duration: e.g. "14h30m"
 const formatSecondsFriendly = (totalSeconds: number): string => {
@@ -48,22 +58,122 @@ const formatSecondsFriendly = (totalSeconds: number): string => {
   return `${hours}h${minutes}m`;
 };
 
-// Returns a chronological anchor date for a task, spreading fallbacks based on task ID
-const getTaskAnchorDate = (t: Task): Date => {
-  if (t.latestEnd && !t.latestEnd.startsWith('0001-01-01')) {
+// Generates a highly polished human-readable date range label for a given timeframe and reference date
+const getCardRangeLabel = (
+  timeframe: 'week' | 'month' | 'year' | 'custom',
+  refDate: Date,
+  customStart: string,
+  customEnd: string
+): string => {
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  if (timeframe === 'week') {
+    const end = refDate;
+    const start = new Date(refDate);
+    start.setDate(refDate.getDate() - 6);
+    
+    const startMonth = monthNames[start.getMonth()];
+    const endMonth = monthNames[end.getMonth()];
+    const startDay = start.getDate();
+    const endDay = end.getDate();
+    const startYear = start.getFullYear();
+    const endYear = end.getFullYear();
+    
+    if (startYear !== endYear) {
+      return `${startMonth} ${startDay}, ${startYear} - ${endMonth} ${endDay}, ${endYear}`;
+    }
+    if (startMonth !== endMonth) {
+      return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${startYear}`;
+    }
+    return `${startMonth} ${startDay} - ${endDay}, ${startYear}`;
+  }
+  
+  if (timeframe === 'month') {
+    const month = monthNames[refDate.getMonth()];
+    const year = refDate.getFullYear();
+    return `${month} ${year}`;
+  }
+  
+  if (timeframe === 'year') {
+    return `${refDate.getFullYear()}`;
+  }
+  
+  if (timeframe === 'custom') {
+    if (!customStart || !customEnd) return 'Custom Range';
+    const start = new Date(customStart);
+    const end = new Date(customEnd);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'Custom Range';
+    
+    const startMonth = monthNames[start.getMonth()];
+    const endMonth = monthNames[end.getMonth()];
+    const startDay = start.getDate();
+    const endDay = end.getDate();
+    const startYear = start.getFullYear();
+    const endYear = end.getFullYear();
+    
+    if (startYear !== endYear) {
+      return `${startMonth} ${startDay}, ${startYear} - ${endMonth} ${endDay}, ${endYear}`;
+    }
+    if (startMonth !== endMonth) {
+      return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${startYear}`;
+    }
+    return `${startMonth} ${startDay} - ${endDay}, ${startYear}`;
+  }
+  
+  return '';
+};
+
+// Checks if a card's reference date represents the current/today's date range to determine reset visibility
+const isRefDateCurrent = (
+  timeframe: 'week' | 'month' | 'year' | 'custom',
+  refDate: Date
+): boolean => {
+  if (timeframe === 'custom') return true;
+  const today = new Date();
+  
+  if (timeframe === 'week') {
+    return formatLocalDate(refDate) === formatLocalDate(today);
+  }
+  if (timeframe === 'month') {
+    return refDate.getMonth() === today.getMonth() && refDate.getFullYear() === today.getFullYear();
+  }
+  if (timeframe === 'year') {
+    return refDate.getFullYear() === today.getFullYear();
+  }
+  return true;
+};
+
+
+// Returns a chronological anchor date for a task, returning null if none is valid (default 0001-01-01 date is ignored)
+const getTaskAnchorDate = (t: Task): Date | null => {
+  if (!t) return null;
+
+  // If the task is completed (Done), use the day it was marked completed
+  if (t.status === 2) {
+    try {
+      const stored = localStorage.getItem('task_completions');
+      if (stored) {
+        const completions = JSON.parse(stored);
+        if (completions[t.id]) {
+          return new Date(completions[t.id]);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse task_completions from localStorage', e);
+    }
+  }
+
+  if (typeof t.latestEnd === 'string' && !t.latestEnd.startsWith('0001-01-01')) {
     return new Date(t.latestEnd);
   }
-  if (t.deadline && !t.deadline.startsWith('0001-01-01')) {
+  if (typeof t.deadline === 'string' && !t.deadline.startsWith('0001-01-01')) {
     return new Date(t.deadline);
   }
-  if (t.earliestStart && !t.earliestStart.startsWith('0001-01-01')) {
+  if (typeof t.earliestStart === 'string' && !t.earliestStart.startsWith('0001-01-01')) {
     return new Date(t.earliestStart);
   }
-  // Soft fallback: Spread task IDs across the past 15 days to populate charts gracefully
-  const offsetDays = (t.id % 15);
-  const fallback = new Date();
-  fallback.setDate(fallback.getDate() - offsetDays);
-  return fallback;
+  // Ignore unscheduled tasks without a deadline by returning null
+  return null;
 };
 
 // Custom Tooltip component for standard styling across Recharts components
@@ -142,6 +252,7 @@ const CustomTooltip = ({ active, payload, label, sessions = [], tasks = [], show
           matchingCompletedTasks = tasks.filter((t: any) => {
             if (t.status !== 2) return false;
             const d = getTaskAnchorDate(t);
+            if (!d) return false;
             return d.getFullYear() === now.getFullYear() && monthNames[d.getMonth()] === label;
           });
         } else if (dayNames.includes(label)) {
@@ -151,6 +262,7 @@ const CustomTooltip = ({ active, payload, label, sessions = [], tasks = [], show
           matchingCompletedTasks = tasks.filter((t: any) => {
             if (t.status !== 2) return false;
             const d = getTaskAnchorDate(t);
+            if (!d) return false;
             return d.getTime() >= weekStart.getTime() && dayNames[d.getDay()] === label;
           });
         } else if (typeof label === 'string' && label.includes(' ')) {
@@ -159,6 +271,7 @@ const CustomTooltip = ({ active, payload, label, sessions = [], tasks = [], show
             matchingCompletedTasks = tasks.filter((t: any) => {
               if (t.status !== 2) return false;
               const d = getTaskAnchorDate(t);
+              if (!d) return false;
               return monthNames[d.getMonth()] === mName && d.getDate() === Number(dDay);
             });
           }
@@ -205,7 +318,10 @@ const CustomTooltip = ({ active, payload, label, sessions = [], tasks = [], show
           if (isTaskItem && !showTasks) return null;
 
           let displayValue = p.value;
-          if (
+          if (p.payload && typeof p.payload.value === 'number' && p.payload.percentage !== undefined) {
+            // This is the Focus Distribution Pie Chart!
+            displayValue = `${formatSecondsFriendly(p.payload.value)} (${p.payload.percentage}%)`;
+          } else if (
             p.name === 'Focused Hours' || 
             p.name === 'Hours' || 
             p.name === 'Focus Time' || 
@@ -360,14 +476,90 @@ interface FocusHeatmapProps {
   customStart: string;
   customEnd: string;
   sessions: TimeEntry[];
+  refDate?: Date;
 }
 
-function FocusHeatmap({ timeframe, customStart, customEnd, sessions }: FocusHeatmapProps) {
-  const now = new Date();
-  
+// ── Shared tooltip state type ────────────────────────────────────────────────
+interface HeatmapTooltip {
+  label: string;
+  x: number; // pageX
+  y: number; // pageY
+}
+
+// ── Colour helpers ───────────────────────────────────────────────────────────
+function getHeatColor(seconds: number): string {
+  if (!seconds || seconds <= 0) return 'bg-slate-100 border-slate-200/40';
+  const h = seconds / 3600;
+  if (h < 0.5)  return 'bg-blue-100 border-blue-200';
+  if (h < 1.5)  return 'bg-blue-200 border-blue-300';
+  if (h < 3)    return 'bg-blue-400 border-blue-500';
+  if (h < 5)    return 'bg-blue-500 border-blue-600';
+  return              'bg-blue-700 border-blue-800';
+}
+
+// ── Floating tooltip (React-portal at pointer position, no edge clipping) ───
+function HeatTooltip({ tip }: { tip: HeatmapTooltip | null }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [pos, setPos] = React.useState({ left: 0, top: 0 });
+
+  React.useLayoutEffect(() => {
+    if (!tip || !ref.current) return;
+    const el = ref.current;
+    const vw = window.innerWidth;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    const gap = 10;
+
+    let left = tip.x - w / 2;
+    let top  = tip.y - h - gap;
+
+    // clamp horizontal
+    left = Math.max(8, Math.min(left, vw - w - 8));
+    // flip to below if too close to top
+    if (top < 8) top = tip.y + gap;
+
+    setPos({ left, top });
+  }, [tip]);
+
+  if (!tip) return null;
+
+  return (
+    <div
+      ref={ref}
+      className="fixed z-[9999] pointer-events-none"
+      style={{ left: pos.left, top: pos.top }}
+    >
+      <div className="bg-blue-600 text-white text-[10px] font-black py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap">
+        {tip.label}
+      </div>
+      <div className="mx-auto w-1.5 h-1.5 bg-blue-600 rotate-45 -mt-0.5" />
+    </div>
+  );
+}
+
+function FocusHeatmap({ timeframe, customStart, customEnd, sessions, refDate }: FocusHeatmapProps) {
+  const now = refDate || new Date();
+
+  // ── Tooltip state ──────────────────────────────────────────────────────────
+  const [tooltip, setTooltip] = React.useState<HeatmapTooltip | null>(null);
+
+  // ── Determine effective layout for custom range ────────────────────────────
+  const effectiveLayout = React.useMemo((): 'week' | 'month' | 'year' => {
+    if (timeframe !== 'custom') return timeframe as 'week' | 'month' | 'year';
+    try {
+      const s = new Date(customStart);
+      const e = new Date(customEnd);
+      const diff = Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
+      if (diff <= 7)  return 'week';
+      if (diff <= 31) return 'month';
+      return 'year';
+    } catch { return 'month'; }
+  }, [timeframe, customStart, customEnd]);
+
+  // ── Build day list ─────────────────────────────────────────────────────────
   const days = React.useMemo(() => {
     let datesList: Date[] = [];
-    
+
     if (timeframe === 'week') {
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now);
@@ -378,208 +570,194 @@ function FocusHeatmap({ timeframe, customStart, customEnd, sessions }: FocusHeat
       const year = now.getFullYear();
       const month = now.getMonth();
       const lastDay = new Date(year, month + 1, 0).getDate();
-      for (let i = 1; i <= lastDay; i++) {
-        datesList.push(new Date(year, month, i));
-      }
+      for (let i = 1; i <= lastDay; i++) datesList.push(new Date(year, month, i));
     } else if (timeframe === 'year') {
-      const year = now.getFullYear();
-      const firstDay = new Date(year, 0, 1);
-      const lastDay = new Date(year, 11, 31);
-      const curr = new Date(firstDay);
-      while (curr <= lastDay) {
-        datesList.push(new Date(curr));
-        curr.setDate(curr.getDate() + 1);
-      }
+      try { datesList = eachDayOfInterval({ start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear(), 11, 31) }); }
+      catch (e) { console.error(e); }
     } else {
-      const start = customStart ? new Date(customStart) : new Date();
-      const end = customEnd ? new Date(customEnd) : new Date();
-      start.setHours(0,0,0,0);
-      end.setHours(23,59,59,999);
-      const curr = new Date(start);
-      while (curr <= end) {
-        datesList.push(new Date(curr));
-        curr.setDate(curr.getDate() + 1);
-      }
+      // custom
+      try {
+        const s = new Date(customStart); s.setHours(0, 0, 0, 0);
+        const e = new Date(customEnd);   e.setHours(23, 59, 59, 999);
+        datesList = eachDayOfInterval({ start: s, end: e });
+      } catch (e) { console.error(e); }
     }
-    
-    return datesList;
-  }, [timeframe, customStart, customEnd]);
 
+    const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return datesList.map(d => ({
+      date: d,
+      dStr: formatLocalDate(d),
+      dayNum: d.getDate(),
+      monthIdx: d.getMonth(),
+      yearNum: d.getFullYear(),
+      dayOfWeek: d.getDay(),
+      formattedDate: `${mn[d.getMonth()]} ${d.getDate()}`,
+    }));
+  }, [timeframe, customStart, customEnd, refDate]);
+
+  // ── Session time lookup ────────────────────────────────────────────────────
   const focusTimeByDate = React.useMemo(() => {
     const table: Record<string, number> = {};
     sessions.forEach(s => {
-      const dateStr = new Date(s.startedAt || s.createdAt).toISOString().split('T')[0];
-      table[dateStr] = (table[dateStr] || 0) + s.accumulatedSeconds;
+      const dateVal = s.startedAt || s.createdAt;
+      if (!dateVal) return;
+      const p = new Date(dateVal);
+      if (isNaN(p.getTime())) return;
+      const k = formatLocalDate(p);
+      table[k] = (table[k] || 0) + s.accumulatedSeconds;
     });
     return table;
   }, [sessions]);
 
-  const getColorClass = (seconds: number) => {
-    if (!seconds || seconds <= 0) return 'bg-slate-100 border-slate-200/20';
-    const hours = seconds / 3600;
-    if (hours <= 1) return 'bg-blue-50 border-blue-100';
-    if (hours <= 3) return 'bg-blue-200 border-blue-300';
-    if (hours <= 5) return 'bg-blue-400 border-blue-500';
-    return 'bg-blue-600 border-blue-700';
-  };
-
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  if (timeframe === 'week') {
-    return (
-      <div className="flex flex-col gap-6 w-full h-full justify-center">
-        <div className="flex items-center justify-around gap-2.5 py-4 max-w-lg mx-auto w-full select-none">
-          {days.map(d => {
-            const dStr = d.toISOString().split('T')[0];
-            const seconds = focusTimeByDate[dStr] || 0;
-            const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-            return (
-              <div key={dStr} className="flex flex-col items-center gap-2 group relative">
-                <span className="text-[10px] font-bold text-slate-400">{dayName}</span>
-                <div 
-                  className={cn(
-                    "w-9 h-9 rounded-xl border transition-all duration-300 cursor-pointer shadow-2xs hover:scale-110",
-                    getColorClass(seconds)
-                  )}
-                />
-                <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-50">
-                  <div className="bg-slate-900 text-white text-[10px] font-black py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap">
-                    {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: {formatSecondsFriendly(seconds)}
-                  </div>
-                  <div className="w-1.5 h-1.5 bg-slate-900 rotate-45 -mt-1" />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <HeatmapLegend />
-      </div>
-    );
-  }
-
-  if (timeframe === 'month') {
-    const firstDayIndex = new Date(days[0].getFullYear(), days[0].getMonth(), 1).getDay();
-    const paddingBlocks = Array.from({ length: firstDayIndex });
-    
-    return (
-      <div className="flex flex-col gap-6 w-full h-full justify-center">
-        <div className="grid grid-cols-7 gap-2.5 max-w-sm mx-auto py-2 select-none">
-          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-            <div key={`header-${i}`} className="text-center text-[10px] font-black text-slate-400 w-8">
-              {day}
-            </div>
-          ))}
-          
-          {paddingBlocks.map((_, i) => (
-            <div key={`pad-${i}`} className="w-8 h-8 opacity-0" />
-          ))}
-          
-          {days.map(d => {
-            const dStr = d.toISOString().split('T')[0];
-            const seconds = focusTimeByDate[dStr] || 0;
-            return (
-              <div key={dStr} className="group relative flex justify-center items-center">
-                <div 
-                  className={cn(
-                    "w-8 h-8 rounded-lg border transition-all duration-300 cursor-pointer flex items-center justify-center text-[10px] font-bold shadow-2xs hover:scale-110",
-                    getColorClass(seconds),
-                    seconds > 0 ? "text-slate-800" : "text-slate-400"
-                  )}
-                >
-                  {d.getDate()}
-                </div>
-                <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-50">
-                  <div className="bg-slate-900 text-white text-[10px] font-black py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap">
-                    {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: {formatSecondsFriendly(seconds)}
-                  </div>
-                  <div className="w-1.5 h-1.5 bg-slate-900 rotate-45 -mt-1" />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <HeatmapLegend />
-      </div>
-    );
-  }
-
-  // Timeframe: Year/Custom contribution grid
+  // ── Week grid for year/custom(year) layout ─────────────────────────────────
   const weekGrid = React.useMemo(() => {
-    const grid: Date[][] = [];
-    let currentWeek: Date[] = [];
-    const startDay = days[0];
-    const leadingEmptyCount = startDay.getDay();
-    const firstWeek: (Date | null)[] = Array(leadingEmptyCount).fill(null);
-    
+    if (effectiveLayout !== 'year') return [];
+    const grid: (typeof days[number] | null)[][] = [];
+    let cur: (typeof days[number] | null)[] = [];
+    const lead = days[0]?.dayOfWeek ?? 0;
+    for (let i = 0; i < lead; i++) cur.push(null);
     days.forEach(d => {
-      if (firstWeek.length < 7) {
-        firstWeek.push(d);
-        if (firstWeek.length === 7) {
-          grid.push(firstWeek as Date[]);
-        }
-      } else {
-        currentWeek.push(d);
-        if (currentWeek.length === 7) {
-          grid.push(currentWeek);
-          currentWeek = [];
-        }
-      }
+      cur.push(d);
+      if (cur.length === 7) { grid.push(cur); cur = []; }
     });
-    
-    if (currentWeek.length > 0) {
-      while (currentWeek.length < 7) {
-        currentWeek.push(null as any);
-      }
-      grid.push(currentWeek);
-    }
-    
+    if (cur.length > 0) { while (cur.length < 7) cur.push(null); grid.push(cur); }
     return grid;
-  }, [days]);
+  }, [days, effectiveLayout]);
 
+  // ── Scroll wheel → horizontal scroll for year grid ────────────────────────
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      if (e.deltaY !== 0 && e.deltaX === 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, []);
+
+  // ── Tooltip helpers ────────────────────────────────────────────────────────
+  const showTip = (e: React.MouseEvent, label: string) =>
+    setTooltip({ label, x: e.clientX, y: e.clientY });
+  const hideTip = () => setTooltip(null);
+
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // WEEK layout
+  // ════════════════════════════════════════════════════════════════════════════
+  if (effectiveLayout === 'week') {
+    const dayNamesShort = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    return (
+      <div className="flex flex-col gap-6 w-full h-full justify-center">
+        <HeatTooltip tip={tooltip} />
+        <div className="grid grid-cols-7 gap-3 max-w-md mx-auto w-full py-2 select-none px-4">
+          {days.map(d => {
+            const sec = focusTimeByDate[d.dStr] || 0;
+            return (
+              <div key={d.dStr} className="flex flex-col items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-400 truncate max-w-full text-center">{dayNamesShort[d.dayOfWeek]}</span>
+                <div
+                  className={cn('aspect-square w-full max-w-[40px] rounded-lg sm:rounded-xl border transition-all duration-200 cursor-pointer shadow-2xs hover:scale-110', getHeatColor(sec))}
+                  onMouseEnter={e => showTip(e, `${d.formattedDate}: ${formatSecondsFriendly(sec)}`)}
+                  onMouseMove={e  => showTip(e, `${d.formattedDate}: ${formatSecondsFriendly(sec)}`)}
+                  onMouseLeave={hideTip}
+                />
+              </div>
+            );
+          })}
+        </div>
+        <HeatmapLegend onTip={showTip} onHideTip={hideTip} />
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // MONTH layout
+  // ════════════════════════════════════════════════════════════════════════════
+  if (effectiveLayout === 'month') {
+    const firstDayIndex = days[0]?.dayOfWeek ?? 0;
+    const paddingBlocks = Array.from({ length: firstDayIndex });
+    return (
+      <div className="flex flex-col gap-6 w-full h-full justify-center">
+        <HeatTooltip tip={tooltip} />
+        <div className="grid grid-cols-7 gap-2.5 max-w-sm mx-auto py-2 select-none">
+          {['S','M','T','W','T','F','S'].map((day, i) => (
+            <div key={`hdr-${i}`} className="text-center text-[10px] font-black text-slate-400 w-8">{day}</div>
+          ))}
+          {paddingBlocks.map((_, i) => <div key={`pad-${i}`} className="w-8 h-8 opacity-0" />)}
+          {days.map(d => {
+            const sec = focusTimeByDate[d.dStr] || 0;
+            return (
+              <div key={d.dStr} className="flex justify-center items-center">
+                <div
+                  className={cn('w-8 h-8 rounded-lg border transition-all duration-200 cursor-pointer flex items-center justify-center text-[10px] font-bold shadow-2xs hover:scale-110', getHeatColor(sec))}
+                  onMouseEnter={e => showTip(e, `${d.formattedDate}: ${formatSecondsFriendly(sec)}`)}
+                  onMouseMove={e  => showTip(e, `${d.formattedDate}: ${formatSecondsFriendly(sec)}`)}
+                  onMouseLeave={hideTip}
+                >
+                  <span className={cn('select-none', sec > 0 ? (sec / 3600 >= 1.5 ? 'text-white' : 'text-blue-700') : 'text-slate-400')}>
+                    {d.dayNum}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <HeatmapLegend onTip={showTip} onHideTip={hideTip} />
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // YEAR layout (also used when custom range > 31 days)
+  // ════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="flex flex-col gap-6 w-full h-full justify-center">
-      <div className="flex items-start gap-1 overflow-x-auto py-2 scrollbar-thin select-none max-w-full">
-        <div className="flex flex-col justify-around h-[84px] text-[8px] font-bold text-slate-400 pr-1.5 pt-1">
-          <span>Sun</span>
-          <span>Tue</span>
-          <span>Thu</span>
-          <span>Sat</span>
+    <div className="flex flex-col gap-4 w-full h-full justify-center">
+      <HeatTooltip tip={tooltip} />
+      <div
+        ref={scrollRef}
+        className="flex items-start gap-1 overflow-x-auto pt-6 pb-2 scrollbar-thin select-none max-w-full"
+      >
+        {/* Row labels */}
+        <div className="grid grid-rows-7 gap-1 h-[108px] text-[8px] font-bold text-slate-400 pr-1.5 pt-0.5 leading-none shrink-0">
+          <span className="flex items-center h-3">Sun</span>
+          <span className="flex items-center h-3 opacity-0">Mon</span>
+          <span className="flex items-center h-3">Tue</span>
+          <span className="flex items-center h-3 opacity-0">Wed</span>
+          <span className="flex items-center h-3">Thu</span>
+          <span className="flex items-center h-3 opacity-0">Fri</span>
+          <span className="flex items-center h-3">Sat</span>
         </div>
 
+        {/* Week columns */}
         <div className="flex gap-1">
-          {weekGrid.map((week, weekIdx) => {
-            const firstValidDay = week.find(d => d !== null);
-            const showMonthLabel = firstValidDay && firstValidDay.getDate() <= 7 && firstValidDay.getDay() === 0;
-            
+          {weekGrid.map((week, wIdx) => {
+            const firstValid  = week.find(d => d !== null);
+            const dayWith1    = week.find(d => d && d.dayNum === 1);
+            const showLabel   = !!dayWith1 || wIdx === 0;
+            const labelMonth  = dayWith1 ? dayWith1.monthIdx : (firstValid?.monthIdx ?? 0);
             return (
-              <div key={`wk-${weekIdx}`} className="flex flex-col gap-1 relative">
-                {showMonthLabel && (
-                  <span className="absolute -top-3.5 left-0 text-[8px] font-black text-slate-400 whitespace-nowrap">
-                    {monthNames[firstValidDay.getMonth()]}
+              <div key={`wk-${wIdx}`} className="flex flex-col gap-1 relative h-[108px]">
+                {showLabel && firstValid && (
+                  <span className="absolute -top-6 left-0 text-[8px] font-black text-slate-400 whitespace-nowrap">
+                    {monthNames[labelMonth]}
                   </span>
                 )}
-                
-                {week.map((day, dayIdx) => {
-                  if (!day) return <div key={`day-${dayIdx}`} className="w-2.5 h-2.5 opacity-0 rounded-xs" />;
-                  
-                  const dStr = day.toISOString().split('T')[0];
-                  const seconds = focusTimeByDate[dStr] || 0;
-                  
+                {week.map((dayObj, dIdx) => {
+                  if (!dayObj) return <div key={`e-${dIdx}`} className="w-3 h-3 opacity-0 rounded-sm" />;
+                  const sec = focusTimeByDate[dayObj.dStr] || 0;
                   return (
-                    <div key={dStr} className="group relative">
-                      <div 
-                        className={cn(
-                          "w-2.5 h-2.5 rounded-xs border transition-all duration-300 cursor-pointer shadow-2xs hover:scale-125",
-                          getColorClass(seconds)
-                        )}
-                      />
-                      <div className="absolute bottom-full mb-1.5 hidden group-hover:flex flex-col items-center z-50 left-1/2 transform -translate-x-1/2">
-                        <div className="bg-slate-900 text-white text-[9px] font-black py-1 px-2.5 rounded-md shadow-xl whitespace-nowrap">
-                          {day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: {formatSecondsFriendly(seconds)}
-                        </div>
-                        <div className="w-1 h-1 bg-slate-900 rotate-45 -mt-0.5" />
-                      </div>
-                    </div>
+                    <div
+                      key={dayObj.dStr}
+                      className={cn('w-3 h-3 rounded-sm border transition-colors duration-150 cursor-pointer hover:scale-125', getHeatColor(sec))}
+                      onMouseEnter={e => showTip(e, `${dayObj.formattedDate}: ${formatSecondsFriendly(sec)}`)}
+                      onMouseMove={e  => showTip(e, `${dayObj.formattedDate}: ${formatSecondsFriendly(sec)}`)}
+                      onMouseLeave={hideTip}
+                    />
                   );
                 })}
               </div>
@@ -587,26 +765,47 @@ function FocusHeatmap({ timeframe, customStart, customEnd, sessions }: FocusHeat
           })}
         </div>
       </div>
-      <HeatmapLegend />
+      <HeatmapLegend onTip={showTip} onHideTip={hideTip} />
     </div>
   );
 }
 
-function HeatmapLegend() {
+// ── Legend row at the bottom of every layout ─────────────────────────────────
+const LEGEND_ITEMS = [
+  { color: 'bg-slate-100 border-slate-200/40', label: '0 min', title: 'No focus' },
+  { color: 'bg-blue-100 border-blue-200',      label: '< 30m',  title: '< 30 min' },
+  { color: 'bg-blue-200 border-blue-300',      label: '< 1.5h', title: '30 min – 1.5 h' },
+  { color: 'bg-blue-400 border-blue-500',      label: '< 3h',   title: '1.5 – 3 h' },
+  { color: 'bg-blue-500 border-blue-600',      label: '< 5h',   title: '3 – 5 h' },
+  { color: 'bg-blue-700 border-blue-800',      label: '≥ 5h',   title: '≥ 5 h' },
+];
+
+function HeatmapLegend({
+  onTip,
+  onHideTip,
+}: {
+  onTip: (e: React.MouseEvent, label: string) => void;
+  onHideTip: () => void;
+}) {
   return (
-    <div className="flex items-center gap-3.5 justify-center mt-2.5 py-1 text-[9px] font-black text-slate-400 select-none uppercase tracking-wider">
+    <div className="flex items-center gap-3.5 justify-center mt-1 py-1 text-[9px] font-black text-slate-400 select-none uppercase tracking-wider">
       <span>Less</span>
-      <div className="flex gap-1 items-center">
-        <div className="w-2.5 h-2.5 rounded-xs border bg-slate-100 border-slate-200/20" title="0m focus" />
-        <div className="w-2.5 h-2.5 rounded-xs border bg-blue-50 border-blue-100" title="0-1h focus" />
-        <div className="w-2.5 h-2.5 rounded-xs border bg-blue-200 border-blue-300" title="1-3h focus" />
-        <div className="w-2.5 h-2.5 rounded-xs border bg-blue-400 border-blue-500" title="3-5h focus" />
-        <div className="w-2.5 h-2.5 rounded-xs border bg-blue-600 border-blue-700" title=">5h focus" />
+      <div className="flex gap-1.5 items-center">
+        {LEGEND_ITEMS.map(item => (
+          <div
+            key={item.title}
+            className={cn('w-3 h-3 rounded-sm border cursor-default', item.color)}
+            onMouseEnter={e => onTip(e, item.title)}
+            onMouseMove={e  => onTip(e, item.title)}
+            onMouseLeave={onHideTip}
+          />
+        ))}
       </div>
       <span>More</span>
     </div>
   );
 }
+
 
 export function AnalyticsView() {
   const { tasks, categories, tags, fetchTasks, fetchCategories, fetchTags } = useTaskStore();
@@ -620,11 +819,11 @@ export function AnalyticsView() {
   const defaultStartDate = React.useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
-    return d.toISOString().split('T')[0];
+    return formatLocalDate(d);
   }, []);
 
   const defaultEndDate = React.useMemo(() => {
-    return new Date().toISOString().split('T')[0];
+    return formatLocalDate(new Date());
   }, []);
 
   // --- CARD INDEPENDENT FILTER STATES ---
@@ -640,9 +839,6 @@ export function AnalyticsView() {
   const [overviewFocusCustomStart, setOverviewFocusCustomStart] = React.useState(defaultStartDate);
   const [overviewFocusCustomEnd, setOverviewFocusCustomEnd] = React.useState(defaultEndDate);
 
-  // Overview Hover Scale State
-  const [overviewHover, setOverviewHover] = React.useState<'task' | 'focus' | null>(null);
-
   // Tasks: Task Progress Breakdown Chart
   const [tasksVolumeTimeframe, setTasksVolumeTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('week');
   const [tasksVolumeCustomStart, setTasksVolumeCustomStart] = React.useState(defaultStartDate);
@@ -653,20 +849,17 @@ export function AnalyticsView() {
   const [tasksRatioTimeframe, setTasksRatioTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('week');
   const [tasksRatioCustomStart, setTasksRatioCustomStart] = React.useState(defaultStartDate);
   const [tasksRatioCustomEnd, setTasksRatioCustomEnd] = React.useState(defaultEndDate);
-  const [tasksRatioCategory, setTasksRatioCategory] = React.useState<number | 'all'>('all');
-  const [tasksRatioTag, setTasksRatioTag] = React.useState<string | 'all'>('all');
+  const [tasksRatioCategory, setTasksRatioCategory] = React.useState<number | 'all' | 'none'>('none');
+  const [tasksRatioTag, setTasksRatioTag] = React.useState<string | 'all'>('none');
   const [ratioCatOpen, setRatioCatOpen] = React.useState(false);
   const [ratioTagOpen, setRatioTagOpen] = React.useState(false);
-
-  // Tasks Hover Scale State
-  const [tasksHover, setTasksHover] = React.useState<'breakdown' | 'rate' | null>(null);
 
   // Focus: Focus Distribution Pie Chart
   const [focusPieTimeframe, setFocusPieTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('week');
   const [focusPieCustomStart, setFocusPieCustomStart] = React.useState(defaultStartDate);
   const [focusPieCustomEnd, setFocusPieCustomEnd] = React.useState(defaultEndDate);
-  const [focusPieCategory, setFocusPieCategory] = React.useState<number | 'all'>('all');
-  const [focusPieTag, setFocusPieTag] = React.useState<string | 'all'>('all');
+  const [focusPieCategory, setFocusPieCategory] = React.useState<number | 'all' | 'none'>('none');
+  const [focusPieTag, setFocusPieTag] = React.useState<string | 'all'>('none');
   const [focusPieCatOpen, setFocusPieCatOpen] = React.useState(false);
   const [focusPieTagOpen, setFocusPieTagOpen] = React.useState(false);
 
@@ -686,9 +879,50 @@ export function AnalyticsView() {
   const [focusLengthCustomEnd, setFocusLengthCustomEnd] = React.useState(defaultEndDate);
   const [focusLengthHover, setFocusLengthHover] = React.useState<number | null>(null);
 
-  // Focus Hover Scale States
-  const [focusRow1Hover, setFocusRow1Hover] = React.useState<'task' | 'trend' | null>(null);
-  const [focusRow2Hover, setFocusRow2Hover] = React.useState<'heatmap' | 'durations' | null>(null);
+  // Reference Dates for independent chart navigation
+  const [overviewTasksRefDate, setOverviewTasksRefDate] = React.useState(new Date());
+  const [overviewFocusRefDate, setOverviewFocusRefDate] = React.useState(new Date());
+  const [tasksVolumeRefDate, setTasksVolumeRefDate] = React.useState(new Date());
+  const [tasksRatioRefDate, setTasksRatioRefDate] = React.useState(new Date());
+  const [focusPieRefDate, setFocusPieRefDate] = React.useState(new Date());
+  const [focusTrendRefDate, setFocusTrendRefDate] = React.useState(new Date());
+  const [focusHeatmapRefDate, setFocusHeatmapRefDate] = React.useState(new Date());
+  const [focusLengthRefDate, setFocusLengthRefDate] = React.useState(new Date());
+
+  const navigateRefDate = React.useCallback((chartKey: string, direction: -1 | 1) => {
+    const entry = {
+      overviewTasks: [overviewTasksRefDate, setOverviewTasksRefDate, overviewTasksTimeframe],
+      overviewFocus: [overviewFocusRefDate, setOverviewFocusRefDate, overviewFocusTimeframe],
+      tasksVolume: [tasksVolumeRefDate, setTasksVolumeRefDate, tasksVolumeTimeframe],
+      tasksRatio: [tasksRatioRefDate, setTasksRatioRefDate, tasksRatioTimeframe],
+      focusPie: [focusPieRefDate, setFocusPieRefDate, focusPieTimeframe],
+      focusTrend: [focusTrendRefDate, setFocusTrendRefDate, focusTrendTimeframe],
+      focusHeatmap: [focusHeatmapRefDate, setFocusHeatmapRefDate, focusHeatmapTimeframe],
+      focusLength: [focusLengthRefDate, setFocusLengthRefDate, focusLengthTimeframe],
+    }[chartKey];
+
+    if (!entry) return;
+    const [currentDate, setter, timeframe] = entry as [Date, React.Dispatch<React.SetStateAction<Date>>, string];
+
+    const nextDate = new Date(currentDate);
+    if (timeframe === 'week') {
+      nextDate.setDate(nextDate.getDate() + (direction * 7));
+    } else if (timeframe === 'month') {
+      nextDate.setMonth(nextDate.getMonth() + direction);
+    } else if (timeframe === 'year') {
+      nextDate.setFullYear(nextDate.getFullYear() + direction);
+    }
+    setter(nextDate);
+  }, [
+    overviewTasksRefDate, overviewTasksTimeframe,
+    overviewFocusRefDate, overviewFocusTimeframe,
+    tasksVolumeRefDate, tasksVolumeTimeframe,
+    tasksRatioRefDate, tasksRatioTimeframe,
+    focusPieRefDate, focusPieTimeframe,
+    focusTrendRefDate, focusTrendTimeframe,
+    focusHeatmapRefDate, focusHeatmapTimeframe,
+    focusLengthRefDate, focusLengthTimeframe
+  ]);
 
   // --- API DATA INGESTION ---
   React.useEffect(() => {
@@ -712,9 +946,10 @@ export function AnalyticsView() {
   const getDateFilter = React.useCallback((
     timeframe: 'week' | 'month' | 'year' | 'custom',
     customStart: string,
-    customEnd: string
+    customEnd: string,
+    refDate: Date = new Date()
   ) => {
-    const now = new Date();
+    const now = refDate;
     return (date: Date) => {
       const targetTime = date.getTime();
       
@@ -757,9 +992,10 @@ export function AnalyticsView() {
   const generateChartDataPoints = React.useCallback((
     timeframe: 'week' | 'month' | 'year' | 'custom',
     customStart: string,
-    customEnd: string
+    customEnd: string,
+    refDate: Date = new Date()
   ) => {
-    const now = new Date();
+    const now = refDate;
     
     if (timeframe === 'week') {
       const days = [];
@@ -770,12 +1006,12 @@ export function AnalyticsView() {
         days.push(d);
       }
       return days.map(d => {
-        const dStr = d.toISOString().split('T')[0];
+        const dStr = formatLocalDate(d);
         const label = dayNames[d.getDay()];
         return {
           key: dStr,
           label,
-          filter: (date: Date) => date.toISOString().split('T')[0] === dStr
+          filter: (date: Date) => formatLocalDate(date) === dStr
         };
       });
     }
@@ -794,12 +1030,12 @@ export function AnalyticsView() {
       }
       
       return days.map(d => {
-        const dStr = d.toISOString().split('T')[0];
+        const dStr = formatLocalDate(d);
         const label = `${monthNames[d.getMonth()]} ${d.getDate()}`;
         return {
           key: dStr,
           label,
-          filter: (date: Date) => date.toISOString().split('T')[0] === dStr
+          filter: (date: Date) => formatLocalDate(date) === dStr
         };
       });
     }
@@ -855,12 +1091,12 @@ export function AnalyticsView() {
         days.push(d);
       }
       return days.map(d => {
-        const dStr = d.toISOString().split('T')[0];
+        const dStr = formatLocalDate(d);
         const label = `${d.getMonth() + 1}/${d.getDate()}`;
         return {
           key: dStr,
           label,
-          filter: (date: Date) => date.toISOString().split('T')[0] === dStr
+          filter: (date: Date) => formatLocalDate(date) === dStr
         };
       });
     }
@@ -873,12 +1109,12 @@ export function AnalyticsView() {
         days.push(d);
       }
       return days.map(d => {
-        const dStr = d.toISOString().split('T')[0];
+        const dStr = formatLocalDate(d);
         const label = `${d.getMonth() + 1}/${d.getDate()}`;
         return {
           key: dStr,
           label,
-          filter: (date: Date) => date.toISOString().split('T')[0] === dStr
+          filter: (date: Date) => formatLocalDate(date) === dStr
         };
       });
     }
@@ -910,11 +1146,12 @@ export function AnalyticsView() {
 
   // Overview View: Completed Tasks (Split Card 1)
   const overviewTasksData = React.useMemo(() => {
-    const bins = generateChartDataPoints(overviewTasksTimeframe, overviewTasksCustomStart, overviewTasksCustomEnd);
+    const bins = generateChartDataPoints(overviewTasksTimeframe, overviewTasksCustomStart, overviewTasksCustomEnd, overviewTasksRefDate);
     return bins.map(bin => {
       const binCompleted = tasks.filter(t => {
         if (t.status !== 2) return false;
         const d = getTaskAnchorDate(t);
+        if (!d) return false;
         return bin.filter(d);
       });
       return {
@@ -922,11 +1159,11 @@ export function AnalyticsView() {
         'Tasks Completed': binCompleted.length
       };
     });
-  }, [tasks, overviewTasksTimeframe, overviewTasksCustomStart, overviewTasksCustomEnd, generateChartDataPoints]);
+  }, [tasks, overviewTasksTimeframe, overviewTasksCustomStart, overviewTasksCustomEnd, overviewTasksRefDate, generateChartDataPoints]);
 
   // Overview View: Focus Hours (Split Card 2)
   const overviewFocusData = React.useMemo(() => {
-    const bins = generateChartDataPoints(overviewFocusTimeframe, overviewFocusCustomStart, overviewFocusCustomEnd);
+    const bins = generateChartDataPoints(overviewFocusTimeframe, overviewFocusCustomStart, overviewFocusCustomEnd, overviewFocusRefDate);
     return bins.map(bin => {
       const binSessions = sessions.filter(s => {
         const d = new Date(s.startedAt || s.createdAt);
@@ -938,13 +1175,17 @@ export function AnalyticsView() {
         'Focus Time': parseFloat((totalSeconds / 3600).toFixed(2))
       };
     });
-  }, [sessions, overviewFocusTimeframe, overviewFocusCustomStart, overviewFocusCustomEnd, generateChartDataPoints]);
+  }, [sessions, overviewFocusTimeframe, overviewFocusCustomStart, overviewFocusCustomEnd, overviewFocusRefDate, generateChartDataPoints]);
 
   // Tasks View: Status & Volume (Stacked Bar Chart with warm names)
   const tasksVolumeData = React.useMemo(() => {
-    const bins = generateChartDataPoints(tasksVolumeTimeframe, tasksVolumeCustomStart, tasksVolumeCustomEnd);
+    const bins = generateChartDataPoints(tasksVolumeTimeframe, tasksVolumeCustomStart, tasksVolumeCustomEnd, tasksVolumeRefDate);
     return bins.map(bin => {
-      const binTasks = tasks.filter(t => bin.filter(getTaskAnchorDate(t)));
+      const binTasks = tasks.filter(t => {
+        const d = getTaskAnchorDate(t);
+        if (!d) return false;
+        return bin.filter(d);
+      });
       
       const active = binTasks.filter(t => t.status === 0 || t.status === 1 || t.status === 4).length;
       const completed = binTasks.filter(t => t.status === 2).length;
@@ -957,21 +1198,33 @@ export function AnalyticsView() {
         'Cancelled': cancelled
       };
     });
-  }, [tasks, tasksVolumeTimeframe, tasksVolumeCustomStart, tasksVolumeCustomEnd, generateChartDataPoints]);
+  }, [tasks, tasksVolumeTimeframe, tasksVolumeCustomStart, tasksVolumeCustomEnd, tasksVolumeRefDate, generateChartDataPoints]);
 
   // Tasks View: Completion Ratio Circular Gauge
   const tasksCompletionRatio = React.useMemo(() => {
-    const filter = getDateFilter(tasksRatioTimeframe, tasksRatioCustomStart, tasksRatioCustomEnd);
+    const filter = getDateFilter(tasksRatioTimeframe, tasksRatioCustomStart, tasksRatioCustomEnd, tasksRatioRefDate);
     
     const filtered = tasks.filter(t => {
       // Category filter
-      if (tasksRatioCategory !== 'all' && t.categoryId !== tasksRatioCategory) return false;
+      if (tasksRatioCategory === 'none') {
+        if (t.categoryId !== undefined && t.categoryId !== null) return false;
+      } else if (tasksRatioCategory === 'all') {
+        if (t.categoryId === undefined || t.categoryId === null) return false;
+      } else if (t.categoryId !== tasksRatioCategory) {
+        return false;
+      }
       // Tag filter
-      if (tasksRatioTag !== 'all') {
-        if (!t.tags || !t.tags.includes(tasksRatioTag)) return false;
+      if (tasksRatioTag === 'none') {
+        if (t.tags && t.tags.length > 0) return false;
+      } else if (tasksRatioTag === 'all') {
+        if (!t.tags || t.tags.length === 0) return false;
+      } else if (!t.tags || !t.tags.includes(tasksRatioTag)) {
+        return false;
       }
       // Timeframe
-      return filter(getTaskAnchorDate(t));
+      const d = getTaskAnchorDate(t);
+      if (!d) return false;
+      return filter(d);
     });
 
     const total = filtered.length;
@@ -981,11 +1234,11 @@ export function AnalyticsView() {
     const ratio = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     return { total, completed, active, cancelled, ratio };
-  }, [tasks, tasksRatioTimeframe, tasksRatioCustomStart, tasksRatioCustomEnd, tasksRatioCategory, tasksRatioTag, getDateFilter]);
+  }, [tasks, tasksRatioTimeframe, tasksRatioCustomStart, tasksRatioCustomEnd, tasksRatioRefDate, tasksRatioCategory, tasksRatioTag, getDateFilter]);
 
   // Focus View: Interactive Focus Pie Chart
   const focusPieData = React.useMemo(() => {
-    const filter = getDateFilter(focusPieTimeframe, focusPieCustomStart, focusPieCustomEnd);
+    const filter = getDateFilter(focusPieTimeframe, focusPieCustomStart, focusPieCustomEnd, focusPieRefDate);
     
     // Gather matching sessions
     const rangeSessions = sessions.filter(s => filter(new Date(s.startedAt || s.createdAt)));
@@ -997,12 +1250,20 @@ export function AnalyticsView() {
       const assocTask = tasks.find(t => t.id === s.taskId);
       
       // Filter Category
-      if (focusPieCategory !== 'all') {
+      if (focusPieCategory === 'none') {
+        if (assocTask && assocTask.categoryId !== undefined && assocTask.categoryId !== null) return;
+      } else if (focusPieCategory === 'all') {
+        if (!assocTask || assocTask.categoryId === undefined || assocTask.categoryId === null) return;
+      } else {
         if (!assocTask || assocTask.categoryId !== focusPieCategory) return;
       }
       
       // Filter Tag
-      if (focusPieTag !== 'all') {
+      if (focusPieTag === 'none') {
+        if (assocTask && assocTask.tags && assocTask.tags.length > 0) return;
+      } else if (focusPieTag === 'all') {
+        if (!assocTask || !assocTask.tags || assocTask.tags.length === 0) return;
+      } else {
         if (!assocTask || !assocTask.tags || !assocTask.tags.includes(focusPieTag)) return;
       }
 
@@ -1029,13 +1290,37 @@ export function AnalyticsView() {
       color: data.color
     })).sort((a, b) => b.value - a.value);
 
+    // Apply vibrant, premium color rotation to ensure visual distinction!
+    const premiumColors = [
+      '#3b82f6', // Blue
+      '#10b981', // Emerald
+      '#f59e0b', // Amber
+      '#8b5cf6', // Violet
+      '#ec4899', // Pink
+      '#f43f5e', // Rose
+      '#06b6d4', // Cyan
+      '#14b8a6', // Teal
+      '#f97316', // Orange
+      '#6366f1', // Indigo
+    ];
+
+    const coloredEntries = entries.map((entry, idx) => {
+      const sliceColor = entry.color && entry.color !== '#8b919f' && entry.color !== '#3b82f6'
+        ? entry.color
+        : premiumColors[idx % premiumColors.length];
+      return {
+        ...entry,
+        color: sliceColor
+      };
+    });
+
     // Limit to top 5 and bundle others to ensure premium donut aesthetics
-    if (entries.length <= 5) {
-      return { data: entries, totalSeconds };
+    if (coloredEntries.length <= 5) {
+      return { data: coloredEntries, totalSeconds };
     }
 
-    const top5 = entries.slice(0, 5);
-    const rest = entries.slice(5);
+    const top5 = coloredEntries.slice(0, 5);
+    const rest = coloredEntries.slice(5);
     const restSeconds = rest.reduce((acc, r) => acc + r.value, 0);
 
     top5.push({
@@ -1047,11 +1332,11 @@ export function AnalyticsView() {
     });
 
     return { data: top5, totalSeconds };
-  }, [sessions, tasks, categories, focusPieTimeframe, focusPieCustomStart, focusPieCustomEnd, focusPieCategory, focusPieTag, getDateFilter]);
+  }, [sessions, tasks, categories, focusPieTimeframe, focusPieCustomStart, focusPieCustomEnd, focusPieRefDate, focusPieCategory, focusPieTag, getDateFilter]);
 
   // Focus View: Focused Hours Trend (Spline Area Chart)
   const focusTrendData = React.useMemo(() => {
-    const bins = generateChartDataPoints(focusTrendTimeframe, focusTrendCustomStart, focusTrendCustomEnd);
+    const bins = generateChartDataPoints(focusTrendTimeframe, focusTrendCustomStart, focusTrendCustomEnd, focusTrendRefDate);
     return bins.map(bin => {
       const binSessions = sessions.filter(s => bin.filter(new Date(s.startedAt || s.createdAt)));
       const seconds = binSessions.reduce((acc, s) => acc + s.accumulatedSeconds, 0);
@@ -1061,11 +1346,11 @@ export function AnalyticsView() {
         'Focused Time': parseFloat((seconds / 3600).toFixed(2))
       };
     });
-  }, [sessions, focusTrendTimeframe, focusTrendCustomStart, focusTrendCustomEnd, generateChartDataPoints]);
+  }, [sessions, focusTrendTimeframe, focusTrendCustomStart, focusTrendCustomEnd, focusTrendRefDate, generateChartDataPoints]);
 
   // Focus View: Focus Session Length Buckets (Bar Chart)
   const focusLengthData = React.useMemo(() => {
-    const filter = getDateFilter(focusLengthTimeframe, focusLengthCustomStart, focusLengthCustomEnd);
+    const filter = getDateFilter(focusLengthTimeframe, focusLengthCustomStart, focusLengthCustomEnd, focusLengthRefDate);
     const rangeSessions = sessions.filter(s => filter(new Date(s.startedAt || s.createdAt)));
 
     const buckets = [
@@ -1083,7 +1368,7 @@ export function AnalyticsView() {
         'Sessions': count
       };
     });
-  }, [sessions, focusLengthTimeframe, focusLengthCustomStart, focusLengthCustomEnd, getDateFilter]);
+  }, [sessions, focusLengthTimeframe, focusLengthCustomStart, focusLengthCustomEnd, focusLengthRefDate, getDateFilter]);
 
   // --- STAT CARD TOP ROW AGGREGATES ---
   const headerStats = React.useMemo(() => {
@@ -1193,42 +1478,77 @@ export function AnalyticsView() {
 
             {/* VIEW 1: OVERVIEW TAB */}
             {activeTab === 'overview' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 pb-12">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 pb-12">
                 
                 {/* Completed Tasks Overview Card (Card 1) */}
                 <Card 
-                  onMouseEnter={() => setOverviewHover('task')}
-                  onMouseLeave={() => setOverviewHover(null)}
-                  className={cn(
-                    "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out",
-                    overviewHover === 'focus' ? "lg:col-span-1" : "lg:col-span-2"
-                  )}
+                  className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer"
                 >
-                  <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
-                    <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                      Completed Tasks
-                    </CardTitle>
-                    <CardTimeframeSelector 
-                      timeframe={overviewTasksTimeframe}
-                      onChangeTimeframe={setOverviewTasksTimeframe}
-                      customStart={overviewTasksCustomStart}
-                      customEnd={overviewTasksCustomEnd}
-                      onChangeCustomRange={(s: string, e: string) => { setOverviewTasksCustomStart(s); setOverviewTasksCustomEnd(e); }}
-                    />
+                  <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-start justify-between gap-4">
+                    <div className="flex flex-col gap-0.5">
+                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                        Completed Tasks
+                      </CardTitle>
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                        <span>{getCardRangeLabel(overviewTasksTimeframe, overviewTasksRefDate, overviewTasksCustomStart, overviewTasksCustomEnd)}</span>
+                        {!isRefDateCurrent(overviewTasksTimeframe, overviewTasksRefDate) && (
+                          <button
+                            type="button"
+                            onClick={() => setOverviewTasksRefDate(new Date())}
+                            className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                          >
+                            • Reset to Today
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                        onClick={() => navigateRefDate('overviewTasks', -1)}
+                        disabled={overviewTasksTimeframe === 'custom'}
+                        title="Previous period"
+                      >
+                        <ChevronLeft className="h-4.5 w-4.5" />
+                      </Button>
+                      <CardTimeframeSelector 
+                        timeframe={overviewTasksTimeframe}
+                        onChangeTimeframe={(tf) => { setOverviewTasksTimeframe(tf); setOverviewTasksRefDate(new Date()); }}
+                        customStart={overviewTasksCustomStart}
+                        customEnd={overviewTasksCustomEnd}
+                        onChangeCustomRange={(s: string, e: string) => { setOverviewTasksCustomStart(s); setOverviewTasksCustomEnd(e); }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                        onClick={() => navigateRefDate('overviewTasks', 1)}
+                        disabled={overviewTasksTimeframe === 'custom'}
+                        title="Next period"
+                      >
+                        <ChevronRight className="h-4.5 w-4.5" />
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="h-[320px] p-6 md:p-8 pt-0">
                     {overviewTasksData.every(d => d['Tasks Completed'] === 0) ? (
-                      <EmptyStateIcon Icon={CheckCircle2} />
+                      <EmptyStateIcon 
+                        Icon={CheckCircle2} 
+                        title="No completed tasks found" 
+                        description="Complete tasks during this period to see your progress insights here!" 
+                      />
                     ) : (
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" debounce={0}>
                         <BarChart data={overviewTasksData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} dy={5} />
                           <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} tickFormatter={(val) => Math.round(val).toString()} />
                           <Tooltip content={<CustomTooltip sessions={sessions} tasks={tasks} timeframe={overviewTasksTimeframe} showFocus={true} showTasks={true} />} cursor={{ fill: 'rgba(16,185,129,0.08)', radius: 8 }} />
                           <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-                          <Bar dataKey="Tasks Completed" name="Tasks Completed" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={30}>
+                          <Bar dataKey="Tasks Completed" name="Tasks Completed" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={30} isAnimationActive={false}>
                             {overviewTasksData.map((_, idx) => (
                               <Cell 
                                 key={`cell-task-comp-${idx}`}
@@ -1247,31 +1567,62 @@ export function AnalyticsView() {
 
                 {/* Focus Hours Overview Card (Card 2) */}
                 <Card 
-                  onMouseEnter={() => setOverviewHover('focus')}
-                  onMouseLeave={() => setOverviewHover(null)}
-                  className={cn(
-                    "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out",
-                    overviewHover === 'focus' ? "lg:col-span-2" : "lg:col-span-1"
-                  )}
+                  className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer"
                 >
-                  <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
-                    <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-blue-600" />
-                      Focus Hours
-                    </CardTitle>
-                    <CardTimeframeSelector 
-                      timeframe={overviewFocusTimeframe}
-                      onChangeTimeframe={setOverviewFocusTimeframe}
-                      customStart={overviewFocusCustomStart}
-                      customEnd={overviewFocusCustomEnd}
-                      onChangeCustomRange={(s: string, e: string) => { setOverviewFocusCustomStart(s); setOverviewFocusCustomEnd(e); }}
-                    />
+                  <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-start justify-between gap-4">
+                    <div className="flex flex-col gap-0.5">
+                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-blue-600" />
+                        Focus Hours
+                      </CardTitle>
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                        <span>{getCardRangeLabel(overviewFocusTimeframe, overviewFocusRefDate, overviewFocusCustomStart, overviewFocusCustomEnd)}</span>
+                        {!isRefDateCurrent(overviewFocusTimeframe, overviewFocusRefDate) && (
+                          <button
+                            type="button"
+                            onClick={() => setOverviewFocusRefDate(new Date())}
+                            className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                          >
+                            • Reset to Today
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                        onClick={() => navigateRefDate('overviewFocus', -1)}
+                        disabled={overviewFocusTimeframe === 'custom'}
+                        title="Previous period"
+                      >
+                        <ChevronLeft className="h-4.5 w-4.5" />
+                      </Button>
+                      <CardTimeframeSelector 
+                        timeframe={overviewFocusTimeframe}
+                        onChangeTimeframe={(tf) => { setOverviewFocusTimeframe(tf); setOverviewFocusRefDate(new Date()); }}
+                        customStart={overviewFocusCustomStart}
+                        customEnd={overviewFocusCustomEnd}
+                        onChangeCustomRange={(s: string, e: string) => { setOverviewFocusCustomStart(s); setOverviewFocusCustomEnd(e); }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                        onClick={() => navigateRefDate('overviewFocus', 1)}
+                        disabled={overviewFocusTimeframe === 'custom'}
+                        title="Next period"
+                      >
+                        <ChevronRight className="h-4.5 w-4.5" />
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="h-[320px] p-6 md:p-8 pt-0">
                     {overviewFocusData.every(d => d['Focus Time'] === 0) ? (
                       <EmptyStateIcon Icon={Clock} />
                     ) : (
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" debounce={0}>
                         <AreaChart data={overviewFocusData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
                           <defs>
                             <linearGradient id="colorOverviewFocus" x1="0" y1="0" x2="0" y2="1">
@@ -1284,7 +1635,7 @@ export function AnalyticsView() {
                           <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} tickFormatter={(val) => formatSecondsFriendly(Math.round(val * 3600))} />
                           <Tooltip content={<CustomTooltip sessions={sessions} tasks={tasks} timeframe={overviewFocusTimeframe} showFocus={true} showTasks={true} />} />
                           <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-                          <Area type="monotone" dataKey="Focus Time" name="Focused Hours" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorOverviewFocus)" />
+                          <Area type="monotone" dataKey="Focus Time" name="Focused Hours" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorOverviewFocus)" isAnimationActive={false} />
                         </AreaChart>
                       </ResponsiveContainer>
                     )}
@@ -1295,42 +1646,77 @@ export function AnalyticsView() {
 
             {/* VIEW 2: TASKS TAB */}
             {activeTab === 'tasks' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 pb-12">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 pb-12">
                 
                 {/* Task Progress Breakdown (Card 1) */}
                 <Card 
-                  onMouseEnter={() => setTasksHover('breakdown')}
-                  onMouseLeave={() => setTasksHover(null)}
-                  className={cn(
-                    "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out",
-                    tasksHover === 'rate' ? "lg:col-span-1" : "lg:col-span-2"
-                  )}
+                  className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer"
                 >
-                  <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
-                    <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                      <CheckSquare className="h-5 w-5 text-blue-600" />
-                      Progress Breakdown
-                    </CardTitle>
-                    <CardTimeframeSelector 
-                      timeframe={tasksVolumeTimeframe}
-                      onChangeTimeframe={setTasksVolumeTimeframe}
-                      customStart={tasksVolumeCustomStart}
-                      customEnd={tasksVolumeCustomEnd}
-                      onChangeCustomRange={(s: string, e: string) => { setTasksVolumeCustomStart(s); setTasksVolumeCustomEnd(e); }}
-                    />
+                  <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-start justify-between gap-4">
+                    <div className="flex flex-col gap-0.5">
+                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <CheckSquare className="h-5 w-5 text-blue-600" />
+                        Progress Breakdown
+                      </CardTitle>
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                        <span>{getCardRangeLabel(tasksVolumeTimeframe, tasksVolumeRefDate, tasksVolumeCustomStart, tasksVolumeCustomEnd)}</span>
+                        {!isRefDateCurrent(tasksVolumeTimeframe, tasksVolumeRefDate) && (
+                          <button
+                            type="button"
+                            onClick={() => setTasksVolumeRefDate(new Date())}
+                            className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                          >
+                            • Reset to Today
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                        onClick={() => navigateRefDate('tasksVolume', -1)}
+                        disabled={tasksVolumeTimeframe === 'custom'}
+                        title="Previous period"
+                      >
+                        <ChevronLeft className="h-4.5 w-4.5" />
+                      </Button>
+                      <CardTimeframeSelector 
+                        timeframe={tasksVolumeTimeframe}
+                        onChangeTimeframe={(tf) => { setTasksVolumeTimeframe(tf); setTasksVolumeRefDate(new Date()); }}
+                        customStart={tasksVolumeCustomStart}
+                        customEnd={tasksVolumeCustomEnd}
+                        onChangeCustomRange={(s: string, e: string) => { setTasksVolumeCustomStart(s); setTasksVolumeCustomEnd(e); }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                        onClick={() => navigateRefDate('tasksVolume', 1)}
+                        disabled={tasksVolumeTimeframe === 'custom'}
+                        title="Next period"
+                      >
+                        <ChevronRight className="h-4.5 w-4.5" />
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="h-[320px] p-6 md:p-8 pt-0">
                     {tasksVolumeData.every(d => d['In Progress'] === 0 && d['Completed'] === 0 && d['Cancelled'] === 0) ? (
-                      <EmptyStateIcon Icon={CheckSquare} />
+                      <EmptyStateIcon 
+                        Icon={CheckSquare} 
+                        title="No task activity logged" 
+                        description="Create tasks or update their status during this period to see your insights here!" 
+                      />
                     ) : (
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" debounce={0}>
                         <BarChart data={tasksVolumeData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} dy={5} />
                           <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} tickFormatter={(val) => Math.round(val).toString()} />
                           <Tooltip content={<CustomTooltip sessions={sessions} tasks={tasks} timeframe={tasksVolumeTimeframe} showFocus={false} showTasks={true} />} cursor={{ fill: 'rgba(37,99,235,0.08)', radius: 8 }} />
                           <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-                          <Bar dataKey="Completed" name="Completed" fill="#10b981" stackId="a" radius={[0, 0, 0, 0]} maxBarSize={35}>
+                          <Bar dataKey="Completed" name="Completed" fill="#10b981" stackId="a" radius={[0, 0, 0, 0]} maxBarSize={35} isAnimationActive={false}>
                             {tasksVolumeData.map((_, idx) => (
                               <Cell 
                                 key={`cell-vol-comp-${idx}`}
@@ -1341,7 +1727,7 @@ export function AnalyticsView() {
                               />
                             ))}
                           </Bar>
-                          <Bar dataKey="In Progress" name="In Progress" fill="#3b82f6" stackId="a" radius={[0, 0, 0, 0]} maxBarSize={35}>
+                          <Bar dataKey="In Progress" name="In Progress" fill="#3b82f6" stackId="a" radius={[0, 0, 0, 0]} maxBarSize={35} isAnimationActive={false}>
                             {tasksVolumeData.map((_, idx) => (
                               <Cell 
                                 key={`cell-vol-act-${idx}`}
@@ -1352,7 +1738,7 @@ export function AnalyticsView() {
                               />
                             ))}
                           </Bar>
-                          <Bar dataKey="Cancelled" name="Cancelled" fill="#ef4444" stackId="a" radius={[4, 4, 0, 0]} maxBarSize={35}>
+                          <Bar dataKey="Cancelled" name="Cancelled" fill="#ef4444" stackId="a" radius={[4, 4, 0, 0]} maxBarSize={35} isAnimationActive={false}>
                             {tasksVolumeData.map((_, idx) => (
                               <Cell 
                                 key={`cell-vol-canc-${idx}`}
@@ -1371,42 +1757,85 @@ export function AnalyticsView() {
 
                 {/* Completion Rate (Card 2) */}
                 <Card 
-                  onMouseEnter={() => setTasksHover('rate')}
-                  onMouseLeave={() => setTasksHover(null)}
-                  className={cn(
-                    "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out flex flex-col justify-between",
-                    tasksHover === 'rate' ? "lg:col-span-2" : "lg:col-span-1"
-                  )}
+                  className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer flex flex-col justify-between"
                 >
                   <CardHeader className="p-6 md:p-8 pb-4 flex flex-col gap-3">
-                    <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                      <Target className="h-5 w-5 text-blue-600" />
-                      Completion Rate
-                    </CardTitle>
+                    {/* Row 1: Title, Subtitle and Timeframe Selector */}
+                    <div className="flex flex-row items-start justify-between gap-4 w-full">
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                          <Target className="h-5 w-5 text-blue-600" />
+                          Completion Rate
+                        </CardTitle>
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                          <span>{getCardRangeLabel(tasksRatioTimeframe, tasksRatioRefDate, tasksRatioCustomStart, tasksRatioCustomEnd)}</span>
+                          {!isRefDateCurrent(tasksRatioTimeframe, tasksRatioRefDate) && (
+                            <button
+                              type="button"
+                              onClick={() => setTasksRatioRefDate(new Date())}
+                              className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                            >
+                              • Reset to Today
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          onClick={() => navigateRefDate('tasksRatio', -1)}
+                          disabled={tasksRatioTimeframe === 'custom'}
+                          title="Previous period"
+                        >
+                          <ChevronLeft className="h-4.5 w-4.5" />
+                        </Button>
+                        <CardTimeframeSelector 
+                          timeframe={tasksRatioTimeframe}
+                          onChangeTimeframe={(tf) => { setTasksRatioTimeframe(tf); setTasksRatioRefDate(new Date()); }}
+                          customStart={tasksRatioCustomStart}
+                          customEnd={tasksRatioCustomEnd}
+                          onChangeCustomRange={(s: string, e: string) => { setTasksRatioCustomStart(s); setTasksRatioCustomEnd(e); }}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          onClick={() => navigateRefDate('tasksRatio', 1)}
+                          disabled={tasksRatioTimeframe === 'custom'}
+                          title="Next period"
+                        >
+                          <ChevronRight className="h-4.5 w-4.5" />
+                        </Button>
+                      </div>
+                    </div>
                     
-                    {/* Sub-Filters Inside Header */}
-                    <div className="flex flex-wrap gap-2 items-center">
-                      <CardTimeframeSelector 
-                        timeframe={tasksRatioTimeframe}
-                        onChangeTimeframe={setTasksRatioTimeframe}
-                        customStart={tasksRatioCustomStart}
-                        customEnd={tasksRatioCustomEnd}
-                        onChangeCustomRange={(s: string, e: string) => { setTasksRatioCustomStart(s); setTasksRatioCustomEnd(e); }}
-                      />
-
+                    {/* Row 2: Category and Tag selectors */}
+                    <div className="flex flex-row items-center gap-2 mt-1">
                       {/* Category Selector */}
                       <Popover open={ratioCatOpen} onOpenChange={setRatioCatOpen}>
                         <PopoverTrigger asChild>
                           <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1.5 cursor-pointer">
                             <Sliders className="h-3.5 w-3.5 text-slate-400" />
                             <span className="text-[11px] truncate max-w-[70px]">
-                              {tasksRatioCategory === 'all' ? 'All Lists' : categories.find(c => c.id === tasksRatioCategory)?.name || 'List'}
+                              {tasksRatioCategory === 'all' ? 'All Lists' : tasksRatioCategory === 'none' ? 'No List' : categories.find(c => c.id === tasksRatioCategory)?.name || 'List'}
                             </span>
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-44 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50">
                           <div className="flex flex-col gap-0.5">
                             <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by List</span>
+                            <button
+                              onClick={() => { setTasksRatioCategory('none'); setRatioCatOpen(false); }}
+                              className={cn(
+                                "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                tasksRatioCategory === 'none' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                              )}
+                            >
+                              No List
+                            </button>
                             <button
                               onClick={() => { setTasksRatioCategory('all'); setRatioCatOpen(false); }}
                               className={cn(
@@ -1432,19 +1861,6 @@ export function AnalyticsView() {
                           </div>
                         </PopoverContent>
                       </Popover>
-                      
-                      {/* Clear List Badge */}
-                      {tasksRatioCategory !== 'all' && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-9 w-9 rounded-xl hover:bg-red-50 text-red-500 shrink-0 border border-slate-200/40 cursor-pointer"
-                          onClick={() => setTasksRatioCategory('all')}
-                          title="Clear List Filter"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
 
                       {/* Tag Selector */}
                       <Popover open={ratioTagOpen} onOpenChange={setRatioTagOpen}>
@@ -1452,7 +1868,7 @@ export function AnalyticsView() {
                           <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1.5 cursor-pointer">
                             <Filter className="h-3.5 w-3.5 text-slate-400" />
                             <span className="text-[11px] truncate max-w-[70px]">
-                              {tasksRatioTag === 'all' ? 'All Tags' : tasksRatioTag}
+                              {tasksRatioTag === 'all' ? 'All Tags' : tasksRatioTag === 'none' ? 'No Tags' : tasksRatioTag}
                             </span>
                           </Button>
                         </PopoverTrigger>
@@ -1460,6 +1876,15 @@ export function AnalyticsView() {
                           <ScrollArea className="h-full">
                             <div className="flex flex-col gap-0.5">
                               <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by Tag</span>
+                              <button
+                                onClick={() => { setTasksRatioTag('none'); setRatioTagOpen(false); }}
+                                className={cn(
+                                  "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                  tasksRatioTag === 'none' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                )}
+                              >
+                                No Tags
+                              </button>
                               <button
                                 onClick={() => { setTasksRatioTag('all'); setRatioTagOpen(false); }}
                                 className={cn(
@@ -1485,30 +1910,21 @@ export function AnalyticsView() {
                           </ScrollArea>
                         </PopoverContent>
                       </Popover>
-
-                      {/* Clear Tag Badge */}
-                      {tasksRatioTag !== 'all' && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-9 w-9 rounded-xl hover:bg-red-50 text-red-500 shrink-0 border border-slate-200/40 cursor-pointer"
-                          onClick={() => setTasksRatioTag('all')}
-                          title="Clear Tag Filter"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center p-6 md:p-8 pt-0">
                     {tasksCompletionRatio.total === 0 ? (
-                      <EmptyStateIcon Icon={Target} />
+                      <EmptyStateIcon 
+                        Icon={Target} 
+                        title="No task activity found" 
+                        description="Create or complete tasks during this period to calculate your completion rate!" 
+                      />
                     ) : (
                       <div className="flex flex-col items-center w-full">
                         
                         {/* Circular SVG Progress Ring */}
                         <div className="relative flex items-center justify-center h-[160px] w-[160px]">
-                          <svg className="transform -rotate-90 w-[140px] h-[140px]">
+                          <svg className="transform -rotate-90" width={140} height={140} viewBox="0 0 140 140">
                             <circle 
                               stroke="#f1f5f9"
                               strokeWidth="12"
@@ -1565,32 +1981,67 @@ export function AnalyticsView() {
               <div className="space-y-8 pb-12">
                 
                 {/* ROW 1: Donut Distribution & Spline Area Trend */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                   
                   {/* Focus Distribution (Card 1) */}
                   <Card 
-                    onMouseEnter={() => setFocusRow1Hover('task')}
-                    onMouseLeave={() => setFocusRow1Hover(null)}
-                    className={cn(
-                      "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out flex flex-col justify-between",
-                      focusRow1Hover === 'trend' ? "lg:col-span-1" : "lg:col-span-2"
-                    )}
+                    className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer flex flex-col justify-between"
                   >
-                    <CardHeader className="p-6 md:p-8 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <LayoutGrid className="h-5 w-5 text-blue-600" />
-                        Focus Distribution
-                      </CardTitle>
+                    <CardHeader className="p-6 md:p-8 pb-4 flex flex-col gap-3">
+                      {/* Row 1: Title, Subtitle and Timeframe Selector */}
+                      <div className="flex flex-row items-start justify-between gap-4 w-full">
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <LayoutGrid className="h-5 w-5 text-blue-600" />
+                            Focus Distribution
+                          </CardTitle>
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                            <span>{getCardRangeLabel(focusPieTimeframe, focusPieRefDate, focusPieCustomStart, focusPieCustomEnd)}</span>
+                            {!isRefDateCurrent(focusPieTimeframe, focusPieRefDate) && (
+                              <button
+                                type="button"
+                                onClick={() => setFocusPieRefDate(new Date())}
+                                className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                              >
+                                • Reset to Today
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                            onClick={() => navigateRefDate('focusPie', -1)}
+                            disabled={focusPieTimeframe === 'custom'}
+                            title="Previous period"
+                          >
+                            <ChevronLeft className="h-4.5 w-4.5" />
+                          </Button>
+                          <CardTimeframeSelector 
+                            timeframe={focusPieTimeframe}
+                            onChangeTimeframe={(tf) => { setFocusPieTimeframe(tf); setFocusPieRefDate(new Date()); }}
+                            customStart={focusPieCustomStart}
+                            customEnd={focusPieCustomEnd}
+                            onChangeCustomRange={(s: string, e: string) => { setFocusPieCustomStart(s); setFocusPieCustomEnd(e); }}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                            onClick={() => navigateRefDate('focusPie', 1)}
+                            disabled={focusPieTimeframe === 'custom'}
+                            title="Next period"
+                          >
+                            <ChevronRight className="h-4.5 w-4.5" />
+                          </Button>
+                        </div>
+                      </div>
                       
-                      {/* Dynamic Dropdown Filters */}
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <CardTimeframeSelector 
-                          timeframe={focusPieTimeframe}
-                          onChangeTimeframe={setFocusPieTimeframe}
-                          customStart={focusPieCustomStart}
-                          customEnd={focusPieCustomEnd}
-                          onChangeCustomRange={(s: string, e: string) => { setFocusPieCustomStart(s); setFocusPieCustomEnd(e); }}
-                        />
+                      {/* Row 2: Category and Tag Selector Dropdowns */}
+                      <div className="flex flex-row items-center gap-2 mt-1">
 
                         {/* Category Dropdown */}
                         <Popover open={focusPieCatOpen} onOpenChange={setFocusPieCatOpen}>
@@ -1598,13 +2049,22 @@ export function AnalyticsView() {
                             <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1.5 cursor-pointer">
                               <Sliders className="h-3.5 w-3.5 text-slate-400" />
                               <span className="text-[11px] truncate max-w-[70px]">
-                                {focusPieCategory === 'all' ? 'All Lists' : categories.find(c => c.id === focusPieCategory)?.name || 'List'}
+                                {focusPieCategory === 'all' ? 'All Lists' : focusPieCategory === 'none' ? 'No List' : categories.find(c => c.id === focusPieCategory)?.name || 'List'}
                               </span>
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-44 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50">
                             <div className="flex flex-col gap-0.5">
                               <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by List</span>
+                              <button
+                                onClick={() => { setFocusPieCategory('none'); setFocusPieCatOpen(false); }}
+                                className={cn(
+                                  "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                  focusPieCategory === 'none' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                )}
+                              >
+                                No List
+                              </button>
                               <button
                                 onClick={() => { setFocusPieCategory('all'); setFocusPieCatOpen(false); }}
                                 className={cn(
@@ -1631,26 +2091,13 @@ export function AnalyticsView() {
                           </PopoverContent>
                         </Popover>
 
-                        {/* Clear List Badge */}
-                        {focusPieCategory !== 'all' && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-9 w-9 rounded-xl hover:bg-red-50 text-red-500 shrink-0 border border-slate-200/40 cursor-pointer"
-                            onClick={() => setFocusPieCategory('all')}
-                            title="Clear List Filter"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-
                         {/* Tag Dropdown */}
                         <Popover open={focusPieTagOpen} onOpenChange={setFocusPieTagOpen}>
                           <PopoverTrigger asChild>
                             <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1.5 cursor-pointer">
                               <Filter className="h-3.5 w-3.5 text-slate-400" />
                               <span className="text-[11px] truncate max-w-[70px]">
-                                {focusPieTag === 'all' ? 'All Tags' : focusPieTag}
+                                {focusPieTag === 'all' ? 'All Tags' : focusPieTag === 'none' ? 'No Tags' : focusPieTag}
                               </span>
                             </Button>
                           </PopoverTrigger>
@@ -1658,6 +2105,15 @@ export function AnalyticsView() {
                             <ScrollArea className="h-full">
                               <div className="flex flex-col gap-0.5">
                                 <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by Tag</span>
+                                <button
+                                  onClick={() => { setFocusPieTag('none'); setFocusPieTagOpen(false); }}
+                                  className={cn(
+                                    "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                    focusPieTag === 'none' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                  )}
+                                >
+                                  No Tags
+                                </button>
                                 <button
                                   onClick={() => { setFocusPieTag('all'); setFocusPieTagOpen(false); }}
                                   className={cn(
@@ -1683,19 +2139,6 @@ export function AnalyticsView() {
                             </ScrollArea>
                           </PopoverContent>
                         </Popover>
-
-                        {/* Clear Tag Badge */}
-                        {focusPieTag !== 'all' && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-9 w-9 rounded-xl hover:bg-red-50 text-red-500 shrink-0 border border-slate-200/40 cursor-pointer"
-                            onClick={() => setFocusPieTag('all')}
-                            title="Clear Tag Filter"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
                       </div>
                     </CardHeader>
                     <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-6 p-6 md:p-8 pt-0 min-h-[300px]">
@@ -1707,7 +2150,7 @@ export function AnalyticsView() {
                         <>
                           {/* Pie Chart Donut */}
                           <div className="h-[200px] w-[200px] shrink-0">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" debounce={0}>
                               <PieChart>
                                 <Pie
                                   data={focusPieData.data}
@@ -1716,6 +2159,7 @@ export function AnalyticsView() {
                                   paddingAngle={5}
                                   dataKey="value"
                                   stroke="none"
+                                  isAnimationActive={false}
                                 >
                                   {focusPieData.data.map((_, index) => (
                                     <Cell key={`cell-${index}`} fill={focusPieData.data[index].color} />
@@ -1758,31 +2202,62 @@ export function AnalyticsView() {
 
                   {/* Focus Trend (Card 2) */}
                   <Card 
-                    onMouseEnter={() => setFocusRow1Hover('trend')}
-                    onMouseLeave={() => setFocusRow1Hover(null)}
-                    className={cn(
-                      "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out flex flex-col justify-between",
-                      focusRow1Hover === 'trend' ? "lg:col-span-2" : "lg:col-span-1"
-                    )}
+                    className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer flex flex-col justify-between"
                   >
-                    <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
-                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <Clock className="h-5 w-5 text-blue-600" />
-                        Focus Trend
-                      </CardTitle>
-                      <CardTimeframeSelector 
-                        timeframe={focusTrendTimeframe}
-                        onChangeTimeframe={setFocusTrendTimeframe}
-                        customStart={focusTrendCustomStart}
-                        customEnd={focusTrendCustomEnd}
-                        onChangeCustomRange={(s: string, e: string) => { setFocusTrendCustomStart(s); setFocusTrendCustomEnd(e); }}
-                      />
+                    <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-start justify-between gap-4">
+                      <div className="flex flex-col gap-0.5">
+                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                          <Clock className="h-5 w-5 text-blue-600" />
+                          Focus Trend
+                        </CardTitle>
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                          <span>{getCardRangeLabel(focusTrendTimeframe, focusTrendRefDate, focusTrendCustomStart, focusTrendCustomEnd)}</span>
+                          {!isRefDateCurrent(focusTrendTimeframe, focusTrendRefDate) && (
+                            <button
+                              type="button"
+                              onClick={() => setFocusTrendRefDate(new Date())}
+                              className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                            >
+                              • Reset to Today
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          onClick={() => navigateRefDate('focusTrend', -1)}
+                          disabled={focusTrendTimeframe === 'custom'}
+                          title="Previous period"
+                        >
+                          <ChevronLeft className="h-4.5 w-4.5" />
+                        </Button>
+                        <CardTimeframeSelector 
+                          timeframe={focusTrendTimeframe}
+                          onChangeTimeframe={(tf) => { setFocusTrendTimeframe(tf); setFocusTrendRefDate(new Date()); }}
+                          customStart={focusTrendCustomStart}
+                          customEnd={focusTrendCustomEnd}
+                          onChangeCustomRange={(s: string, e: string) => { setFocusTrendCustomStart(s); setFocusTrendCustomEnd(e); }}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          onClick={() => navigateRefDate('focusTrend', 1)}
+                          disabled={focusTrendTimeframe === 'custom'}
+                          title="Next period"
+                        >
+                          <ChevronRight className="h-4.5 w-4.5" />
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent className="h-[280px] p-6 md:p-8 pt-0">
                       {focusTrendData.every(d => d['Focused Time'] === 0) ? (
                         <EmptyStateIcon Icon={Clock} />
                       ) : (
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" debounce={0}>
                           <AreaChart data={focusTrendData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
                             <defs>
                               <linearGradient id="colorFocusTrend" x1="0" y1="0" x2="0" y2="1">
@@ -1795,7 +2270,7 @@ export function AnalyticsView() {
                             <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} tickFormatter={(val) => formatSecondsFriendly(Math.round(val * 3600))} />
                             <Tooltip content={<CustomTooltip sessions={sessions} tasks={tasks} timeframe={focusTrendTimeframe} showFocus={true} showTasks={false} />} />
                             <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-                            <Area type="monotone" dataKey="Focused Time" name="Focused Hours" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorFocusTrend)" />
+                            <Area type="monotone" dataKey="Focused Time" name="Focused Hours" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorFocusTrend)" isAnimationActive={false} />
                           </AreaChart>
                         </ResponsiveContainer>
                       )}
@@ -1804,29 +2279,60 @@ export function AnalyticsView() {
                 </div>
 
                 {/* ROW 2: Heatmap Activity Grid & Session Durations */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 mt-6 md:mt-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mt-6 md:mt-8">
                   
                   {/* Heatmap Activity Grid (Card 1) */}
                   <Card 
-                    onMouseEnter={() => setFocusRow2Hover('heatmap')}
-                    onMouseLeave={() => setFocusRow2Hover(null)}
-                    className={cn(
-                      "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out flex flex-col justify-between",
-                      focusRow2Hover === 'durations' ? "lg:col-span-1" : "lg:col-span-2"
-                    )}
+                    className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer flex flex-col justify-between"
                   >
-                    <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
-                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <Activity className="h-5 w-5 text-blue-600" />
-                        Focus Activity Map
-                      </CardTitle>
-                      <CardTimeframeSelector 
-                        timeframe={focusHeatmapTimeframe}
-                        onChangeTimeframe={setFocusHeatmapTimeframe}
-                        customStart={focusHeatmapCustomStart}
-                        customEnd={focusHeatmapCustomEnd}
-                        onChangeCustomRange={(s: string, e: string) => { setFocusHeatmapCustomStart(s); setFocusHeatmapCustomEnd(e); }}
-                      />
+                    <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-start justify-between gap-4">
+                      <div className="flex flex-col gap-0.5">
+                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                          <Activity className="h-5 w-5 text-blue-600" />
+                          Focus Activity Map
+                        </CardTitle>
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                          <span>{getCardRangeLabel(focusHeatmapTimeframe, focusHeatmapRefDate, focusHeatmapCustomStart, focusHeatmapCustomEnd)}</span>
+                          {!isRefDateCurrent(focusHeatmapTimeframe, focusHeatmapRefDate) && (
+                            <button
+                              type="button"
+                              onClick={() => setFocusHeatmapRefDate(new Date())}
+                              className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                            >
+                              • Reset to Today
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          onClick={() => navigateRefDate('focusHeatmap', -1)}
+                          disabled={focusHeatmapTimeframe === 'custom'}
+                          title="Previous period"
+                        >
+                          <ChevronLeft className="h-4.5 w-4.5" />
+                        </Button>
+                        <CardTimeframeSelector 
+                          timeframe={focusHeatmapTimeframe}
+                          onChangeTimeframe={(tf) => { setFocusHeatmapTimeframe(tf); setFocusHeatmapRefDate(new Date()); }}
+                          customStart={focusHeatmapCustomStart}
+                          customEnd={focusHeatmapCustomEnd}
+                          onChangeCustomRange={(s: string, e: string) => { setFocusHeatmapCustomStart(s); setFocusHeatmapCustomEnd(e); }}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          onClick={() => navigateRefDate('focusHeatmap', 1)}
+                          disabled={focusHeatmapTimeframe === 'custom'}
+                          title="Next period"
+                        >
+                          <ChevronRight className="h-4.5 w-4.5" />
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent className="p-6 md:p-8 pt-0 flex-1 flex flex-col justify-center min-h-[280px]">
                       <FocusHeatmap 
@@ -1834,44 +2340,76 @@ export function AnalyticsView() {
                         customStart={focusHeatmapCustomStart}
                         customEnd={focusHeatmapCustomEnd}
                         sessions={sessions}
+                        refDate={focusHeatmapRefDate}
                       />
                     </CardContent>
                   </Card>
 
                   {/* Focus Session Lengths (Card 2) */}
                   <Card 
-                    onMouseEnter={() => setFocusRow2Hover('durations')}
-                    onMouseLeave={() => setFocusRow2Hover(null)}
-                    className={cn(
-                      "bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-all duration-500 ease-in-out flex flex-col justify-between",
-                      focusRow2Hover === 'durations' ? "lg:col-span-2" : "lg:col-span-1"
-                    )}
+                    className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer flex flex-col justify-between"
                   >
-                    <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-center justify-between gap-4">
-                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <Zap className="h-5 w-5 text-blue-600" />
-                        Session Durations
-                      </CardTitle>
-                      <CardTimeframeSelector 
-                        timeframe={focusLengthTimeframe}
-                        onChangeTimeframe={setFocusLengthTimeframe}
-                        customStart={focusLengthCustomStart}
-                        customEnd={focusLengthCustomEnd}
-                        onChangeCustomRange={(s: string, e: string) => { setFocusLengthCustomStart(s); setFocusLengthCustomEnd(e); }}
-                      />
+                    <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-start justify-between gap-4">
+                      <div className="flex flex-col gap-0.5">
+                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                          <Zap className="h-5 w-5 text-blue-600" />
+                          Session Durations
+                        </CardTitle>
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                          <span>{getCardRangeLabel(focusLengthTimeframe, focusLengthRefDate, focusLengthCustomStart, focusLengthCustomEnd)}</span>
+                          {!isRefDateCurrent(focusLengthTimeframe, focusLengthRefDate) && (
+                            <button
+                              type="button"
+                              onClick={() => setFocusLengthRefDate(new Date())}
+                              className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                            >
+                              • Reset to Today
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          onClick={() => navigateRefDate('focusLength', -1)}
+                          disabled={focusLengthTimeframe === 'custom'}
+                          title="Previous period"
+                        >
+                          <ChevronLeft className="h-4.5 w-4.5" />
+                        </Button>
+                        <CardTimeframeSelector 
+                          timeframe={focusLengthTimeframe}
+                          onChangeTimeframe={(tf) => { setFocusLengthTimeframe(tf); setFocusLengthRefDate(new Date()); }}
+                          customStart={focusLengthCustomStart}
+                          customEnd={focusLengthCustomEnd}
+                          onChangeCustomRange={(s: string, e: string) => { setFocusLengthCustomStart(s); setFocusLengthCustomEnd(e); }}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          onClick={() => navigateRefDate('focusLength', 1)}
+                          disabled={focusLengthTimeframe === 'custom'}
+                          title="Next period"
+                        >
+                          <ChevronRight className="h-4.5 w-4.5" />
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent className="h-[280px] p-6 md:p-8 pt-0">
                       {focusLengthData.every(d => d['Sessions'] === 0) ? (
                         <EmptyStateIcon Icon={Zap} />
                       ) : (
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" debounce={0}>
                           <BarChart data={focusLengthData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 700 }} dy={5} />
                             <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} tickFormatter={(val) => Math.round(val).toString()} />
                             <Tooltip content={<CustomTooltip sessions={sessions} tasks={tasks} timeframe={focusLengthTimeframe} showFocus={true} showTasks={false} />} cursor={{ fill: 'rgba(37,99,235,0.08)', radius: 8 }} />
                             <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-                            <Bar dataKey="Sessions" name="Focus Sessions" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={35}>
+                            <Bar dataKey="Sessions" name="Focus Sessions" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={35} isAnimationActive={false}>
                               {focusLengthData.map((_, idx) => (
                                 <Cell 
                                   key={`cell-length-${idx}`}
@@ -1912,7 +2450,7 @@ function StatCard({
   iconColor?: string 
 }) {
   return (
-    <Card className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl p-5 md:p-6 transition-all hover:scale-[1.02] duration-300">
+    <Card className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl p-5 md:p-6 transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80">
       <CardHeader className="flex flex-row items-center justify-between p-0 pb-4">
         <CardTitle className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{title}</CardTitle>
         <div className={cn("p-2 rounded-xl shadow-2xs", iconColor)}>
@@ -1927,14 +2465,22 @@ function StatCard({
 }
 
 // Reusable Empty State handler for clean, professional data fallback overlays
-function EmptyStateIcon({ Icon }: { Icon: any }) {
+function EmptyStateIcon({ 
+  Icon, 
+  title = "No focus activity logged yet", 
+  description = "Start focus sessions or complete tasks during this period to see your insights here!" 
+}: { 
+  Icon: any; 
+  title?: string; 
+  description?: string; 
+}) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center p-6 min-h-[220px]">
       <div className="h-11 w-11 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mb-3">
         <Icon className="h-5 w-5 text-slate-400/80" />
       </div>
-      <p className="text-xs font-bold text-slate-500 mb-0.5">No focus activity logged yet</p>
-      <p className="text-[10px] text-slate-400/80 max-w-[200px] leading-normal font-medium">Start focus sessions or complete tasks during this period to see your insights here!</p>
+      <p className="text-xs font-bold text-slate-500 mb-0.5">{title}</p>
+      <p className="text-[10px] text-slate-400/80 max-w-[200px] leading-normal font-medium">{description}</p>
     </div>
   );
 }

@@ -53,6 +53,13 @@ export function CalendarViewMode({
     return format(endOfMonth(d), 'yyyy-MM-dd');
   });
 
+  // Scroll-to-today trigger: incremented by handleToday and on mount
+  const [scrollTrigger, setScrollTrigger] = React.useState(0);
+
+  // Refs for today's cell in each view
+  const todayMonthRef  = React.useRef<HTMLDivElement>(null);
+  const todayCustomRef = React.useRef<HTMLDivElement>(null);
+
   // Enforce max 31 days span for Custom Range
   const handleCustomStartChange = (val: string) => {
     setCustomStart(val);
@@ -84,13 +91,36 @@ export function CalendarViewMode({
     }
   };
 
-  // Today handler
+  // Today handler — resets dates AND triggers scroll-to-today
   const handleToday = () => {
     const today = new Date();
     setCurrentDate(today);
     setCustomStart(format(today, 'yyyy-MM-01'));
     setCustomEnd(format(endOfMonth(today), 'yyyy-MM-dd'));
+    setScrollTrigger(t => t + 1);
   };
+
+  // Scroll today's cell into view whenever scrollTrigger changes or timeframe changes
+  React.useEffect(() => {
+    const ref = timeframe === 'month' ? todayMonthRef : timeframe === 'custom' ? todayCustomRef : null;
+    if (!ref?.current) return;
+    // Small delay so the grid has rendered before we scroll
+    const id = setTimeout(() => {
+      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 60);
+    return () => clearTimeout(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollTrigger, timeframe]);
+
+  // Also scroll to today on initial render for month and custom views
+  React.useEffect(() => {
+    const id = setTimeout(() => {
+      if (timeframe === 'month') todayMonthRef.current?.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+      if (timeframe === 'custom') todayCustomRef.current?.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+    }, 80);
+    return () => clearTimeout(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeframe]);
 
   // Navigations
   const handlePrev = () => {
@@ -295,9 +325,9 @@ export function CalendarViewMode({
 
       {/* ── Month Grid View ─────────────────────────────────────────── */}
       {timeframe === 'month' && (
-        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-          {/* Weekday headers */}
-          <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/50 text-center select-none py-2.5 shrink-0">
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Weekday headers — sticky so they stay visible while scrolling */}
+          <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/50 text-center select-none py-2.5 shrink-0 sticky top-0 z-10">
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
               <span key={day} className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 {day}
@@ -305,50 +335,53 @@ export function CalendarViewMode({
             ))}
           </div>
 
-          {/* Monthly grid day cells */}
-          <div className="grid grid-cols-7 flex-1 border-b border-slate-100 divide-x divide-y divide-slate-100 min-h-[480px]">
-            {dayCells.map((day: Date) => {
-              const dayTasks = scheduledTasks.filter((t) => isTaskActiveOnDay(t, day));
-              const isCurrentMonth = format(day, 'M') === format(currentDate, 'M');
-              const isDayToday = isToday(day);
+          {/* Scrollable month grid — each row gets generous height */}
+          <div className="overflow-y-auto flex-1">
+            <div className="grid grid-cols-7 divide-x divide-y divide-slate-100 border-b border-slate-100"
+                 style={{ gridAutoRows: '160px' }}>
+              {dayCells.map((day: Date) => {
+                const dayTasks = scheduledTasks.filter((t) => isTaskActiveOnDay(t, day));
+                const isCurrentMonth = format(day, 'M') === format(currentDate, 'M');
+                const isDayToday = isToday(day);
 
-              return (
-                <div
-                  key={day.toString()}
-                  className={cn(
-                    "min-h-[100px] p-2 flex flex-col gap-1.5 transition-all bg-white relative group/cell hover:bg-slate-50/20",
-                    !isCurrentMonth && "bg-slate-50/30 text-slate-300"
-                  )}
-                >
-                  <div className="flex items-center justify-between shrink-0 mb-0.5">
-                    <span 
-                      className={cn(
-                        "text-[10.5px] font-extrabold h-5 w-5 rounded-full flex items-center justify-center text-slate-500 select-none",
-                        isDayToday && "bg-indigo-600 text-white font-black shadow-sm",
-                        !isCurrentMonth && "text-slate-350"
-                      )}
-                    >
-                      {format(day, 'd')}
-                    </span>
-                    {dayTasks.length > 0 && (
-                      <span className="text-[9px] font-black text-slate-400 bg-slate-100 rounded px-1.5 py-0.5 select-none">
-                        {dayTasks.length}
+                return (
+                  <div
+                    key={day.toString()}
+                    ref={isDayToday ? todayMonthRef : undefined}
+                    className={cn(
+                      "p-2 flex flex-col gap-1 transition-all bg-white relative hover:bg-slate-50/30",
+                      !isCurrentMonth && "bg-slate-50/40"
+                    )}
+                  >
+                    {/* Day number + task count badge */}
+                    <div className="flex items-center justify-between shrink-0 mb-1">
+                      <span
+                        className={cn(
+                          "text-[11px] font-extrabold h-6 w-6 rounded-full flex items-center justify-center select-none transition-colors",
+                          isDayToday
+                            ? "bg-indigo-600 text-white font-black shadow-sm"
+                            : isCurrentMonth
+                              ? "text-slate-600"
+                              : "text-slate-300"
+                        )}
+                      >
+                        {format(day, 'd')}
                       </span>
-                    )}
-                  </div>
+                      {dayTasks.length > 0 && (
+                        <span className="text-[9px] font-black text-slate-400 bg-slate-100 rounded-full px-1.5 py-0.5 select-none leading-none">
+                          {dayTasks.length}
+                        </span>
+                      )}
+                    </div>
 
-                  {/* Scrollable list of active tasks for this day */}
-                  <div className="flex-1 overflow-y-auto space-y-1 max-h-[90px] pr-0.5 scrollbar-thin">
-                    {dayTasks.slice(0, 3).map(renderTaskPill)}
-                    {dayTasks.length > 3 && (
-                      <div className="text-[9.5px] font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded text-center select-none">
-                        + {dayTasks.length - 3} more
-                      </div>
-                    )}
+                    {/* All tasks — scrollable within the cell */}
+                    <div className="flex-1 overflow-y-auto space-y-1 pr-0.5 min-h-0 scrollbar-thin">
+                      {dayTasks.map(renderTaskPill)}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -425,6 +458,7 @@ export function CalendarViewMode({
                 return (
                   <div
                     key={day.toString()}
+                    ref={isDayToday ? todayCustomRef : undefined}
                     className={cn(
                       "bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col gap-3 min-h-[140px]",
                       isDayToday && "border-indigo-400 ring-4 ring-indigo-50"

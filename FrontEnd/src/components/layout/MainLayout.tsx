@@ -43,7 +43,7 @@ export function MainLayout() {
       )}
 
       {/* Main dashboard content */}
-      <main className="flex-1 overflow-y-auto relative">
+      <main className="flex-1 overflow-hidden relative flex flex-col">
         <Outlet context={{ sidebarOpen, toggleSidebar }} />
       </main>
     </div>

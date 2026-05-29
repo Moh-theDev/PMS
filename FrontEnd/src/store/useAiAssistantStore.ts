@@ -22,7 +22,7 @@ interface AiAssistantState {
 const initialWelcomeMessage: ChatMessage = {
   id: 'welcome',
   sender: 'assistant',
-  text: 'Hello! I am your AI Productivity Coach. I can analyze your time trackings or run the Smart Scheduling engine to optimize your calendar timeline.',
+  text: "Hey there! 👋 I'm your productivity assistant. I can help you schedule your tasks smartly or put together a daily report on how things went. What would you like to do?",
   timestamp: new Date(),
   type: 'options'
 };

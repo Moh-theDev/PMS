@@ -138,21 +138,30 @@ export function TimelineViewMode({
     } else {
       try {
         start = parseISO(customStart);
-        end = parseISO(customEnd);
+        const parsedEnd = parseISO(customEnd);
+        end = new Date(parsedEnd);
+        end.setHours(23, 59, 59, 999);
+        
         if (start > end) {
           start = startOfMonth(new Date());
           end = endOfMonth(new Date());
+          end.setHours(23, 59, 59, 999);
         }
         // Enforce max 31 days (30 days difference)
         const diff = differenceInDays(end, start);
         if (diff > 30) {
           end = addDays(start, 30);
+          end.setHours(23, 59, 59, 999);
         }
       } catch {
         start = startOfMonth(new Date());
         end = endOfMonth(new Date());
+        end.setHours(23, 59, 59, 999);
       }
     }
+
+    // Defensive midnight normalization for start boundary
+    start.setHours(0, 0, 0, 0);
 
     return { start, end };
   }, [timeframe, currentDate, customStart, customEnd]);
@@ -189,8 +198,8 @@ export function TimelineViewMode({
     }
   }, [boundaries]);
 
-  // Check if today falls within boundaries and compute center pixel coordinate
-  const todayLinePositionPx = React.useMemo(() => {
+  // Check if today falls within boundaries and compute center percentage coordinate
+  const todayLinePositionPercent = React.useMemo(() => {
     const { start, end } = boundaries;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -201,12 +210,13 @@ export function TimelineViewMode({
 
     if (todayTime >= startTime && todayTime <= endTime) {
       const daysFromStart = differenceInDays(today, start);
-      // Place the line in the middle of today's column (140px per day)
-      return (daysFromStart + 0.5) * 140;
+      const totalDays = columns.length || 7;
+      // Place the line in the middle of today's column
+      return ((daysFromStart + 0.5) / totalDays) * 100;
     }
 
     return null;
-  }, [boundaries]);
+  }, [boundaries, columns]);
 
   // Auto-scroll to Today's position
   const scrollToToday = React.useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -214,35 +224,55 @@ export function TimelineViewMode({
     if (!el) return;
 
     setTimeout(() => {
-      if (todayLinePositionPx !== null) {
-        const targetScrollLeft = todayLinePositionPx - el.clientWidth / 2;
+      if (todayLinePositionPercent !== null) {
+        const totalWidth = el.scrollWidth;
+        const targetPx = (todayLinePositionPercent / 100) * totalWidth;
+        const targetScrollLeft = targetPx - el.clientWidth / 2;
         el.scrollTo({
           left: Math.max(0, targetScrollLeft),
           behavior,
         });
       }
     }, 60);
-  }, [todayLinePositionPx]);
+  }, [todayLinePositionPercent]);
 
   // Scroll to today automatically when timeframe or date boundaries shift
   React.useEffect(() => {
+    // Reset scroll to left=0 instantly whenever the timeframe tab changes
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft = 0;
+    }
+    // Then smooth-scroll to today
     scrollToToday('smooth');
   }, [boundaries, timeframe, scrollToToday]);
 
-  // Compute Gantt coordinates for a scheduled task
+  // Compute Gantt pixel coordinates for a scheduled task.
+  // Uses the same COL_WIDTH as the header columns so bars always align perfectly.
+  const COL_WIDTH = 140; // px — must match min-w-[140px] on header cells
+
   const calculateBarPosition = (task: Task) => {
     const tStart = parseISO(task.earliestStart!);
-    const tEnd = parseISO(task.latestEnd!);
+    const tEnd   = parseISO(task.latestEnd!);
 
-    // Clip to timeframe range
+    // Clip to the visible timeframe
     const clippedStart = tStart < boundaries.start ? boundaries.start : tStart;
-    const clippedEnd = tEnd > boundaries.end ? boundaries.end : tEnd;
+    const clippedEnd   = tEnd   > boundaries.end   ? boundaries.end   : tEnd;
 
-    const daysFromStart = differenceInDays(clippedStart, boundaries.start);
-    const taskSpanDays = differenceInDays(clippedEnd, clippedStart) + 1;
+    // Normalize to midnight so differenceInDays is exact
+    const normBoundaryStart = new Date(boundaries.start);
+    normBoundaryStart.setHours(0, 0, 0, 0);
 
-    const leftPx = daysFromStart * 140;
-    const widthPx = taskSpanDays * 140;
+    const normClippedStart = new Date(clippedStart);
+    normClippedStart.setHours(0, 0, 0, 0);
+
+    const normClippedEnd = new Date(clippedEnd);
+    normClippedEnd.setHours(0, 0, 0, 0);
+
+    const daysFromStart = differenceInDays(normClippedStart, normBoundaryStart);
+    const taskSpanDays  = Math.max(1, differenceInDays(normClippedEnd, normClippedStart) + 1);
+
+    const leftPx  = daysFromStart * COL_WIDTH;
+    const widthPx = taskSpanDays  * COL_WIDTH;
 
     return { leftPx, widthPx, taskSpanDays };
   };
@@ -348,10 +378,10 @@ export function TimelineViewMode({
           <div className="min-w-max w-full flex flex-col min-h-full relative bg-slate-50/5">
             
             {/* Today Vertical Line Indicator */}
-            {todayLinePositionPx !== null && (
+            {todayLinePositionPercent !== null && (
               <div 
                 className="absolute top-0 bottom-0 w-[2px] bg-blue-500/50 z-20 pointer-events-none flex flex-col items-center"
-                style={{ left: `${todayLinePositionPx}px` }}
+                style={{ left: `${todayLinePositionPercent}%` }}
               >
                 {/* Glowing marker dot at the top of header */}
                 <div className="w-2.5 h-2.5 rounded-full bg-blue-600 ring-4 ring-blue-500/20 shrink-0 mt-2 z-30 shadow-xs shadow-blue-500/10" title="Today" />
@@ -396,51 +426,46 @@ export function TimelineViewMode({
                       ))}
                     </div>
 
-                    {/* Gantt Bar & Title Flex Wrapper (prevents overlap & layout bugs cleanly via standard flex gap!) */}
-                    <div 
-                      className="absolute h-9 flex items-center gap-2 z-10 pointer-events-auto"
-                      style={{ 
-                        left: `${leftPx}px`, 
+                    {/* Gantt Bar — pixel-positioned so it matches column headers exactly */}
+                    <div
+                      onClick={() => onSelectTask(task.id)}
+                      className={cn(
+                        "absolute h-9 rounded-xl border flex items-center justify-between px-3 cursor-pointer shadow-2xs hover:shadow-xs hover:scale-[1.005] active:scale-98 transition-all text-xs font-bold text-white select-none overflow-hidden z-10",
+                        isClosed ? "opacity-45 line-through" : "opacity-90 hover:opacity-100"
+                      )}
+                      style={{
+                        left: leftPx,
+                        width: widthPx,
+                        backgroundColor: categoryColor,
+                        borderColor: `${categoryColor}40`,
+                        minWidth: 28,
                       }}
+                      title={`${task.title} (${task.earliestStart ? format(parseISO(task.earliestStart), 'MMM d') : ''} – ${task.latestEnd ? format(parseISO(task.latestEnd), 'MMM d') : ''})`}
                     >
-                      {/* Gantt Bar Pill */}
-                      <div 
-                        onClick={() => onSelectTask(task.id)}
-                        className={cn(
-                          "h-9 rounded-xl border flex items-center justify-between px-3.5 cursor-pointer shadow-2xs hover:shadow-xs hover:scale-[1.005] active:scale-98 transition-all text-xs font-bold text-white select-none overflow-hidden shrink-0",
-                          isClosed ? "opacity-45 line-through" : "opacity-90 hover:opacity-100"
-                        )}
-                        style={{ 
-                          width: `${widthPx}px`, 
-                          backgroundColor: categoryColor,
-                          borderColor: `${categoryColor}40`
-                        }}
-                        title={`${task.title} (${task.earliestStart ? format(parseISO(task.earliestStart), 'MMM d') : ''} - ${task.latestEnd ? format(parseISO(task.latestEnd), 'MMM d') : ''})`}
-                      >
-                        {taskSpanDays >= 2 && (
-                          <span className="truncate flex-1 pr-2 font-bold tracking-tight">{task.title}</span>
-                        )}
-                        
-                        {/* Priority Alert Dot inside the Gantt pill */}
-                        {task.priority >= 8 && !isClosed && (
-                          <span className="h-1.5 w-1.5 rounded-full bg-white shrink-0 animate-pulse" title="High Priority" />
-                        )}
-                      </div>
+                      {/* Title always inside the bar — truncated for narrow bars */}
+                      <span className="truncate flex-1 font-bold tracking-tight leading-none">
+                        {task.title}
+                      </span>
 
-                      {/* Dynamic Task Title next to the bar (flows naturally via flex-row!) */}
-                      {taskSpanDays < 2 && (
-                        <div 
-                          onClick={() => onSelectTask(task.id)}
-                          className={cn(
-                            "text-xs font-extrabold text-slate-700 hover:text-blue-600 cursor-pointer select-none transition-colors truncate max-w-[240px] shrink-0",
-                            isClosed && "line-through text-slate-400"
-                          )}
-                        >
-                          {task.title}
-                        </div>
+                      {/* High-priority dot */}
+                      {task.priority >= 8 && !isClosed && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-white shrink-0 animate-pulse ml-1" title="High Priority" />
                       )}
                     </div>
 
+                    {/* Span badge shown outside very narrow bars (< 28px wide) — tooltip fallback */}
+                    {taskSpanDays === 1 && widthPx < 40 && (
+                      <div
+                        onClick={() => onSelectTask(task.id)}
+                        className={cn(
+                          "absolute top-1/2 -translate-y-1/2 text-xs font-extrabold text-slate-700 hover:text-blue-600 cursor-pointer select-none transition-colors whitespace-nowrap z-10",
+                          isClosed && "line-through text-slate-400"
+                        )}
+                        style={{ left: leftPx + widthPx + 6 }}
+                      >
+                        {task.title}
+                      </div>
+                    )}
                   </div>
                 );
               })}

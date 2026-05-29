@@ -11,6 +11,7 @@ interface TaskState {
   lists: List[];
   isLoading: boolean;
   error: string | null;
+  dummyCategoryId: number | null;
 
   fetchTasks: () => Promise<void>;
   fetchCategories: () => Promise<void>;
@@ -50,14 +51,32 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   lists: staticLists,
   isLoading: false,
   error: null,
+  dummyCategoryId: null,
 
   fetchTasks: async () => {
     set({ isLoading: true, error: null });
     try {
       const tasks = await taskService.getAllTasks();
       const tags = await tagService.getAllTags();
-      const categories = await categoryService.getAllCategories();
+      let categories = await categoryService.getAllCategories();
       
+      // Auto-initialize dummy category if missing
+      let dummyCat = categories.find((c) => c.name === '_no_category_');
+      let dummyId: number | null = dummyCat ? dummyCat.id : null;
+      
+      if (!dummyCat) {
+        try {
+          const newId = await categoryService.createCategory('_no_category_');
+          if (newId !== -1) {
+            categories = await categoryService.getAllCategories();
+            dummyCat = categories.find((c) => c.name === '_no_category_');
+            dummyId = dummyCat ? dummyCat.id : null;
+          }
+        } catch (e) {
+          console.error('Failed to auto-create _no_category_ dummy category', e);
+        }
+      }
+
       const taskTagsMap: Record<number, string[]> = {};
       const taskCategoryMap: Record<number, number> = {};
 
@@ -93,13 +112,17 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         })
       ]);
 
-      const enrichedTasks = tasks.map((task) => ({
-        ...task,
-        tags: taskTagsMap[task.id] || [],
-        categoryId: taskCategoryMap[task.id],
-      }));
+      const enrichedTasks = tasks.map((task) => {
+        const catId = taskCategoryMap[task.id];
+        return {
+          ...task,
+          tags: taskTagsMap[task.id] || [],
+          // Map dummy category ID back to undefined/null for the rest of the application
+          categoryId: catId === dummyId ? undefined : catId,
+        };
+      });
 
-      set({ tasks: enrichedTasks, isLoading: false });
+      set({ tasks: enrichedTasks, isLoading: false, dummyCategoryId: dummyId });
     } catch (err: any) {
       set({ error: 'Failed to fetch tasks', isLoading: false });
     }
@@ -108,16 +131,42 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   fetchCategories: async () => {
     set({ isLoading: true, error: null });
     try {
-      const categories = await categoryService.getAllCategories();
+      let categories = await categoryService.getAllCategories();
+      
+      // Look for the special dummy category
+      let dummyCat = categories.find((c) => c.name === '_no_category_');
+      let dummyId: number | null = dummyCat ? dummyCat.id : null;
+      
+      if (!dummyCat) {
+        try {
+          const newId = await categoryService.createCategory('_no_category_');
+          if (newId !== -1) {
+            categories = await categoryService.getAllCategories();
+            dummyCat = categories.find((c) => c.name === '_no_category_');
+            dummyId = dummyCat ? dummyCat.id : null;
+          }
+        } catch (e) {
+          console.error('Failed to auto-create _no_category_ dummy category', e);
+        }
+      }
+
+      // Filter out the dummy category so the user never sees it in general lists or sidebars!
+      const visibleCategories = categories.filter((c) => c.name !== '_no_category_');
+
       const mappedLists = [
         ...staticLists,
-        ...categories.map((c) => ({
+        ...visibleCategories.map((c) => ({
           id: String(c.id),
           name: c.name,
           color: c.color || '#64748b',
         })),
       ];
-      set({ categories, lists: mappedLists, isLoading: false });
+      set({ 
+        categories: visibleCategories, 
+        lists: mappedLists, 
+        isLoading: false, 
+        dummyCategoryId: dummyId 
+      });
     } catch (err: any) {
       set({ error: 'Failed to fetch categories', isLoading: false });
     }
@@ -163,7 +212,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       tasks: state.tasks.map((t) => {
         if (t.id === id) {
           const updated = { ...t, ...updates };
-          if (updates.categoryId === 0) {
+          if (updates.deadline === null || updates.deadline === '') {
+            updated.deadline = '0001-01-01T00:00:00';
+          }
+          // Only remove categoryId from local state when the user explicitly
+          // chose "No Category" (value 0). If categoryId is simply absent from
+          // the update object it means we're changing another field (date, title,
+          // etc.) and the existing category should be preserved.
+          if ('categoryId' in updates && (updates.categoryId === 0 || updates.categoryId === null)) {
             delete updated.categoryId;
           }
           return updated;
@@ -175,6 +231,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
     try {
       let apiUpdates = { ...updates };
+
+      // 0. Map categoryId to dummyCategoryId if trying to clear or set no category
+      if (updates.categoryId !== undefined) {
+        if (updates.categoryId === 0 || updates.categoryId === null || updates.categoryId === undefined) {
+          const dummyId = get().dummyCategoryId;
+          if (dummyId) {
+            apiUpdates.categoryId = dummyId;
+          }
+        }
+      }
 
       const isScheduled = !!(task.earliestStart && !task.earliestStart.startsWith('0001-01-01') && 
                              task.latestEnd && !task.latestEnd.startsWith('0001-01-01'));
@@ -212,31 +278,84 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             console.error(e);
           }
         } else if (hasStart && hasEnd) {
-          apiUpdates.earliestStart = currentStart;
-          apiUpdates.latestEnd = currentEnd;
+          // If start date is after or equal to end date, automatically adjust to preserve duration and satisfy constraints
+          const duration = updates.durationInMinutes !== undefined 
+            ? updates.durationInMinutes 
+            : (task.durationInMinutes || 30);
+          try {
+            const startVal = new Date(currentStart).getTime();
+            const endVal = new Date(currentEnd).getTime();
+            if (startVal >= endVal) {
+              if (updates.earliestStart !== undefined) {
+                // User moved start forward: push end to match
+                const newEnd = new Date(startVal + duration * 60000).toISOString();
+                apiUpdates.earliestStart = currentStart;
+                apiUpdates.latestEnd = newEnd;
+              } else {
+                // User moved end backward: pull start to match
+                const newStart = new Date(endVal - duration * 60000).toISOString();
+                apiUpdates.earliestStart = newStart;
+                apiUpdates.latestEnd = currentEnd;
+              }
+            } else {
+              apiUpdates.earliestStart = currentStart;
+              apiUpdates.latestEnd = currentEnd;
+            }
+          } catch (e) {
+            console.error(e);
+            apiUpdates.earliestStart = currentStart;
+            apiUpdates.latestEnd = currentEnd;
+          }
+        }
+
+        // Proactive deadline safeguard: if the task has a valid deadline,
+        // and the new latestEnd is after that deadline, push the deadline to match latestEnd
+        if (apiUpdates.latestEnd && task.deadline && !task.deadline.startsWith('0001-01-01')) {
+          try {
+            const newEndVal = new Date(apiUpdates.latestEnd).getTime();
+            const currDeadlineVal = new Date(task.deadline).getTime();
+            if (newEndVal > currDeadlineVal) {
+              apiUpdates.deadline = apiUpdates.latestEnd;
+            }
+          } catch (e) {
+            console.error(e);
+          }
         }
       }
 
       // 2. Handle deadline updates with respect to backend constraints
-      if (updates.deadline !== undefined && updates.deadline) {
-        if (isScheduled) {
-          // Send earliestStart and latestEnd to ensure "latestEnd <= deadline" backend check succeeds
-          apiUpdates.earliestStart = apiUpdates.earliestStart !== undefined ? apiUpdates.earliestStart : task.earliestStart;
-          apiUpdates.latestEnd = apiUpdates.latestEnd !== undefined ? apiUpdates.latestEnd : task.latestEnd;
-        } else {
-          // WORKAROUND for backend bug: if task is unscheduled, backend's UpdateAsync ignores deadline updates.
-          // We temporarily set dummy schedule dates, update the task, then immediately clear the schedule.
-          const deadlineDate = new Date(updates.deadline);
-          const dummyEndDate = deadlineDate.toISOString();
-          const dummyStartDate = new Date(deadlineDate.getTime() - 5 * 60000).toISOString();
-
+      if (updates.deadline !== undefined) {
+        if (updates.deadline === null || updates.deadline === '') {
+          // WORKAROUND for backend: to clear deadline, set to 0001-01-01 with dummy 0001 schedule, then clear schedule
+          const clearDeadlineVal = '0001-01-01T00:00:00Z';
           await taskService.updateTask(id, {
             ...apiUpdates,
-            earliestStart: dummyStartDate,
-            latestEnd: dummyEndDate,
+            deadline: clearDeadlineVal,
+            earliestStart: clearDeadlineVal,
+            latestEnd: clearDeadlineVal,
           });
           await taskService.clearStartEnd(id);
-          return; // Skip standard update call since we did it above
+          return;
+        } else {
+          if (isScheduled) {
+            // Send earliestStart and latestEnd to ensure "latestEnd <= deadline" backend check succeeds
+            apiUpdates.earliestStart = apiUpdates.earliestStart !== undefined ? apiUpdates.earliestStart : task.earliestStart;
+            apiUpdates.latestEnd = apiUpdates.latestEnd !== undefined ? apiUpdates.latestEnd : task.latestEnd;
+          } else {
+            // WORKAROUND for backend bug: if task is unscheduled, backend's UpdateAsync ignores deadline updates.
+            // We temporarily set dummy schedule dates, update the task, then immediately clear the schedule.
+            const deadlineDate = new Date(updates.deadline);
+            const dummyEndDate = deadlineDate.toISOString();
+            const dummyStartDate = new Date(deadlineDate.getTime() - 5 * 60000).toISOString();
+
+            await taskService.updateTask(id, {
+              ...apiUpdates,
+              earliestStart: dummyStartDate,
+              latestEnd: dummyEndDate,
+            });
+            await taskService.clearStartEnd(id);
+            return;
+          }
         }
       }
 
@@ -254,6 +373,20 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       error: null,
     }));
 
+    // Record or clear completion date on Done status change
+    try {
+      const stored = localStorage.getItem('task_completions');
+      const completions = stored ? JSON.parse(stored) : {};
+      if (status === TaskStatus.Done) {
+        completions[id] = new Date().toISOString();
+      } else {
+        delete completions[id];
+      }
+      localStorage.setItem('task_completions', JSON.stringify(completions));
+    } catch (e) {
+      console.error('Failed to update task_completions in localStorage', e);
+    }
+
     try {
       const statusMap: Record<TaskStatus, string> = {
         [TaskStatus.Todo]: 'Todo',
@@ -265,6 +398,23 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       const statusStr = statusMap[status] || 'Todo';
       await taskService.changeTaskStatus(id, statusStr);
     } catch (err: any) {
+      // Revert completion date in localStorage on failure
+      try {
+        const stored = localStorage.getItem('task_completions');
+        if (stored) {
+          const completions = JSON.parse(stored);
+          const oldTask = previousTasks.find((t) => t.id === id);
+          if (oldTask && oldTask.status === TaskStatus.Done) {
+            completions[id] = new Date().toISOString(); // keep it if it was Done
+          } else {
+            delete completions[id];
+          }
+          localStorage.setItem('task_completions', JSON.stringify(completions));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+
       set({ tasks: previousTasks, error: 'Failed to change status' });
       throw err;
     }
