@@ -34,7 +34,8 @@ import {
   Target,
   Flame,
   Zap,
-  Check
+  Check,
+  Inbox
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -859,7 +860,7 @@ export function AnalyticsView() {
   const [focusPieTimeframe, setFocusPieTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('week');
   const [focusPieCustomStart, setFocusPieCustomStart] = React.useState(defaultStartDate);
   const [focusPieCustomEnd, setFocusPieCustomEnd] = React.useState(defaultEndDate);
-  const [focusPieCategories, setFocusPieCategories] = React.useState<number[]>([]);
+  const [focusPieCategories, setFocusPieCategories] = React.useState<(number | string)[]>([]);
   const [focusPieTags, setFocusPieTags] = React.useState<string[]>([]);
   const [focusPieShowTasks, setFocusPieShowTasks] = React.useState(false);
   const [focusPieCatOpen, setFocusPieCatOpen] = React.useState(false);
@@ -1264,8 +1265,13 @@ export function AnalyticsView() {
           let matchesCategory = false;
           let matchesTag = false;
 
-          if (isCategoryFilterActive && assocTask && assocTask.categoryId !== undefined && assocTask.categoryId !== null) {
-            if (focusPieCategories.includes(assocTask.categoryId)) {
+          if (isCategoryFilterActive && assocTask) {
+            const hasNoCategory = !assocTask.categoryId || assocTask.categoryId === 0;
+            if (hasNoCategory) {
+              if (focusPieCategories.includes('inbox')) {
+                matchesCategory = true;
+              }
+            } else if (assocTask.categoryId !== undefined && focusPieCategories.includes(assocTask.categoryId)) {
               matchesCategory = true;
             }
           }
@@ -1306,8 +1312,18 @@ export function AnalyticsView() {
           }
         } else {
           // Attribute to each selected category
-          if (isCategoryFilterActive && assocTask && assocTask.categoryId !== undefined && assocTask.categoryId !== null) {
-            if (focusPieCategories.includes(assocTask.categoryId)) {
+          if (isCategoryFilterActive && assocTask) {
+            const hasNoCategory = !assocTask.categoryId || assocTask.categoryId === 0;
+            if (hasNoCategory) {
+              if (focusPieCategories.includes('inbox')) {
+                const name = 'Inbox';
+                if (!groupAccumulations[name]) {
+                  groupAccumulations[name] = { seconds: 0, color: '#94a3b8' };
+                }
+                groupAccumulations[name].seconds += s.accumulatedSeconds;
+                totalSeconds += s.accumulatedSeconds;
+              }
+            } else if (assocTask.categoryId !== undefined && focusPieCategories.includes(assocTask.categoryId)) {
               const cat = categories.find(c => c.id === assocTask.categoryId);
               if (cat) {
                 const name = cat.name;
@@ -1353,7 +1369,10 @@ export function AnalyticsView() {
 
       // Filter by Category
       if (isCategoryFilterActive) {
-        if (assocTask.categoryId === undefined || assocTask.categoryId === null || !focusPieCategories.includes(assocTask.categoryId)) {
+        const hasNoCategory = !assocTask.categoryId || assocTask.categoryId === 0;
+        const matchesInbox = hasNoCategory && focusPieCategories.includes('inbox');
+        const matchesSelectedCategory = assocTask.categoryId && focusPieCategories.includes(assocTask.categoryId);
+        if (!matchesInbox && !matchesSelectedCategory) {
           return;
         }
       }
@@ -1371,6 +1390,8 @@ export function AnalyticsView() {
       if (assocTask.categoryId) {
         const cat = categories.find(c => c.id === assocTask.categoryId);
         if (cat) categoryColor = cat.color || '#3b82f6';
+      } else {
+        categoryColor = '#94a3b8'; // Inbox gray
       }
 
       if (!taskAccumulations[taskTitle]) {
@@ -1733,7 +1754,7 @@ export function AnalyticsView() {
                       <EmptyStateIcon Icon={Clock} />
                     ) : (
                       <ResponsiveContainer width="100%" height="100%" debounce={0}>
-                        <AreaChart data={overviewFocusData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
+                        <AreaChart data={overviewFocusData} margin={{ top: 10, right: 5, left: -10, bottom: 0 }}>
                           <defs>
                             <linearGradient id="colorOverviewFocus" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
@@ -2161,10 +2182,12 @@ export function AnalyticsView() {
                               <span className="text-[11px] truncate max-w-[90px]">
                                 {focusPieCategories.length === 0
                                   ? 'List'
-                                  : focusPieCategories.length === categories.length
+                                  : focusPieCategories.length === categories.length + 1
                                     ? 'All Lists'
                                     : focusPieCategories.length === 1
-                                      ? categories.find(c => c.id === focusPieCategories[0])?.name || 'List'
+                                      ? focusPieCategories[0] === 'inbox'
+                                        ? 'Inbox'
+                                        : categories.find(c => c.id === focusPieCategories[0])?.name || 'List'
                                       : `${focusPieCategories.length} Lists`}
                               </span>
                             </Button>
@@ -2183,39 +2206,65 @@ export function AnalyticsView() {
                                 {focusPieCategories.length === 0 && <Check className="h-3.5 w-3.5 text-rose-500" />}
                               </button>
                               <button
-                                onClick={() => setFocusPieCategories(categories.map(c => c.id))}
+                                onClick={() => setFocusPieCategories([...categories.map(c => c.id), 'inbox'])}
                                 className={cn(
                                   "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  focusPieCategories.length === categories.length ? "bg-blue-50 text-blue-600 font-extrabold" : "text-slate-750 hover:bg-slate-50"
+                                  focusPieCategories.length === categories.length + 1 ? "bg-blue-50 text-blue-600 font-extrabold" : "text-slate-755 hover:bg-slate-50"
                                 )}
                               >
                                 <span>All Lists</span>
-                                {focusPieCategories.length === categories.length && <Check className="h-3.5 w-3.5 text-blue-500" />}
+                                {focusPieCategories.length === categories.length + 1 && <Check className="h-3.5 w-3.5 text-blue-500" />}
                               </button>
                               <div className="h-[1px] bg-slate-100 my-1" />
-                              {categories.map(c => {
-                                const isSelected = focusPieCategories.includes(c.id);
-                                return (
-                                  <button
-                                    key={c.id}
-                                    onClick={() => {
-                                      setFocusPieCategories(prev => 
-                                        prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
-                                      );
-                                    }}
-                                    className={cn(
-                                      "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                      isSelected ? "bg-blue-50/50 text-blue-600" : "text-slate-750 hover:bg-slate-50"
-                                    )}
-                                  >
-                                    <div className="flex items-center gap-2 truncate">
-                                      <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                                      <span className="truncate">{c.name}</span>
-                                    </div>
-                                    {isSelected && <Check className="h-3.5 w-3.5 text-blue-500" />}
-                                  </button>
-                                );
-                              })}
+                              <div className="max-h-[160px] overflow-y-auto pr-1 space-y-0.5 scrollbar-thin">
+                                {/* Inbox List Option */}
+                                {(() => {
+                                  const isSelected = focusPieCategories.includes('inbox');
+                                  return (
+                                    <button
+                                      onClick={() => {
+                                        setFocusPieCategories(prev => 
+                                          prev.includes('inbox') ? prev.filter(id => id !== 'inbox') : [...prev, 'inbox']
+                                        );
+                                      }}
+                                      className={cn(
+                                        "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                        isSelected ? "bg-blue-50/50 text-blue-600" : "text-slate-750 hover:bg-slate-50"
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-2 truncate">
+                                        <Inbox className="h-3.5 w-3.5 text-slate-405 shrink-0" />
+                                        <span className="truncate">Inbox</span>
+                                      </div>
+                                      {isSelected && <Check className="h-3.5 w-3.5 text-blue-500" />}
+                                    </button>
+                                  );
+                                })()}
+
+                                {categories.map(c => {
+                                  const isSelected = focusPieCategories.includes(c.id);
+                                  return (
+                                    <button
+                                      key={c.id}
+                                      onClick={() => {
+                                        setFocusPieCategories(prev => 
+                                          prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                                        );
+                                      }}
+                                      className={cn(
+                                        "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                        isSelected ? "bg-blue-50/50 text-blue-600" : "text-slate-750 hover:bg-slate-50"
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-2 truncate">
+                                        <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                                        <span className="truncate">{c.name}</span>
+                                      </div>
+                                      {isSelected && <Check className="h-3.5 w-3.5 text-blue-500" />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </div>
                           </PopoverContent>
                         </Popover>
@@ -2236,31 +2285,31 @@ export function AnalyticsView() {
                               </span>
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-44 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 max-h-[220px]">
-                            <ScrollArea className="h-full">
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by Tag</span>
-                                <button
-                                  onClick={() => setFocusPieTags([])}
-                                  className={cn(
-                                    "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                    focusPieTags.length === 0 ? "bg-rose-50/60 text-rose-605 font-extrabold" : "text-slate-500 hover:bg-slate-50"
-                                  )}
-                                >
-                                  <span>Clear Filters</span>
-                                  {focusPieTags.length === 0 && <Check className="h-3.5 w-3.5 text-rose-500" />}
-                                </button>
-                                <button
-                                  onClick={() => setFocusPieTags(tags.map(t => t.name))}
-                                  className={cn(
-                                    "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                    focusPieTags.length === tags.length ? "bg-blue-50 text-blue-600 font-extrabold" : "text-slate-755 hover:bg-slate-50"
-                                  )}
-                                >
-                                  <span>All Tags</span>
-                                  {focusPieTags.length === tags.length && <Check className="h-3.5 w-3.5 text-blue-500" />}
-                                </button>
-                                <div className="h-[1px] bg-slate-100 my-1" />
+                          <PopoverContent className="w-44 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by Tag</span>
+                              <button
+                                onClick={() => setFocusPieTags([])}
+                                className={cn(
+                                  "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                  focusPieTags.length === 0 ? "bg-rose-50/60 text-rose-605 font-extrabold" : "text-slate-500 hover:bg-slate-50"
+                                )}
+                              >
+                                <span>Clear Filters</span>
+                                {focusPieTags.length === 0 && <Check className="h-3.5 w-3.5 text-rose-500" />}
+                              </button>
+                              <button
+                                onClick={() => setFocusPieTags(tags.map(t => t.name))}
+                                className={cn(
+                                  "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
+                                  focusPieTags.length === tags.length ? "bg-blue-50 text-blue-600 font-extrabold" : "text-slate-755 hover:bg-slate-50"
+                                )}
+                              >
+                                <span>All Tags</span>
+                                {focusPieTags.length === tags.length && <Check className="h-3.5 w-3.5 text-blue-500" />}
+                              </button>
+                              <div className="h-[1px] bg-slate-100 my-1" />
+                              <div className="max-h-[160px] overflow-y-auto pr-1 space-y-0.5 scrollbar-thin">
                                 {tags.map(t => {
                                   const isSelected = focusPieTags.includes(t.name);
                                   return (
@@ -2282,23 +2331,23 @@ export function AnalyticsView() {
                                   );
                                 })}
                               </div>
-                            </ScrollArea>
+                            </div>
                           </PopoverContent>
                         </Popover>
 
                         {/* Tasks Toggle button */}
                         <Button
-                          variant={focusPieShowTasks ? "default" : "outline"}
+                          variant="outline"
                           size="sm"
                           onClick={() => setFocusPieShowTasks(!focusPieShowTasks)}
                           className={cn(
-                            "rounded-xl h-9 px-3 font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all border border-slate-200/60",
+                            "rounded-xl h-9 px-3 font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all border",
                             focusPieShowTasks 
-                              ? "bg-slate-900 text-white border-slate-900 hover:bg-slate-800" 
-                              : "bg-slate-50 text-slate-650 hover:bg-slate-100"
+                              ? "bg-blue-50 border-blue-200/80 text-blue-600 hover:bg-blue-100/50" 
+                              : "bg-slate-50 border-slate-200/60 text-slate-600 hover:bg-slate-100"
                           )}
                         >
-                          <CheckSquare className="h-3.5 w-3.5 text-blue-500" />
+                          <CheckSquare className={cn("h-3.5 w-3.5 transition-colors", focusPieShowTasks ? "text-blue-500" : "text-slate-400")} />
                           Tasks
                         </Button>
                       </div>
@@ -2415,12 +2464,12 @@ export function AnalyticsView() {
                         </Button>
                       </div>
                     </CardHeader>
-                    <CardContent className="h-[280px] p-6 md:p-8 pt-0">
+                    <CardContent className="h-[380px] p-6 md:p-8 pt-0">
                       {focusTrendData.every(d => d['Focused Time'] === 0) ? (
                         <EmptyStateIcon Icon={Clock} />
                       ) : (
                         <ResponsiveContainer width="100%" height="100%" debounce={0}>
-                          <AreaChart data={focusTrendData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
+                          <AreaChart data={focusTrendData} margin={{ top: 10, right: 5, left: -10, bottom: 0 }}>
                             <defs>
                               <linearGradient id="colorFocusTrend" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
@@ -2429,7 +2478,7 @@ export function AnalyticsView() {
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} dy={5} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} tickFormatter={(val) => formatSecondsFriendly(Math.round(val * 3600))} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600,  }} tickFormatter={(val) => formatSecondsFriendly(Math.round(val * 3600))} />
                             <Tooltip content={<CustomTooltip sessions={sessions} tasks={tasks} timeframe={focusTrendTimeframe} showFocus={true} showTasks={false} />} />
                             <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
                             <Area type="monotone" dataKey="Focused Time" name="Focused Hours" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorFocusTrend)" isAnimationActive={false} />
