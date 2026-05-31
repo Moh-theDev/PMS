@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Circle, Flag, Clock, Calendar, Tag as TagIcon, FolderOpen, X, ChevronDown, Plus, Minus, Check, Trash2, Dumbbell, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -611,6 +612,27 @@ export function TaskDetailFields({
 
   return (
     <div className="space-y-8 select-none">
+      {/* Toast Date Validation Error Alert */}
+      <AnimatePresence>
+        {dateError && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            className="fixed top-6 right-6 z-[9999] flex items-center gap-3 bg-rose-50 border border-rose-200 px-4 py-3.5 rounded-xl shadow-lg shadow-rose-900/10 text-rose-700 text-xs font-bold max-w-xs sm:max-w-sm"
+          >
+            <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
+            <span className="flex-1 leading-relaxed">{dateError}</span>
+            <button 
+              type="button"
+              onClick={() => setDateError(null)} 
+              className="ml-2 p-0.5 text-rose-400 hover:text-rose-600 rounded-md hover:bg-rose-100 transition-colors cursor-pointer"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Title input field */}
       <div className="flex items-start gap-3">
@@ -741,14 +763,6 @@ export function TaskDetailFields({
         </DetailRow>
 
         <Separator className="my-1.5 opacity-60" />
-
-        {/* Date Validation Error Alert */}
-        {dateError && (
-          <div className="bg-rose-50 border border-rose-100 text-rose-600 rounded-xl p-3.5 flex items-start gap-2.5 text-xs font-bold shadow-xs animate-in fade-in slide-in-from-top-1 duration-200">
-            <AlertCircle className="h-4 w-4 shrink-0 text-rose-500 mt-0.5" />
-            <span className="leading-relaxed">{dateError}</span>
-          </div>
-        )}
 
         {/* Start Date & Time picker */}
         <DetailRow 
