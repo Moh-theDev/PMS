@@ -15,6 +15,7 @@ interface TaskListProps {
   isLoading: boolean;
   onSelectTask: (id: number) => void;
   onToggleStatus: (task: Task, checked: boolean) => void;
+  onContextMenu?: (e: React.MouseEvent, task: Task) => void;
 }
 
 interface SectionHeaderProps {
@@ -63,6 +64,7 @@ export function TaskList({
   isLoading,
   onSelectTask,
   onToggleStatus,
+  onContextMenu,
 }: TaskListProps) {
   const totalTasks = overdueTasks.length + activeTasks.length + completedTasks.length;
 
@@ -116,6 +118,7 @@ export function TaskList({
                   isSelected={selectedTaskId === task.id}
                   onClick={() => onSelectTask(task.id)}
                   onToggle={(checked) => onToggleStatus(task, checked)}
+                  onContextMenu={onContextMenu}
                   isOverdue
                 />
               ))}
@@ -147,6 +150,7 @@ export function TaskList({
                   isSelected={selectedTaskId === task.id}
                   onClick={() => onSelectTask(task.id)}
                   onToggle={(checked) => onToggleStatus(task, checked)}
+                  onContextMenu={onContextMenu}
                 />
               ))}
             </div>
@@ -181,6 +185,7 @@ export function TaskList({
                   isSelected={selectedTaskId === task.id}
                   onClick={() => onSelectTask(task.id)}
                   onToggle={(checked) => onToggleStatus(task, checked)}
+                  onContextMenu={onContextMenu}
                 />
               ))}
             </div>

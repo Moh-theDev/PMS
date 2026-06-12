@@ -150,7 +150,7 @@ export function FocusView() {
   const progressExceeded = seconds > totalTimeSeconds;
 
   // Filter tasks to show only pending (active) items
-  const pendingTasks = tasks.filter((t) => t.status !== 2);
+  const pendingTasks = tasks.filter((t) => t.status !== 2 && t.status !== 3);
 
   // Filter based on selected category/tag/view
   const filteredByListAndTag = pendingTasks.filter((t) => {
@@ -352,7 +352,7 @@ export function FocusView() {
           <Clock className={cn("h-4 w-4 text-blue-600", isRunning && "animate-pulse")} />
         </div>
         <div>
-          <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight leading-tight">Stopwatch Tracking</h1>
+          <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight leading-tight">Time Tracking</h1>
           <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Focus and track active tasks in real time</p>
         </div>
       </div>

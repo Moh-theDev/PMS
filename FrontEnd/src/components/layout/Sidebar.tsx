@@ -317,7 +317,10 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
               <ChevronDown className={cn("h-3 w-3 text-slate-400 transition-transform duration-150", isListsCollapsed && "-rotate-90")} />
             </div>
             <button
-              onClick={() => setCreatingCategory(true)}
+              onClick={() => {
+                setIsListsCollapsed(false);
+                setCreatingCategory(true);
+              }}
               className="h-5 w-5 flex items-center justify-center rounded-md bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-300 opacity-0 group-hover:opacity-100 transition-all"
             >
               <Plus className="h-3 w-3" />
@@ -423,7 +426,10 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
               <ChevronDown className={cn("h-3 w-3 text-slate-400 transition-transform duration-150", isTagsCollapsed && "-rotate-90")} />
             </div>
             <button
-              onClick={() => setCreatingTag(true)}
+              onClick={() => {
+                setIsTagsCollapsed(false);
+                setCreatingTag(true);
+              }}
               className="h-5 w-5 flex items-center justify-center rounded-md bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-300 opacity-0 group-hover:opacity-100 transition-all"
             >
               <Plus className="h-3 w-3" />

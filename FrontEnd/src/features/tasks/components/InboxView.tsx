@@ -14,6 +14,7 @@ import { ResizableDivider } from './ResizableDivider';
 import { ConflictResolutionModal } from './ConflictResolutionModal';
 import { CalendarViewMode } from './CalendarViewMode';
 import { TimelineViewMode } from './TimelineViewMode';
+import { TaskContextMenu } from './TaskContextMenu';
 import { cn } from '@/lib/utils';
 
 export function InboxView() {
@@ -87,6 +88,13 @@ export function InboxView() {
   const [conflictMessage, setConflictMessage] = React.useState('');
   const [conflictOptions, setConflictOptions] = React.useState<string[]>([]);
   const [conflictedTaskId, setConflictedTaskId] = React.useState<number | null>(null);
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = React.useState<{
+    x: number;
+    y: number;
+    task: any;
+  } | null>(null);
 
   React.useEffect(() => {
     fetchTasks();
@@ -416,6 +424,13 @@ export function InboxView() {
               onToggleStatus={(task, checked) =>
                 updateTaskStatus(task.id, checked ? TaskStatus.Done : TaskStatus.Todo)
               }
+              onContextMenu={(e, task) => {
+                setContextMenu({
+                  x: e.clientX,
+                  y: e.clientY,
+                  task
+                });
+              }}
             />
           </div>
         </ScrollArea>
@@ -820,6 +835,23 @@ export function InboxView() {
         tasks={tasks}
         onResolve={handleResolveDelete}
       />
+
+      {/* Task Context Menu */}
+      {contextMenu && (
+        <TaskContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          task={contextMenu.task}
+          onClose={() => setContextMenu(null)}
+          categories={categories}
+          tags={tags}
+          onUpdateTask={handleUpdateTask}
+          onUpdateStatus={updateTaskStatus}
+          onAssignTags={assignTags}
+          onRemoveTag={removeTag}
+          onDelete={handleDeleteTask}
+        />
+      )}
     </div>
   );
 }

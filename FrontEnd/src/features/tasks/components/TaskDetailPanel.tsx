@@ -34,7 +34,7 @@ export function TaskDetailPanel({
   return (
     <aside
       ref={panelRef as React.RefObject<HTMLElement>}
-      className="border-l bg-white flex flex-col shrink-0 overflow-hidden animate-in slide-in-from-right duration-200"
+      className="border-l bg-white flex flex-col shrink-0 overflow-visible relative animate-in slide-in-from-right duration-200"
       style={{ width: '420px', willChange: 'width', minWidth: '400px', maxWidth: '750px' }}
     >
       {/* Header */}
@@ -70,6 +70,7 @@ export function TaskDetailPanel({
         <div className="p-5">
           <TaskDetailFields
             task={task}
+            panelRef={panelRef}
             categories={categories}
             tags={tags}
             onUpdateTask={onUpdateTask}

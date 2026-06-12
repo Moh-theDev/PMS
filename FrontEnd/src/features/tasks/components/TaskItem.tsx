@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Clock, FolderOpen, X } from 'lucide-react';
+import { Clock, FolderOpen, X, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ interface TaskItemProps {
   categories?: Category[];
   tags?: Tag[];
   onRemoveTag?: (taskId: number, tagId: number) => void;
+  onContextMenu?: (e: React.MouseEvent, task: Task) => void;
 }
 
 const CATEGORY_COLORS = [
@@ -21,7 +22,7 @@ const CATEGORY_COLORS = [
   '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899',
 ];
 
-export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categories, tags, onRemoveTag }: TaskItemProps) {
+export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categories, tags, onRemoveTag, onContextMenu }: TaskItemProps) {
   const navigate = useNavigate();
   const isCompleted = task.status === TaskStatus.Done;
   const isCancelled = task.status === TaskStatus.Cancelled;
@@ -49,12 +50,19 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
         isClosed && 'opacity-55'
       )}
       onClick={onClick}
+      onContextMenu={(e) => {
+        if (onContextMenu) {
+          e.preventDefault();
+          onContextMenu(e, task);
+        }
+      }}
     >
       {/* Checkbox */}
       <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
         <Checkbox
           checked={isClosed}
           onCheckedChange={(val) => onToggle(val === true)}
+          icon={isCancelled ? <X className="h-3 w-3 stroke-3" /> : <Check className="h-3.5 w-3.5" />}
           className={cn(
             'h-4 w-4 rounded transition-all',
             task.priority >= 8 

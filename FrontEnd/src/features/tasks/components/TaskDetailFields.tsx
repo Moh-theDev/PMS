@@ -1,6 +1,7 @@
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
-import { Circle, Flag, Clock, Calendar, Tag as TagIcon, FolderOpen, X, ChevronDown, Plus, Minus, Check, Trash2, Dumbbell, AlertCircle } from 'lucide-react';
+import { Circle, Flag, Clock, Calendar, Tag as TagIcon, FolderOpen, X, ChevronDown, Plus, Minus, Check, Trash2, Dumbbell, AlertCircle, ClockCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +9,6 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { type Task, type Category, type Tag, type UpdateTaskDto, TaskStatus } from '@/types/index';
 import { DetailRow } from './DetailRow';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar as DayPickerCalendar } from '@/components/ui/calendar';
 import { getTaskTotalSeconds } from '@/features/focus/services/timeTrackingService';
 
@@ -171,248 +171,370 @@ function CustomDropdown<T extends string | number>({
 }
 
 // Clickable Date Picker with custom Popover calendar and scroll-bounded time columns
+// Clickable Date Picker with custom Popover calendar and scroll-bounded time columns
 function ClickableDatePicker({
   value,
   onChange,
   isOpen,
   onOpenChange,
-  showClear = true
+  showClear = true,
+  panelRef,
+  title
 }: {
   value?: string | null;
   onChange: (val: string | null) => void;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   showClear?: boolean;
+  panelRef?: React.RefObject<HTMLElement | null>;
+  title: string;
 }) {
-  const { date, hour, minute, ampm } = React.useMemo(() => parseDateTime(value), [value]);
+  // Staging state: store changes locally until "Apply" is clicked
+  const [tempValue, setTempValue] = React.useState<string | null>(value || null);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setTempValue(value || null);
+    }
+  }, [isOpen, value]);
+
+  const { date, hour, minute, ampm } = React.useMemo(() => parseDateTime(tempValue), [tempValue]);
   const hasValidValue = value && !value.startsWith('0001-01-01');
 
   const handleDateSelect = (selectedDate: Date | undefined) => {
     if (!selectedDate) return;
     const finalVal = buildDateTime(selectedDate, hour, minute, ampm);
-    onChange(finalVal);
+    setTempValue(finalVal);
   };
 
   const handleHourSelect = (selectedHour: number) => {
     const activeDate = date || new Date();
     const finalVal = buildDateTime(activeDate, selectedHour, minute, ampm);
-    onChange(finalVal);
+    setTempValue(finalVal);
   };
 
   const handleMinuteSelect = (selectedMinute: number) => {
     const activeDate = date || new Date();
     const finalVal = buildDateTime(activeDate, hour, selectedMinute, ampm);
-    onChange(finalVal);
+    setTempValue(finalVal);
   };
 
   const handleAmpmSelect = (selectedAmpm: 'AM' | 'PM') => {
     const activeDate = date || new Date();
     const finalVal = buildDateTime(activeDate, hour, minute, selectedAmpm);
-    onChange(finalVal);
+    setTempValue(finalVal);
   };
 
-  // Generate strict lists
   const hoursList = Array.from({ length: 12 }, (_, i) => i + 1);
   const minutesList = Array.from({ length: 60 }, (_, i) => i);
 
-  // Auto-scroll selected hour and minute when opened
   const hourScrollRef = React.useRef<HTMLDivElement>(null);
   const minuteScrollRef = React.useRef<HTMLDivElement>(null);
+  const pickerRef = React.useRef<HTMLDivElement>(null);
+  const triggerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (isOpen) {
-      if (hourScrollRef.current) {
-        const activeBtn = hourScrollRef.current.querySelector('[data-selected="true"]');
-        if (activeBtn) {
-          activeBtn.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+      const timer = setTimeout(() => {
+        if (hourScrollRef.current) {
+          const activeBtn = hourScrollRef.current.querySelector('[data-selected="true"]');
+          if (activeBtn) {
+            activeBtn.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+          }
         }
-      }
-      if (minuteScrollRef.current) {
-        const activeBtn = minuteScrollRef.current.querySelector('[data-selected="true"]');
-        if (activeBtn) {
-          activeBtn.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+        if (minuteScrollRef.current) {
+          const activeBtn = minuteScrollRef.current.querySelector('[data-selected="true"]');
+          if (activeBtn) {
+            activeBtn.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+          }
         }
-      }
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, hour, minute]);
 
-  return (
-    <Popover open={isOpen} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <div 
-          className="relative w-full cursor-pointer group flex items-center justify-between bg-white hover:bg-slate-50/80 border border-slate-200/60 hover:border-blue-500/40 hover:ring-4 hover:ring-blue-500/5 px-3 py-2 rounded-xl transition-all shadow-sm min-h-[38px]"
-        >
-          <span className={cn(
-            "text-xs font-semibold",
-            hasValidValue ? "text-slate-800 font-bold" : "text-slate-400"
-          )}>
-            {hasValidValue ? formatDateFriendly(value) : 'Not set'}
+  React.useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (
+        pickerRef.current && !pickerRef.current.contains(target) &&
+        triggerRef.current && !triggerRef.current.contains(target)
+      ) {
+        onOpenChange(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen, onOpenChange]);
+
+  React.useEffect(() => {
+    if (!isOpen || !panelRef?.current || !pickerRef.current) return;
+
+    const panel = panelRef.current;
+    const picker = pickerRef.current;
+
+    const updatePosition = () => {
+      const panelRect = panel.getBoundingClientRect();
+      const pickerWidth = picker.offsetWidth;
+      const spacing = 12;
+      const leftScreenCoord = panelRect.left - pickerWidth - spacing;
+
+      if (leftScreenCoord < 8) {
+        const shiftX = 8 - leftScreenCoord;
+        picker.style.transform = `translateX(${shiftX}px)`;
+      } else {
+        picker.style.transform = 'translateX(0px)';
+      }
+    };
+
+    updatePosition();
+
+    const observer = new ResizeObserver(() => {
+      updatePosition();
+    });
+    observer.observe(panel);
+
+    window.addEventListener('resize', updatePosition);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [isOpen, panelRef]);
+
+  const pickerContent = (
+    <div 
+      ref={pickerRef}
+      className="absolute z-[9999] bg-white border border-slate-200/80 shadow-2xl rounded-2xl animate-fade-in flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-100"
+      style={{
+        right: '100%',
+        bottom: '8px',
+        marginRight: '12px',
+        willChange: 'transform',
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+
+      {/* Left: Calendar & Use Today / Clear */}
+      <div className="p-3 flex flex-col gap-2">
+        {/* Header Title */}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2 px-1 select-none">
+          <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
+            {title}
           </span>
-          
-          <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-            {hasValidValue && showClear && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation(); // VERY IMPORTANT: Stop click from opening popover!
-                  onChange(null);
-                }}
-                className="w-5 h-5 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                title="Clear date"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
-            <Calendar className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-500 transition-colors duration-200" />
-          </div>
-        </div>
-      </PopoverTrigger>
-
-      <PopoverContent className="w-auto p-0 bg-white border border-slate-200 shadow-2xl rounded-2xl animate-fade-in flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-100 z-50">
-        {/* Left: Calendar */}
-        <div className="p-3">
-          <DayPickerCalendar
-            mode="single"
-            selected={date}
-            onSelect={handleDateSelect}
-            className="rounded-xl border border-transparent"
-          />
         </div>
 
-        {/* Right: Scrollable Time Columns */}
-        <div className="flex flex-col w-56 p-4 gap-3 bg-slate-50/50 rounded-b-2xl md:rounded-b-none md:rounded-r-2xl">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">
-              Set Time
-            </span>
-            {value && (
-              <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-wide">
-                {hour.toString().padStart(2, '0')}:{minute.toString().padStart(2, '0')} {ampm}
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-1 items-stretch gap-1.5 h-[220px]">
-            {/* Hours Column */}
-            <div className="flex-1 flex flex-col gap-1">
-              <span className="text-[9px] font-black text-slate-400 tracking-wider text-center select-none uppercase">Hour</span>
-              <div 
-                ref={hourScrollRef}
-                className="flex-1 overflow-y-auto pr-0.5 flex flex-col gap-1 scrollbar-thin select-none max-h-[190px]"
-                style={{ scrollbarWidth: 'thin' }}
-              >
-                {hoursList.map((h) => {
-                  const isSelected = hour === h;
-                  return (
-                    <button
-                      key={h}
-                      type="button"
-                      data-selected={isSelected}
-                      onClick={() => handleHourSelect(h)}
-                      className={cn(
-                        "text-center py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
-                        isSelected 
-                          ? "bg-blue-600 text-white shadow-sm" 
-                          : "text-slate-700 hover:bg-slate-100"
-                      )}
-                    >
-                      {h.toString().padStart(2, '0')}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="w-[1px] bg-slate-100 self-stretch my-2 shrink-0" />
-
-            {/* Minutes Column */}
-            <div className="flex-1 flex flex-col gap-1">
-              <span className="text-[9px] font-black text-slate-400 tracking-wider text-center select-none uppercase">Min</span>
-              <div 
-                ref={minuteScrollRef}
-                className="flex-1 overflow-y-auto pr-0.5 flex flex-col gap-1 scrollbar-thin select-none max-h-[190px]"
-                style={{ scrollbarWidth: 'thin' }}
-              >
-                {minutesList.map((m) => {
-                  const isSelected = minute === m;
-                  return (
-                    <button
-                      key={m}
-                      type="button"
-                      data-selected={isSelected}
-                      onClick={() => handleMinuteSelect(m)}
-                      className={cn(
-                        "text-center py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
-                        isSelected 
-                          ? "bg-blue-600 text-white shadow-sm" 
-                          : "text-slate-700 hover:bg-slate-100"
-                      )}
-                    >
-                      {m.toString().padStart(2, '0')}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="w-[1px] bg-slate-100 self-stretch my-2 shrink-0" />
-
-            {/* AM/PM Period Column */}
-            <div className="w-14 flex flex-col gap-1 shrink-0">
-              <span className="text-[9px] font-black text-slate-400 tracking-wider text-center select-none uppercase">Period</span>
-              <div className="flex-1 flex flex-col gap-1.5 justify-center max-h-[190px]">
-                {(['AM', 'PM'] as const).map((period) => {
-                  const isSelected = ampm === period;
-                  return (
-                    <button
-                      key={period}
-                      type="button"
-                      onClick={() => handleAmpmSelect(period)}
-                      className={cn(
-                        "py-2.5 text-xs font-black rounded-lg transition-all cursor-pointer text-center",
-                        isSelected 
-                          ? "bg-blue-600 text-white shadow-sm" 
-                          : "text-slate-700 hover:bg-slate-100 border border-slate-200/40"
-                      )}
-                    >
-                      {period}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-2 mt-1 border-t border-slate-100 pt-2 shrink-0">
+        <DayPickerCalendar
+          mode="single"
+          selected={date}
+          onSelect={handleDateSelect}
+          className="rounded-xl border border-transparent"
+        />
+        <div className="flex gap-2 border-t border-slate-100 pt-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              const now = new Date();
+              const activeHour = now.getHours() % 12 || 12;
+              const activeMin = now.getMinutes();
+              const activeAmpm = now.getHours() >= 12 ? 'PM' : 'AM';
+              setTempValue(buildDateTime(now, activeHour, activeMin, activeAmpm));
+            }}
+            className="flex-1 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100/80 rounded-lg cursor-pointer transition-all border border-blue-100/50 shadow-sm text-center"
+          >
+            Use Today
+          </button>
+          {showClear && (
             <button
               type="button"
               onClick={() => {
-                const now = new Date();
-                const activeHour = now.getHours() % 12 || 12;
-                const activeMin = now.getMinutes();
-                const activeAmpm = now.getHours() >= 12 ? 'PM' : 'AM';
-                onChange(buildDateTime(now, activeHour, activeMin, activeAmpm));
+                onChange(null);
+                onOpenChange(false);
               }}
-              className="flex-1 py-1.5 text-[10px] font-extrabold text-blue-600 bg-blue-50 hover:bg-blue-100/80 rounded-lg cursor-pointer transition-all border border-blue-100/50 shadow-sm"
+              className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-red-600 bg-slate-100 hover:bg-red-55 rounded-lg cursor-pointer transition-all border border-slate-200/50"
             >
-              Use Today
+              Clear
             </button>
-            {hasValidValue && showClear && (
-              <button
-                type="button"
-                onClick={() => {
-                  onChange(null);
-                  onOpenChange(false);
-                }}
-                className="px-3 py-1.5 text-[10px] font-extrabold text-slate-500 hover:text-red-600 bg-slate-100 hover:bg-red-50 rounded-lg cursor-pointer transition-all border border-slate-200/50"
-              >
-                Clear
-              </button>
-            )}
+          )}
+        </div>
+      </div>
+
+      {/* Right: Scrollable Time Columns & Green Apply Button */}
+      <div className="flex flex-col w-70 p-4 gap-3 bg-slate-50/50 rounded-b-2xl md:rounded-b-none md:rounded-r-2xl">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+          <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">
+            Set Time
+          </span>
+          
+          <div className='flex items-center'>
+          
+          {tempValue && !tempValue.startsWith('0001-01-01') && (
+            <span className="text-[5px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-wide">
+              {hour.toString().padStart(2, '0')}:{minute.toString().padStart(2, '0')} {ampm}
+            </span>
+          )}
+          <button
+        type="button"
+        onClick={() => onOpenChange(false)}
+        className="z-10 p-1.5 rounded-full text-red-500 hover:text-red-700 hover:bg-red-50 active:scale-95 transition-all cursor-pointer"
+        title="Close date picker"
+        >
+        <X className="h-4 w-4 stroke-[2.5]" />
+          </button> 
+        </div>
+
+        </div>
+
+        <div className="flex flex-1 items-stretch gap-1.5 h-[220px]">
+          {/* Hours Column */}
+          <div className="flex-1 flex flex-col gap-1">
+            <span className="text-[9px] font-black text-slate-400 tracking-wider text-center select-none uppercase">Hour</span>
+            <div 
+              ref={hourScrollRef}
+              className="flex-1 overflow-y-auto flex flex-col gap-1 select-none max-h-[190px] no-scrollbar"
+            >
+              {hoursList.map((h) => {
+                const isSelected = hour === h;
+                return (
+                  <button
+                    key={h}
+                    type="button"
+                    data-selected={isSelected}
+                    onClick={() => handleHourSelect(h)}
+                    className={cn(
+                      "text-center py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                      isSelected 
+                        ? "bg-blue-600 text-white shadow-sm" 
+                        : "text-slate-700 hover:bg-slate-100"
+                    )}
+                  >
+                    {h.toString().padStart(2, '0')}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="w-[1px] bg-slate-100 self-stretch my-2 shrink-0" />
+
+          {/* Minutes Column */}
+          <div className="flex-1 flex flex-col gap-1">
+            <span className="text-[9px] font-black text-slate-400 tracking-wider text-center select-none uppercase">Min</span>
+            <div 
+              ref={minuteScrollRef}
+              className="flex-1 overflow-y-auto flex flex-col gap-1 select-none max-h-[190px] no-scrollbar"
+            >
+              {minutesList.map((m) => {
+                const isSelected = minute === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    data-selected={isSelected}
+                    onClick={() => handleMinuteSelect(m)}
+                    className={cn(
+                      "text-center py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                      isSelected 
+                        ? "bg-blue-600 text-white shadow-sm" 
+                        : "text-slate-700 hover:bg-slate-100"
+                    )}
+                  >
+                    {m.toString().padStart(2, '0')}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="w-[1px] bg-slate-100 self-stretch my-2 shrink-0" />
+
+          {/* AM/PM Period Column */}
+          <div className="w-14 flex flex-col gap-1 shrink-0">
+            <span className="text-[9px] font-black text-slate-400 tracking-wider text-center select-none uppercase">Period</span>
+            <div className="flex-1 flex flex-col gap-1.5 justify-center max-h-[190px]">
+              {(['AM', 'PM'] as const).map((period) => {
+                const isSelected = ampm === period;
+                return (
+                  <button
+                    key={period}
+                    type="button"
+                    onClick={() => handleAmpmSelect(period)}
+                    className={cn(
+                      "py-2.5 text-xs font-black rounded-lg transition-all cursor-pointer text-center",
+                      isSelected 
+                        ? "bg-blue-600 text-white shadow-sm" 
+                        : "text-slate-700 hover:bg-slate-100 border border-slate-200/40"
+                    )}
+                  >
+                    {period}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </PopoverContent>
-    </Popover>
+
+        {/* Green Apply Button */}
+        <div className="flex gap-2 mt-1 border-t border-slate-100 pt-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              onChange(tempValue);
+              onOpenChange(false);
+            }}
+            className="flex-1 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100/80 rounded-lg border border-emerald-100 shadow-sm text-center cursor-pointer active:scale-95 transition-all"
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <div 
+        ref={triggerRef}
+        className="relative w-full cursor-pointer group flex items-center justify-between bg-white hover:bg-slate-50/80 border border-slate-200/60 hover:border-blue-500/40 hover:ring-4 hover:ring-blue-500/5 px-3 py-2 rounded-xl transition-all shadow-sm min-h-[38px]"
+        onClick={() => onOpenChange(!isOpen)}
+      >
+        <span className={cn(
+          "text-xs font-semibold",
+          hasValidValue ? "text-slate-800 font-bold" : "text-slate-400"
+        )}>
+          {hasValidValue ? formatDateFriendly(value) : 'Not set'}
+        </span>
+        
+        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+          {hasValidValue && showClear && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation(); // VERY IMPORTANT: Stop click from opening popover!
+                onChange(null);
+              }}
+              className="w-5 h-5 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              title="Clear date"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+          <Calendar className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-500 transition-colors duration-200" />
+        </div>
+      </div>
+
+      {isOpen && panelRef?.current ? createPortal(pickerContent, panelRef.current) : (isOpen && typeof document !== 'undefined' ? createPortal(pickerContent, document.body) : null)}
+    </>
   );
 }
 
@@ -486,6 +608,7 @@ function CustomTagSelector({
 
 interface TaskDetailFieldsProps {
   task: Task;
+  panelRef?: React.RefObject<HTMLElement | null>;
   categories: Category[];
   tags: Tag[];
   onUpdateTask: (id: number, updates: UpdateTaskDto) => void;
@@ -496,6 +619,7 @@ interface TaskDetailFieldsProps {
 
 export function TaskDetailFields({
   task,
+  panelRef,
   categories,
   tags,
   onUpdateTask,
@@ -506,7 +630,6 @@ export function TaskDetailFields({
   const clearStartEnd = useTaskStore((state) => state.clearStartEnd);
   // Duration controlled state
   const [durationVal, setDurationVal] = React.useState(task.durationInMinutes);
-  const [durationError, setDurationError] = React.useState<'min' | 'max' | null>(null);
   const [dateError, setDateError] = React.useState<string | null>(null);
 
   // Focused time state for time-tracking summation
@@ -529,12 +652,10 @@ export function TaskDetailFields({
     if (totalSeconds <= 0) return '0m';
     const hrs = Math.floor(totalSeconds / 3600);
     const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
     
     const parts = [];
     if (hrs > 0) parts.push(`${hrs}h`);
     if (mins > 0 || hrs > 0) parts.push(`${mins}m`);
-    if (secs > 0) parts.push(`${secs}s`);
     
     return parts.join(' ');
   };
@@ -544,24 +665,9 @@ export function TaskDetailFields({
   }, [task.durationInMinutes]);
 
   const handleDurationChange = (newVal: number) => {
-    let finalVal = newVal;
-    let err: 'min' | 'max' | null = null;
-    if (newVal > 180) {
-      finalVal = 180;
-      err = 'max';
-    } else if (newVal < 5) {
-      finalVal = 5;
-      err = 'min';
-    }
+    const finalVal = Math.max(0, newVal);
     setDurationVal(finalVal);
-    setDurationError(err);
     onUpdateTask(task.id, { durationInMinutes: finalVal });
-
-    if (err) {
-      setTimeout(() => {
-        setDurationError(null);
-      }, 3000);
-    }
   };
 
   // Date picker open states
@@ -637,10 +743,11 @@ export function TaskDetailFields({
       {/* Title input field */}
       <div className="flex items-start gap-3">
         <Checkbox
-          checked={task.status === TaskStatus.Done}
+          checked={task.status === TaskStatus.Done || task.status === TaskStatus.Cancelled}
           onCheckedChange={(val) =>
             onUpdateStatus(task.id, val === true ? TaskStatus.Done : TaskStatus.Todo)
           }
+          icon={task.status === TaskStatus.Cancelled ? <X className="h-3 w- stroke-3" /> : <Check className="h-3.5 w-3.5" />}
           className={cn(
             "mt-1 h-5 w-5 rounded shrink-0 cursor-pointer transition-all",
             task.priority >= 8 
@@ -674,8 +781,8 @@ export function TaskDetailFields({
           />
         </DetailRow>
 
-        {/* Duration incrementer */}
-        <DetailRow icon={Clock} label="Duration">
+        {/* Est. Time hours & minutes input */}
+        <DetailRow icon={Clock} label="Est. Time">
           <div className="flex flex-col gap-1.5 w-full">
             <div className="flex items-center justify-between bg-white border border-slate-200/50 hover:border-slate-300 rounded-xl px-3 py-1 shadow-sm w-full min-h-[38px] transition-colors">
               <button
@@ -686,27 +793,39 @@ export function TaskDetailFields({
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  min={1}
-                  value={durationVal === 0 ? '' : durationVal}
-                  onChange={(e) => {
-                    const val = e.target.value === '' ? 0 : Number(e.target.value);
-                    setDurationVal(val);
-                  }}
-                  onBlur={() => {
-                    handleDurationChange(durationVal);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleDurationChange(durationVal);
-                      e.currentTarget.blur();
-                    }
-                  }}
-                  className="w-7 mb-0.5 text-center bg-transparent border-none outline-none text-xs font-bold text-slate-800 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0 focus:outline-none"
-                />
-                <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">min</span>
+              <div className="flex-1 flex items-center justify-center gap-1.5">
+                <div className="flex items-center gap-0.5">
+                  <input
+                    type="number"
+                    min={0}
+                    value={Math.floor(durationVal / 60) || ''}
+                    placeholder="0"
+                    onChange={(e) => {
+                      const hours = e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10));
+                      const mins = durationVal % 60;
+                      handleDurationChange(hours * 60 + mins);
+                    }}
+                    className="w-4 text-center bg-transparent border-none outline-none text-xs font-bold text-slate-800 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0 focus:outline-none"
+                  />
+                  <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">h</span>
+                </div>
+                <span className="text-slate-300 font-bold select-none">:</span>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min={0}
+                    max={59}
+                    value={durationVal % 60 === 0 && durationVal === 0 ? '' : durationVal % 60}
+                    placeholder="00"
+                    onChange={(e) => {
+                      const mins = e.target.value === '' ? 0 : Math.max(0, Math.min(59, parseInt(e.target.value, 10)));
+                      const hours = Math.floor(durationVal / 60);
+                      handleDurationChange(hours * 60 + mins);
+                    }}
+                    className="w-4 text-center bg-transparent border-none outline-none text-xs font-bold text-slate-800 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0 focus:outline-none"
+                  />
+                  <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">m</span>
+                </div>
               </div>
               <button
                 type="button"
@@ -717,17 +836,12 @@ export function TaskDetailFields({
                 <Plus className="h-3 w-3" />
               </button>
             </div>
-            {durationError && (
-              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-2 py-0.5 animate-in fade-in slide-in-from-top-1 duration-200 self-start">
-                {durationError === 'max' ? '⚠️ Maximum duration is 180 minutes' : '⚠️ Minimum duration is 5 minutes'}
-              </span>
-            )}
           </div>
         </DetailRow>
 
         {/* Focused Time display */}
-        <DetailRow icon={Clock} label="Focused Time">
-          <div className="flex items-center bg-white border border-slate-200/50 rounded-xl px-3 py-2 shadow-sm w-full min-h-[38px] transition-colors select-none text-slate-800 text-xs font-bold">
+        <DetailRow icon={ClockCheck} label="Focused Time">
+          <div className="flex items-center justify-center bg-white border border-slate-200/50 rounded-xl px-3 py-2 shadow-sm w-full min-h-[38px] transition-colors select-none text-slate-800 text-xs font-bold">
             <span className={cn(focusedSeconds > 0 ? "text-blue-600 font-extrabold" : "text-slate-400 font-semibold")}>
               {formatFocusedTime(focusedSeconds)}
             </span>
@@ -797,6 +911,8 @@ export function TaskDetailFields({
             isOpen={startOpen}
             onOpenChange={setStartOpen}
             showClear={false}
+            panelRef={panelRef}
+            title="Starts"
           />
         </DetailRow>
 
@@ -833,6 +949,8 @@ export function TaskDetailFields({
             isOpen={endOpen}
             onOpenChange={setEndOpen}
             showClear={false}
+            panelRef={panelRef}
+            title="Ends"
           />
         </DetailRow>
 
@@ -886,6 +1004,8 @@ export function TaskDetailFields({
             isOpen={deadlineOpen}
             onOpenChange={setDeadlineOpen}
             showClear={true}
+            panelRef={panelRef}
+            title="Deadline"
           />
         </DetailRow>
 
