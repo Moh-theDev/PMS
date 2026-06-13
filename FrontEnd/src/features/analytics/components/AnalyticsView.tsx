@@ -935,7 +935,12 @@ export function AnalyticsView() {
       fetchTags(),
       getAllSessions()
     ]).then(([_, __, ___, sessionData]) => {
-      setSessions(sessionData || []);
+      const discardedIds = JSON.parse(localStorage.getItem('pms_discarded_sessions') || '[]');
+      const manualSessions = JSON.parse(localStorage.getItem('pms_manual_sessions') || '[]');
+      
+      const activeDbSessions = (sessionData || []).filter((s) => !discardedIds.includes(s.id));
+      
+      setSessions([...activeDbSessions, ...manualSessions]);
       setIsLoading(false);
     }).catch(err => {
       console.error("Failed loading dashboard data:", err);

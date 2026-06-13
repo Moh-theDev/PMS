@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { type Task, type Category, type Tag, type UpdateTaskDto, TaskStatus } from '@/types/index';
 import { DetailRow } from './DetailRow';
 import { Calendar as DayPickerCalendar } from '@/components/ui/calendar';
-import { getTaskTotalSeconds } from '@/features/focus/services/timeTrackingService';
+import { getTaskSessions } from '@/features/focus/services/timeTrackingService';
 
 // Format date to local friendly representation
 const formatDateFriendly = (dateStr?: string | null) => {
@@ -638,8 +638,19 @@ export function TaskDetailFields({
   React.useEffect(() => {
     async function loadFocusedTime() {
       try {
-        const seconds = await getTaskTotalSeconds(task.id);
-        setFocusedSeconds(seconds);
+        const dbSessions = await getTaskSessions(task.id);
+        const discardedIds = JSON.parse(localStorage.getItem('pms_discarded_sessions') || '[]');
+        const manualSessions = JSON.parse(localStorage.getItem('pms_manual_sessions') || '[]');
+        
+        const activeDbSeconds = dbSessions
+          .filter((s) => !discardedIds.includes(s.id))
+          .reduce((sum, s) => sum + (s.accumulatedSeconds || 0), 0);
+          
+        const manualSeconds = manualSessions
+          .filter((s: any) => s.taskId === task.id)
+          .reduce((sum: number, s: any) => sum + (s.accumulatedSeconds || 0), 0);
+          
+        setFocusedSeconds(activeDbSeconds + manualSeconds);
       } catch (err) {
         console.error('Failed to load focused time', err);
         setFocusedSeconds(0);

@@ -850,6 +850,7 @@ export function InboxView() {
           onAssignTags={assignTags}
           onRemoveTag={removeTag}
           onDelete={handleDeleteTask}
+          onSelectTask={setSelectedTaskId}
         />
       )}
     </div>

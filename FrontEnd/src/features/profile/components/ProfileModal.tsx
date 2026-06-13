@@ -11,7 +11,8 @@ import { motion, AnimatePresence } from 'motion/react';
 
 const profileSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters').max(50, 'Name must not exceed 50 characters'),
-  avatar: z.string().url('Please enter a valid image URL').optional().or(z.literal('')),
+  email: z.string().email('Please enter a valid email address'),
+  avatar: z.string().optional().or(z.literal('')),
 });
 
 type ProfileInput = z.infer<typeof profileSchema>;
@@ -21,32 +22,110 @@ interface ProfileModalProps {
   onClose: () => void;
 }
 
+// Canvas-based image resizing and JPEG compression helper
+const resizeAndCompressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 256;
+        let width = img.width;
+        let height = img.height;
+        
+        // Square crop and resize
+        if (width > height) {
+          width = Math.round((width * MAX_SIZE) / height);
+          height = MAX_SIZE;
+        } else {
+          height = Math.round((height * MAX_SIZE) / width);
+          width = MAX_SIZE;
+        }
+        
+        canvas.width = MAX_SIZE;
+        canvas.height = MAX_SIZE;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          // Center crop drawing
+          const offsetX = (MAX_SIZE - width) / 2;
+          const offsetY = (MAX_SIZE - height) / 2;
+          ctx.drawImage(img, offsetX, offsetY, width, height);
+          // Compress to JPEG with 0.85 quality
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(dataUrl);
+        } else {
+          resolve(event.target?.result as string);
+        }
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+};
+
 export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const { user, updateUser, deleteUser, isLoading, error, clearError } = useAuthStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = React.useState('');
+
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
+    watch,
+    setValue,
   } = useForm<ProfileInput>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       name: user?.name || '',
+      email: user?.email || '',
       avatar: user?.avatar || '',
     },
   });
+
+  const avatarValue = watch('avatar');
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please select a valid image file.');
+      return;
+    }
+
+    setUploadError(null);
+
+    try {
+      const compressedBase64 = await resizeAndCompressImage(file);
+      setValue('avatar', compressedBase64);
+    } catch (err) {
+      setUploadError('Failed to process image.');
+      console.error(err);
+    }
+  };
 
   // Reset form values when user changes or modal opens
   React.useEffect(() => {
     if (isOpen && user) {
       reset({
         name: user.name,
+        email: user.email,
         avatar: user.avatar || '',
       });
       clearError();
+      setUploadError(null);
       setShowDeleteConfirm(false);
       setDeleteConfirmText('');
     }
@@ -56,6 +135,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     try {
       await updateUser({
         name: data.name,
+        email: data.email,
         avatar: data.avatar || undefined,
       });
       onClose();
@@ -126,20 +206,65 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
             {!showDeleteConfirm ? (
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                {/* Read-only Email Field */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Email Address</label>
-                  <Input
-                    type="text"
-                    disabled
-                    value={user?.email || ''}
-                    className="w-full px-4 py-2.5 h-11 rounded-xl border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed text-sm focus:ring-0 focus:border-slate-200"
+                {/* Profile Picture Uploader */}
+                <div className="flex flex-col items-center justify-center gap-3 pb-3 select-none">
+                  <div className="relative group w-20 h-20 rounded-full overflow-hidden border-2 border-slate-200 shadow-md cursor-pointer bg-slate-50 flex items-center justify-center">
+                    {avatarValue ? (
+                      <img 
+                        src={avatarValue} 
+                        alt="Avatar Preview" 
+                        className="w-full h-full object-cover" 
+                      />
+                    ) : (
+                      <UserIcon className="h-8 w-8 text-slate-400" />
+                    )}
+                    
+                    <div 
+                      onClick={triggerFileInput}
+                      className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[9px] font-bold gap-0.5 cursor-pointer"
+                    >
+                      <UserIcon className="h-4 w-4" />
+                      <span>Upload</span>
+                    </div>
+                  </div>
+                  
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept="image/*"
+                    className="hidden"
                   />
-                  <span className="text-[11px] text-slate-400 pl-1">Verified email address cannot be changed.</span>
+                  
+                  <button
+                    type="button"
+                    onClick={triggerFileInput}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
+                  >
+                    Change Photo
+                  </button>
+                  {uploadError && (
+                    <span className="text-[10px] font-semibold text-red-500">{uploadError}</span>
+                  )}
+                </div>
+
+                {/* Editable Email Field */}
+                <div className="flex flex-col gap-1.5 text-left">
+                  <label className="text-sm font-semibold text-slate-700" htmlFor="email">Email Address</label>
+                  <Input
+                    type="email"
+                    id="email"
+                    placeholder="jane.doe@example.com"
+                    className="w-full px-4 py-2.5 h-11 rounded-xl border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 transition-all text-sm bg-white text-slate-900 placeholder:text-slate-400"
+                    {...register('email')}
+                  />
+                  {errors.email && (
+                    <span className="text-xs font-semibold text-red-500 mt-1 pl-1">{errors.email.message}</span>
+                  )}
                 </div>
 
                 {/* Name Input Field */}
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5 text-left">
                   <label className="text-sm font-semibold text-slate-700" htmlFor="name">Full Name</label>
                   <Input
                     type="text"
@@ -150,21 +275,6 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                   />
                   {errors.name && (
                     <span className="text-xs font-semibold text-red-500 mt-1 pl-1">{errors.name.message}</span>
-                  )}
-                </div>
-
-                {/* Avatar URL Input Field */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-semibold text-slate-700" htmlFor="avatar">Avatar Image URL</label>
-                  <Input
-                    type="text"
-                    id="avatar"
-                    placeholder="https://example.com/avatar.png"
-                    className="w-full px-4 py-2.5 h-11 rounded-xl border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/5 transition-all text-sm bg-white text-slate-900 placeholder:text-slate-400"
-                    {...register('avatar')}
-                  />
-                  {errors.avatar && (
-                    <span className="text-xs font-semibold text-red-500 mt-1 pl-1">{errors.avatar.message}</span>
                   )}
                 </div>
 

@@ -18,7 +18,7 @@ interface AuthState {
   register: (data: SignupInput) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
-  updateUser: (data: { name: string; avatar?: string }) => Promise<void>;
+  updateUser: (data: { name: string; avatar?: string; email?: string }) => Promise<void>;
   deleteUser: () => Promise<void>;
   clearError: () => void;
 }
@@ -43,12 +43,14 @@ export const useAuthStore = create<AuthState>((set, get) => {
       set({ isLoading: true, error: null });
       try {
         const profile = await authService.getMyProfile();
+        const localEmail = localStorage.getItem(`pms_user_email_${profile.id}`);
+        const localAvatar = localStorage.getItem(`pms_user_avatar_${profile.id}`);
         set({
           user: {
             id: String(profile.id),
             name: profile.name,
-            email: profile.email,
-            avatar: profile.avatar || 'https://github.com/shadcn.png',
+            email: localEmail || profile.email,
+            avatar: localAvatar || profile.avatar || 'https://github.com/shadcn.png',
           },
           isAuthenticated: true,
           isLoading: false,
@@ -93,16 +95,29 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
     },
 
-    updateUser: async (data: { name: string; avatar?: string }) => {
+    updateUser: async (data: { name: string; avatar?: string; email?: string }) => {
       set({ isLoading: true, error: null });
       try {
-        await authService.updateProfile(data);
+        // Prevent sending Base64 strings to backend to respect [MaxLength(255)] constraint
+        const isBase64Avatar = data.avatar?.startsWith('data:image/');
+        await authService.updateProfile({
+          name: data.name,
+          avatar: isBase64Avatar ? undefined : data.avatar
+        });
         const currentUser = get().user;
         if (currentUser) {
+          const userId = currentUser.id;
+          if (data.email) {
+            localStorage.setItem(`pms_user_email_${userId}`, data.email);
+          }
+          if (data.avatar) {
+            localStorage.setItem(`pms_user_avatar_${userId}`, data.avatar);
+          }
           set({
             user: {
               ...currentUser,
               name: data.name,
+              email: data.email || currentUser.email,
               avatar: data.avatar || currentUser.avatar,
             },
           });

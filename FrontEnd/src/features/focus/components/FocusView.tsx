@@ -16,25 +16,36 @@ import {
 } from 'lucide-react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { Button } from '@/components/ui/button';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   getActiveTimer, 
   startTimer, 
   pauseTimer, 
   resumeTimer, 
   stopTimer, 
+  getTaskSessions,
   type TimeEntry 
 } from '../services/timeTrackingService';
 
 export function FocusView() {
   const { tasks, fetchTasks, categories, tags, fetchCategories, fetchTags } = useTaskStore();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [activeEntry, setActiveEntry] = React.useState<TimeEntry | null>(null);
   const [selectedTaskId, setSelectedTaskId] = React.useState<number | null>(null);
   const [seconds, setSeconds] = React.useState(0);
   const [isRunning, setIsRunning] = React.useState(false);
   const [showMinSessionWarning, setShowMinSessionWarning] = React.useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false);
+  const [isManualLogOpen, setIsManualLogOpen] = React.useState(false);
+  const [manualHours, setManualHours] = React.useState(0);
+  const [manualMinutes, setManualMinutes] = React.useState(25);
+  const [manualDate, setManualDate] = React.useState(() => new Date().toISOString().split('T')[0]);
+  const [taskFocusedSeconds, setTaskFocusedSeconds] = React.useState(0);
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [isApiLoading, setIsApiLoading] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
@@ -51,6 +62,10 @@ export function FocusView() {
 
   // Ref-based click-outside to close dropdown (no overlay div needed)
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const isAutoStartingRef = React.useRef(
+    localStorage.getItem('pms_auto_start_focus') === 'true' || 
+    !!(location.state && (location.state as any).autoStart)
+  );
   React.useEffect(() => {
     if (!isDropdownOpen) return;
     const handleMouseDown = (e: MouseEvent) => {
@@ -101,6 +116,9 @@ export function FocusView() {
     fetchTags();
 
     async function restoreSession() {
+      if (isAutoStartingRef.current) {
+        return;
+      }
       try {
         setIsApiLoading(true);
         const active = await getActiveTimer();
@@ -119,16 +137,129 @@ export function FocusView() {
     restoreSession();
   }, [fetchTasks, fetchCategories, fetchTags]);
 
+  // Auto-start timer session triggered by location route transitions (from context menu)
+  React.useEffect(() => {
+    const hasLocalStorageAutoStart = localStorage.getItem('pms_auto_start_focus') === 'true';
+    const hasStateAutoStart = !!(location.state && (location.state as any).autoStart);
+
+    if (hasLocalStorageAutoStart || hasStateAutoStart) {
+      isAutoStartingRef.current = true;
+      let targetId: number | null = null;
+
+      if (hasStateAutoStart) {
+        targetId = Number((location.state as any).taskId);
+        // Clear router state to prevent loop
+        navigate(location.pathname, { replace: true, state: {} });
+      } else if (hasLocalStorageAutoStart) {
+        const storedTaskIdStr = localStorage.getItem('pms_selected_focus_task_id');
+        targetId = storedTaskIdStr ? Number(storedTaskIdStr) : null;
+      }
+
+      // Always clear localStorage flag
+      localStorage.removeItem('pms_auto_start_focus');
+
+      if (targetId) {
+        setSelectedTaskId(targetId);
+        localStorage.setItem('pms_selected_focus_task_id', String(targetId));
+
+        const startSessionDirectly = async () => {
+          try {
+            setIsApiLoading(true);
+            setErrorMsg(null);
+            const entry = await startTimer(targetId!);
+            if (entry.errors && entry.errors.length > 0) {
+              setErrorMsg(entry.errors[0]);
+              // Try to restore existing session on error
+              const active = await getActiveTimer();
+              if (active) {
+                setActiveEntry(active);
+                setSelectedTaskId(active.taskId);
+                setSeconds(active.currentSeconds);
+                setIsRunning(!active.isPaused);
+              }
+            } else {
+              setActiveEntry(entry);
+              setSeconds(0);
+              setIsRunning(true);
+            }
+          } catch (err: any) {
+            setErrorMsg(err.response?.data?.errors?.[0] || err.message || 'Failed to start tracking session.');
+            // Try to restore existing session on error
+            try {
+              const active = await getActiveTimer();
+              if (active) {
+                setActiveEntry(active);
+                setSelectedTaskId(active.taskId);
+                setSeconds(active.currentSeconds);
+                setIsRunning(!active.isPaused);
+              }
+            } catch (restoreErr) {
+              console.error('Failed to restore session after start error', restoreErr);
+            }
+          } finally {
+            setIsApiLoading(false);
+            isAutoStartingRef.current = false;
+          }
+        };
+        startSessionDirectly();
+      } else {
+        isAutoStartingRef.current = false;
+      }
+    }
+  }, [location, navigate]);
+
   // 2. Real-time timer ticker interval
   React.useEffect(() => {
     let interval: any = null;
-    if (isRunning && !showMinSessionWarning) {
+    if (isRunning && !showMinSessionWarning && !showDiscardConfirm) {
       interval = setInterval(() => {
         setSeconds((prev) => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isRunning, showMinSessionWarning]);
+  }, [isRunning, showMinSessionWarning, showDiscardConfirm]);
+
+  // Helper to format focused seconds (e.g. 1h 25m)
+  const formatFocusedTime = (totalSeconds: number) => {
+    if (totalSeconds <= 0) return '0m';
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    
+    const parts = [];
+    if (hrs > 0) parts.push(`${hrs}h`);
+    if (mins > 0 || hrs > 0) parts.push(`${mins}m`);
+    
+    return parts.join(' ');
+  };
+
+  const loadTaskFocusedTime = React.useCallback(async () => {
+    if (!selectedTaskId) {
+      setTaskFocusedSeconds(0);
+      return;
+    }
+    try {
+      const dbSessions = await getTaskSessions(selectedTaskId);
+      const discardedIds = JSON.parse(localStorage.getItem('pms_discarded_sessions') || '[]');
+      const manualSessions = JSON.parse(localStorage.getItem('pms_manual_sessions') || '[]');
+      
+      const activeDbSeconds = dbSessions
+        .filter((s) => !discardedIds.includes(s.id))
+        .reduce((sum, s) => sum + (s.accumulatedSeconds || 0), 0);
+        
+      const manualSeconds = manualSessions
+        .filter((s: any) => s.taskId === selectedTaskId)
+        .reduce((sum: number, s: any) => sum + (s.accumulatedSeconds || 0), 0);
+      
+      setTaskFocusedSeconds(activeDbSeconds + manualSeconds);
+    } catch (err) {
+      console.error('Failed to load task focused time:', err);
+      setTaskFocusedSeconds(0);
+    }
+  }, [selectedTaskId]);
+
+  React.useEffect(() => {
+    loadTaskFocusedTime();
+  }, [selectedTaskId, activeEntry, loadTaskFocusedTime]);
 
   // 3. Format seconds as HH:MM:SS or MM:SS
   const formatTime = (totalSeconds: number) => {
@@ -224,6 +355,10 @@ export function FocusView() {
       setIsApiLoading(true);
       setErrorMsg(null);
       const entry = await startTimer(selectedTaskId);
+      if (entry.errors && entry.errors.length > 0) {
+        setErrorMsg(entry.errors[0]);
+        return;
+      }
       setActiveEntry(entry);
       setIsRunning(true);
       setSeconds(0);
@@ -233,6 +368,8 @@ export function FocusView() {
       setIsApiLoading(false);
     }
   };
+
+  // Auto-start timer session consolidated directly inside the restoreSession mount handler
 
   const handlePause = async () => {
     if (!activeEntry) return;
@@ -272,7 +409,11 @@ export function FocusView() {
 
   const handleStop = async () => {
     if (!activeEntry) return;
-    await executeStop();
+    if (seconds < 300) {
+      setShowMinSessionWarning(true);
+    } else {
+      await executeStop();
+    }
   };
 
   const executeStop = async () => {
@@ -287,6 +428,7 @@ export function FocusView() {
       setSeconds(0);
       setIsRunning(false);
       setShowMinSessionWarning(false);
+      setShowDiscardConfirm(false);
       
       await fetchTasks();
     } catch (err: any) {
@@ -303,17 +445,57 @@ export function FocusView() {
       setErrorMsg(null);
       await stopTimer(activeEntry.id);
       
+      // Save to discarded list in localStorage
+      const discardedIds = JSON.parse(localStorage.getItem('pms_discarded_sessions') || '[]');
+      discardedIds.push(activeEntry.id);
+      localStorage.setItem('pms_discarded_sessions', JSON.stringify(discardedIds));
+      
       setActiveEntry(null);
       setSelectedTaskId(null);
       setSeconds(0);
       setIsRunning(false);
       setShowMinSessionWarning(false);
+      setShowDiscardConfirm(false);
       
       await fetchTasks();
+      
+      setToastMessage("Focus session discarded.");
+      setTimeout(() => setToastMessage(null), 4000);
     } catch (err: any) {
       setErrorMsg(err.response?.data?.errors?.[0] || err.message || 'Failed to discard session.');
     } finally {
       setIsApiLoading(false);
+    }
+  };
+
+  const handleSaveManualLog = () => {
+    if (!selectedTaskId) return;
+    const totalSeconds = (manualHours * 3600) + (manualMinutes * 60);
+    if (totalSeconds <= 0) {
+      setErrorMsg("Please enter a focus duration greater than 0 minutes.");
+      return;
+    }
+    
+    try {
+      const manualSessions = JSON.parse(localStorage.getItem('pms_manual_sessions') || '[]');
+      const newManualSession = {
+        id: `manual_${Date.now()}`,
+        taskId: selectedTaskId,
+        accumulatedSeconds: totalSeconds,
+        startedAt: new Date(manualDate).toISOString(),
+        createdAt: new Date().toISOString(),
+        endedAt: new Date(manualDate).toISOString()
+      };
+      manualSessions.push(newManualSession);
+      localStorage.setItem('pms_manual_sessions', JSON.stringify(manualSessions));
+      
+      setIsManualLogOpen(false);
+      loadTaskFocusedTime();
+      
+      setToastMessage("Focus time logged successfully!");
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err: any) {
+      setErrorMsg("Failed to save manually logged focus session.");
     }
   };
 
@@ -402,6 +584,11 @@ export function FocusView() {
                         />
                         <span className="truncate">{selectedTask.title}</span>
                       </>
+                    ) : selectedTaskId ? (
+                      <span className="text-slate-400 flex items-center gap-1.5">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500 shrink-0" />
+                        <span className="truncate">Loading selected task...</span>
+                      </span>
                     ) : (
                       <span className="text-slate-400">Choose a task to track...</span>
                     )}
@@ -642,8 +829,17 @@ export function FocusView() {
           )}
 
           {/* ── Active Task Card ────────────────────────────────────────────── */}
+          {activeEntry !== null && !selectedTask && (
+            <div className="bg-white border border-slate-200/95 rounded-2xl p-4 shadow-xs max-w-sm w-full relative overflow-hidden animate-pulse select-none text-left h-24 flex items-center justify-center">
+              <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-500 shrink-0" />
+                <span>Loading task details...</span>
+              </div>
+            </div>
+          )}
+
           {selectedTask && (
-            <div className="bg-white border border-slate-200/95 rounded-2xl p-4 shadow-xs max-w-xs w-full relative overflow-hidden transition-all hover:border-slate-300 select-none text-left">
+            <div className="bg-white border border-slate-200/95 rounded-2xl p-4 shadow-xs max-w-sm w-full relative overflow-hidden transition-all hover:border-slate-300 select-none text-left">
               {/* Left-edge priority indicator */}
               <div 
                 className="absolute top-0 left-0 w-1 h-full rounded-l-2xl" 
@@ -689,15 +885,32 @@ export function FocusView() {
                   </p>
                 )}
                 
-                <div className="flex items-center justify-between pt-0.5 text-[10px] font-bold text-slate-400">
-                  <span>{selectedTask.durationInMinutes} min planned</span>
+                <div className="flex items-center justify-between pt-1 border-t border-slate-100 mt-2 text-[10px] font-bold">
+                  <div className="flex items-center gap-1.5 text-slate-400">
+                    <span>Planned: {selectedTask.durationInMinutes}m</span>
+                    <span className="opacity-40">•</span>
+                    <span className="text-blue-600">Focused: {formatFocusedTime(taskFocusedSeconds)}</span>
+                  </div>
                   {activeEntry === null && (
-                    <button
-                      onClick={() => setSelectedTaskId(null)}
-                      className="text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
-                    >
-                      Change
-                    </button>
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        onClick={() => {
+                          setManualHours(0);
+                          setManualMinutes(25);
+                          setManualDate(new Date().toISOString().split('T')[0]);
+                          setIsManualLogOpen(true);
+                        }}
+                        className="text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                      >
+                        Log Time
+                      </button>
+                      <button
+                        onClick={() => setSelectedTaskId(null)}
+                        className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -710,26 +923,58 @@ export function FocusView() {
               <div className="flex items-start gap-3">
                 <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
                 <div className="space-y-2">
-                  <h4 className="text-xs font-black text-amber-800 uppercase tracking-wider">Session Too Short</h4>
+                  <h4 className="text-xs font-black text-amber-800 uppercase tracking-wider">Keep focusing?</h4>
                   <p className="text-[11px] text-amber-700 leading-relaxed font-semibold">
-                    Minimum 5 minutes required. Currently: <strong>{formatTime(seconds)}</strong>. Stopping now discards this session.
+                    You've been focusing for less than 5 minutes. To keep your history clean and accurate, sessions this short won't be saved. Would you like to keep focusing or discard this session?
                   </p>
                   <div className="flex items-center gap-2 pt-1">
                     <Button
                       size="sm"
                       onClick={() => setShowMinSessionWarning(false)}
-                      className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl shadow-xs"
+                      className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl shadow-xs cursor-pointer active:scale-95"
                     >
                       Keep Focusing
                     </Button>
                     <Button
                       size="sm"
-                      variant="ghost"
                       onClick={handleDiscard}
                       disabled={isApiLoading}
-                      className="text-amber-800 hover:bg-amber-100 text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl"
+                      className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl cursor-pointer active:scale-95"
                     >
-                      Discard
+                      Discard Session
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 🚨 Discard Session Confirmation */}
+          {showDiscardConfirm && (
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 shadow-sm max-w-xs w-full text-left animate-in fade-in zoom-in duration-200">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5 animate-pulse" />
+                <div className="space-y-2">
+                  <h4 className="text-xs font-black text-rose-800 uppercase tracking-wider">Discard Session?</h4>
+                  <p className="text-[11px] text-rose-700 leading-relaxed font-semibold">
+                    Are you sure you want to discard this focus session? All tracked time from this session will be lost and not saved.
+                  </p>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      onClick={handleDiscard}
+                      disabled={isApiLoading}
+                      className="bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl shadow-xs cursor-pointer active:scale-95"
+                    >
+                      Yes, Discard
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setShowDiscardConfirm(false)}
+                      className="text-rose-800 hover:bg-rose-100 text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl cursor-pointer active:scale-95"
+                    >
+                      Cancel
                     </Button>
                   </div>
                 </div>
@@ -804,7 +1049,7 @@ export function FocusView() {
           </div>
 
           {/* ── Playback Buttons ───────────────────────────────────────────── */}
-          <div className="flex items-center justify-center gap-3 max-w-xs w-full select-none">
+          <div className="flex items-center justify-center gap-3 max-w-sm w-full select-none">
             {/* Start / Pause / Resume */}
             <Button
               onClick={
@@ -814,7 +1059,7 @@ export function FocusView() {
                     ? handlePause 
                     : handleResume
               }
-              disabled={isApiLoading || selectedTaskId === null || showMinSessionWarning}
+              disabled={isApiLoading || selectedTaskId === null || showMinSessionWarning || showDiscardConfirm}
               className={cn(
                 "h-11 rounded-xl font-bold text-xs shadow-md transition-all active:scale-98 text-white",
                 activeEntry === null
@@ -839,7 +1084,7 @@ export function FocusView() {
             {activeEntry !== null && (
               <Button
                 onClick={handleStop}
-                disabled={isApiLoading || showMinSessionWarning}
+                disabled={isApiLoading || showMinSessionWarning || showDiscardConfirm}
                 className="h-11 rounded-xl font-bold text-xs bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-600/10 transition-all active:scale-98"
               >
                 {isApiLoading ? (
@@ -849,10 +1094,138 @@ export function FocusView() {
                 )}
               </Button>
             )}
+
+            {/* Discard Session */}
+            {activeEntry !== null && (
+              <Button
+                onClick={() => setShowDiscardConfirm(true)}
+                disabled={isApiLoading || showMinSessionWarning || showDiscardConfirm}
+                className="h-11 rounded-xl font-bold text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 shadow-sm transition-all active:scale-98 px-4 cursor-pointer"
+              >
+                Discard
+              </Button>
+            )}
           </div>
 
         </div>
       </div>
+
+      {/* ── Manual Time Logging Modal ────────────────────────────────────── */}
+      <AnimatePresence>
+        {isManualLogOpen && selectedTask && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-[99999] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white border border-slate-200/80 shadow-2xl rounded-2xl p-6 max-w-sm w-full relative flex flex-col gap-4 text-left"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setIsManualLogOpen(false)}
+                className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer active:scale-95"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              <div>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Log Focus Time</h3>
+                <p className="text-[10px] text-slate-400 font-semibold mt-0.5 leading-relaxed">
+                  Add manual focus time for:
+                </p>
+                <div className="mt-2 inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-1 rounded-lg">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  {selectedTask.title}
+                </div>
+              </div>
+
+              {/* Inputs grid */}
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center gap-3">
+                  {/* Hours Input */}
+                  <div className="flex flex-col gap-1 flex-1">
+                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Hours</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="24"
+                      value={manualHours}
+                      onChange={(e) => setManualHours(Math.max(0, Math.min(24, parseInt(e.target.value) || 0)))}
+                      className="w-full text-center font-bold text-sm bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  {/* Minutes Input */}
+                  <div className="flex flex-col gap-1 flex-1">
+                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Minutes</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      value={manualMinutes}
+                      onChange={(e) => setManualMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+                      className="w-full text-center font-bold text-sm bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Date Input */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Date Focused</label>
+                  <input
+                    type="date"
+                    value={manualDate}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setManualDate(e.target.value)}
+                    className="w-full font-bold text-xs bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:bg-white transition-all text-slate-700"
+                  />
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-2 pt-2">
+                <Button
+                  onClick={handleSaveManualLog}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex-1 h-10 shadow-sm cursor-pointer active:scale-98"
+                >
+                  Log Session
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsManualLogOpen(false)}
+                  className="text-slate-500 hover:bg-slate-100 font-bold text-xs rounded-xl h-10 px-4 cursor-pointer"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="fixed bottom-6 right-6 z-[99999] flex items-center gap-3 bg-emerald-50 border border-emerald-200 px-4 py-3.5 rounded-xl shadow-lg shadow-emerald-900/10 text-emerald-800 text-xs font-bold max-w-xs sm:max-w-sm"
+          >
+            <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span className="flex-1 leading-relaxed">{toastMessage}</span>
+            <button 
+              type="button"
+              onClick={() => setToastMessage(null)} 
+              className="ml-2 p-0.5 text-emerald-500 hover:text-emerald-700 rounded-md hover:bg-emerald-100 transition-colors cursor-pointer"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
