@@ -118,8 +118,8 @@ function CustomDropdown<T extends string | number>({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "w-full bg-white hover:bg-slate-50/80 border border-slate-200/60 hover:border-blue-500/40 hover:ring-4 hover:ring-blue-500/5 px-3.5 py-2 rounded-xl transition-all shadow-sm flex items-center justify-between text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer min-h-[38px]",
-          isOpen && "border-blue-500/50 ring-4 ring-blue-500/5 bg-slate-50/50",
+          "w-full bg-card hover:bg-muted/80 border border-border hover:border-blue-500/40 hover:ring-4 hover:ring-blue-500/5 px-3.5 py-2 rounded-xl transition-all shadow-sm dark:shadow-none flex items-center justify-between text-xs font-semibold text-foreground focus:outline-none cursor-pointer min-h-[38px]",
+          isOpen && "border-blue-500/50 ring-4 ring-blue-500/5 bg-muted/50",
           className
         )}
       >
@@ -129,11 +129,11 @@ function CustomDropdown<T extends string | number>({
           )}
           <span className="truncate font-bold">{activeOption?.label || placeholder}</span>
         </span>
-        <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform duration-250 shrink-0 ml-1.5", isOpen && "rotate-180 text-blue-500")} />
+        <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-250 shrink-0 ml-1.5", isOpen && "rotate-180 text-blue-500")} />
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 mt-2 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 max-h-60 overflow-y-auto">
+        <div className="absolute left-0 right-0 mt-2 bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-2xl dark:shadow-none py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 max-h-60 overflow-y-auto">
           {options.map((opt) => {
             const isActive = opt.value === value;
             return (
@@ -145,10 +145,10 @@ function CustomDropdown<T extends string | number>({
                     setIsOpen(false);
                   }}
                   className={cn(
-                    "w-full text-left px-3.5 py-2 text-xs font-bold text-slate-700 hover:text-slate-900 rounded-xl flex items-center justify-between transition-all cursor-pointer",
+                    "w-full text-left px-3.5 py-2 text-xs font-bold text-foreground hover:text-foreground rounded-xl flex items-center justify-between transition-all cursor-pointer",
                     isActive 
-                      ? "bg-blue-50/80 text-blue-600 hover:bg-blue-50" 
-                      : "hover:bg-slate-100/80"
+                      ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10" 
+                      : "hover:bg-muted/80"
                   )}
                 >
                   <span className="flex items-center gap-2 truncate">
@@ -306,7 +306,7 @@ function ClickableDatePicker({
   const pickerContent = (
     <div 
       ref={pickerRef}
-      className="absolute z-[9999] bg-white border border-slate-200/80 shadow-2xl rounded-2xl animate-fade-in flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-100"
+      className="absolute z-[9999] bg-card border border-border shadow-2xl dark:shadow-none rounded-2xl animate-fade-in flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-100"
       style={{
         right: '100%',
         bottom: '8px',
@@ -328,8 +328,8 @@ function ClickableDatePicker({
       {/* Left: Calendar & Use Today / Clear */}
       <div className="p-3 flex flex-col gap-2">
         {/* Header Title */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-2 px-1 select-none">
-          <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
+        <div className="flex items-center justify-between border-b border-border pb-2 px-1 select-none">
+          <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">
             {title}
           </span>
         </div>
@@ -340,7 +340,7 @@ function ClickableDatePicker({
           onSelect={handleDateSelect}
           className="rounded-xl border border-transparent"
         />
-        <div className="flex gap-2 border-t border-slate-100 pt-2 shrink-0">
+        <div className="flex gap-2 border-t border-border pt-2 shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -350,7 +350,7 @@ function ClickableDatePicker({
               const activeAmpm = now.getHours() >= 12 ? 'PM' : 'AM';
               setTempValue(buildDateTime(now, activeHour, activeMin, activeAmpm));
             }}
-            className="flex-1 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100/80 rounded-lg cursor-pointer transition-all border border-blue-100/50 shadow-sm text-center"
+            className="flex-1 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg cursor-pointer transition-all border border-blue-100/50 shadow-sm dark:shadow-none text-center"
           >
             Use Today
           </button>
@@ -361,7 +361,7 @@ function ClickableDatePicker({
                 onChange(null);
                 onOpenChange(false);
               }}
-              className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-red-600 bg-slate-100 hover:bg-red-55 rounded-lg cursor-pointer transition-all border border-slate-200/50"
+              className="px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-red-600 dark:text-red-400 bg-muted hover:bg-red-55 rounded-lg cursor-pointer transition-all border border-border"
             >
               Clear
             </button>
@@ -370,23 +370,23 @@ function ClickableDatePicker({
       </div>
 
       {/* Right: Scrollable Time Columns & Green Apply Button */}
-      <div className="flex flex-col w-70 p-4 gap-3 bg-slate-50/50 rounded-b-2xl md:rounded-b-none md:rounded-r-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-          <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">
+      <div className="flex flex-col w-70 p-4 gap-3 bg-muted/50 rounded-b-2xl md:rounded-b-none md:rounded-r-2xl">
+        <div className="flex items-center justify-between border-b border-border pb-2">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
             Set Time
           </span>
           
           <div className='flex items-center'>
           
           {tempValue && !tempValue.startsWith('0001-01-01') && (
-            <span className="text-[5px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-wide">
+            <span className="text-[5px] font-black text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full uppercase tracking-wide">
               {hour.toString().padStart(2, '0')}:{minute.toString().padStart(2, '0')} {ampm}
             </span>
           )}
           <button
         type="button"
         onClick={() => onOpenChange(false)}
-        className="z-10 p-1.5 rounded-full text-red-500 hover:text-red-700 hover:bg-red-50 active:scale-95 transition-all cursor-pointer"
+        className="z-10 p-1.5 rounded-full text-red-500 hover:text-red-700 dark:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all cursor-pointer"
         title="Close date picker"
         >
         <X className="h-4 w-4 stroke-[2.5]" />
@@ -398,7 +398,7 @@ function ClickableDatePicker({
         <div className="flex flex-1 items-stretch gap-1.5 h-[220px]">
           {/* Hours Column */}
           <div className="flex-1 flex flex-col gap-1">
-            <span className="text-[9px] font-black text-slate-400 tracking-wider text-center select-none uppercase">Hour</span>
+            <span className="text-[9px] font-black text-muted-foreground tracking-wider text-center select-none uppercase">Hour</span>
             <div 
               ref={hourScrollRef}
               className="flex-1 overflow-y-auto flex flex-col gap-1 select-none max-h-[190px] no-scrollbar"
@@ -414,8 +414,8 @@ function ClickableDatePicker({
                     className={cn(
                       "text-center py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
                       isSelected 
-                        ? "bg-blue-600 text-white shadow-sm" 
-                        : "text-slate-700 hover:bg-slate-100"
+                        ? "bg-blue-600 text-white shadow-sm dark:shadow-none" 
+                        : "text-foreground hover:bg-muted"
                     )}
                   >
                     {h.toString().padStart(2, '0')}
@@ -425,11 +425,11 @@ function ClickableDatePicker({
             </div>
           </div>
 
-          <div className="w-[1px] bg-slate-100 self-stretch my-2 shrink-0" />
+          <div className="w-[1px] bg-muted self-stretch my-2 shrink-0" />
 
           {/* Minutes Column */}
           <div className="flex-1 flex flex-col gap-1">
-            <span className="text-[9px] font-black text-slate-400 tracking-wider text-center select-none uppercase">Min</span>
+            <span className="text-[9px] font-black text-muted-foreground tracking-wider text-center select-none uppercase">Min</span>
             <div 
               ref={minuteScrollRef}
               className="flex-1 overflow-y-auto flex flex-col gap-1 select-none max-h-[190px] no-scrollbar"
@@ -445,8 +445,8 @@ function ClickableDatePicker({
                     className={cn(
                       "text-center py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer",
                       isSelected 
-                        ? "bg-blue-600 text-white shadow-sm" 
-                        : "text-slate-700 hover:bg-slate-100"
+                        ? "bg-blue-600 text-white shadow-sm dark:shadow-none" 
+                        : "text-foreground hover:bg-muted"
                     )}
                   >
                     {m.toString().padStart(2, '0')}
@@ -456,11 +456,11 @@ function ClickableDatePicker({
             </div>
           </div>
 
-          <div className="w-[1px] bg-slate-100 self-stretch my-2 shrink-0" />
+          <div className="w-[1px] bg-muted self-stretch my-2 shrink-0" />
 
           {/* AM/PM Period Column */}
           <div className="w-14 flex flex-col gap-1 shrink-0">
-            <span className="text-[9px] font-black text-slate-400 tracking-wider text-center select-none uppercase">Period</span>
+            <span className="text-[9px] font-black text-muted-foreground tracking-wider text-center select-none uppercase">Period</span>
             <div className="flex-1 flex flex-col gap-1.5 justify-center max-h-[190px]">
               {(['AM', 'PM'] as const).map((period) => {
                 const isSelected = ampm === period;
@@ -472,8 +472,8 @@ function ClickableDatePicker({
                     className={cn(
                       "py-2.5 text-xs font-black rounded-lg transition-all cursor-pointer text-center",
                       isSelected 
-                        ? "bg-blue-600 text-white shadow-sm" 
-                        : "text-slate-700 hover:bg-slate-100 border border-slate-200/40"
+                        ? "bg-blue-600 text-white shadow-sm dark:shadow-none" 
+                        : "text-foreground hover:bg-muted border border-border"
                     )}
                   >
                     {period}
@@ -485,14 +485,14 @@ function ClickableDatePicker({
         </div>
 
         {/* Green Apply Button */}
-        <div className="flex gap-2 mt-1 border-t border-slate-100 pt-2 shrink-0">
+        <div className="flex gap-2 mt-1 border-t border-border pt-2 shrink-0">
           <button
             type="button"
             onClick={() => {
               onChange(tempValue);
               onOpenChange(false);
             }}
-            className="flex-1 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100/80 rounded-lg border border-emerald-100 shadow-sm text-center cursor-pointer active:scale-95 transition-all"
+            className="flex-1 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg border border-emerald-100 shadow-sm dark:shadow-none text-center cursor-pointer active:scale-95 transition-all"
           >
             Apply
           </button>
@@ -505,12 +505,12 @@ function ClickableDatePicker({
     <>
       <div 
         ref={triggerRef}
-        className="relative w-full cursor-pointer group flex items-center justify-between bg-white hover:bg-slate-50/80 border border-slate-200/60 hover:border-blue-500/40 hover:ring-4 hover:ring-blue-500/5 px-3 py-2 rounded-xl transition-all shadow-sm min-h-[38px]"
+        className="relative w-full cursor-pointer group flex items-center justify-between bg-card hover:bg-muted/80 border border-border hover:border-blue-500/40 hover:ring-4 hover:ring-blue-500/5 px-3 py-2 rounded-xl transition-all shadow-sm dark:shadow-none min-h-[38px]"
         onClick={() => onOpenChange(!isOpen)}
       >
         <span className={cn(
           "text-xs font-semibold",
-          hasValidValue ? "text-slate-800 font-bold" : "text-slate-400"
+          hasValidValue ? "text-foreground font-bold" : "text-muted-foreground"
         )}>
           {hasValidValue ? formatDateFriendly(value) : 'Not set'}
         </span>
@@ -523,13 +523,13 @@ function ClickableDatePicker({
                 e.stopPropagation(); // VERY IMPORTANT: Stop click from opening popover!
                 onChange(null);
               }}
-              className="w-5 h-5 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              className="w-5 h-5 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer"
               title="Clear date"
             >
               <X className="h-3 w-3" />
             </button>
           )}
-          <Calendar className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-500 transition-colors duration-200" />
+          <Calendar className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-500 transition-colors duration-200" />
         </div>
       </div>
 
@@ -571,7 +571,7 @@ function CustomTagSelector({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "h-6 px-2.5 text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100/80 active:scale-[0.98] rounded-lg border border-blue-100/60 outline-none cursor-pointer transition-all flex items-center gap-1 shadow-sm",
+          "h-6 px-2.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 active:scale-[0.98] rounded-lg border border-blue-100/60 outline-none cursor-pointer transition-all flex items-center gap-1 shadow-sm dark:shadow-none",
           className
         )}
       >
@@ -580,9 +580,9 @@ function CustomTagSelector({
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 mt-2 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 min-w-[140px] max-h-48 overflow-y-auto">
+        <div className="absolute left-0 mt-2 bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-2xl dark:shadow-none py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 min-w-[140px] max-h-48 overflow-y-auto">
           {availableTags.length === 0 ? (
-            <span className="block px-3.5 py-2.5 text-[10px] font-bold text-slate-400 select-none">No tags left</span>
+            <span className="block px-3.5 py-2.5 text-[10px] font-bold text-muted-foreground select-none">No tags left</span>
           ) : (
             availableTags.map((t) => (
               <div key={t.id} className="px-1 py-0.5">
@@ -592,7 +592,7 @@ function CustomTagSelector({
                     onAssign(t.id);
                     setIsOpen(false);
                   }}
-                  className="w-full text-left px-3 py-2 text-[10px] font-extrabold text-slate-700 hover:text-slate-900 rounded-xl hover:bg-slate-100/80 flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="w-full text-left px-3 py-2 text-[10px] font-extrabold text-foreground hover:text-foreground rounded-xl hover:bg-muted/80 flex items-center gap-1.5 transition-all cursor-pointer"
                 >
                   <span className="text-blue-500 font-black">#</span>
                   <span className="truncate">{t.name}</span>
@@ -736,14 +736,14 @@ export function TaskDetailFields({
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="fixed top-6 right-6 z-[9999] flex items-center gap-3 bg-rose-50 border border-rose-200 px-4 py-3.5 rounded-xl shadow-lg shadow-rose-900/10 text-rose-700 text-xs font-bold max-w-xs sm:max-w-sm"
+            className="fixed top-6 right-6 z-[9999] flex items-center gap-3 bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 px-4 py-3.5 rounded-xl shadow-lg dark:shadow-none shadow-rose-900/10 text-rose-700 dark:text-rose-400 text-xs font-bold max-w-xs sm:max-w-sm"
           >
             <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
             <span className="flex-1 leading-relaxed">{dateError}</span>
             <button 
               type="button"
               onClick={() => setDateError(null)} 
-              className="ml-2 p-0.5 text-rose-400 hover:text-rose-600 rounded-md hover:bg-rose-100 transition-colors cursor-pointer"
+              className="ml-2 p-0.5 text-rose-400 hover:text-rose-600 dark:text-rose-400 rounded-md hover:bg-rose-500/20 transition-colors cursor-pointer"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -765,7 +765,7 @@ export function TaskDetailFields({
               ? 'border-red-500 hover:border-red-600 focus-visible:ring-red-500/20 data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500'
               : task.priority > 4 
                 ? 'border-amber-500 hover:border-amber-600 focus-visible:ring-amber-500/20 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500'
-                : 'border-slate-300 hover:border-slate-400 focus-visible:ring-slate-500/20 data-[state=checked]:bg-slate-500 data-[state=checked]:border-slate-500'
+                : 'border-border hover:border-border focus-visible:ring-slate-500/20 data-[state=checked]:bg-slate-500 data-[state=checked]:border-slate-500'
           )}
         />
         <input
@@ -776,12 +776,12 @@ export function TaskDetailFields({
               onUpdateTask(task.id, { title: e.target.value.trim() });
             }
           }}
-          className="flex-1 text-xl font-bold tracking-tight text-slate-900 leading-tight bg-transparent border-none outline-none focus:ring-0 p-0 resize-none"
+          className="flex-1 text-xl font-bold tracking-tight text-foreground leading-tight bg-transparent border-none outline-none focus:ring-0 p-0 resize-none"
         />
       </div>
 
       {/* Attribute grid */}
-      <div className="grid grid-cols-1 gap-1.5 p-5 bg-slate-50 rounded-2xl border border-slate-100/60 shadow-inner shadow-slate-900/5">
+      <div className="grid grid-cols-1 gap-1.5 p-5 bg-muted rounded-2xl border border-border shadow-inner shadow-slate-900/5">
 
         {/* Status Dropdown */}
         <DetailRow icon={Circle} label="Status">
@@ -795,11 +795,11 @@ export function TaskDetailFields({
         {/* Est. Time hours & minutes input */}
         <DetailRow icon={Clock} label="Est. Time">
           <div className="flex flex-col gap-1.5 w-full">
-            <div className="flex items-center justify-between bg-white border border-slate-200/50 hover:border-slate-300 rounded-xl px-3 py-1 shadow-sm w-full min-h-[38px] transition-colors">
+            <div className="flex items-center justify-between bg-card border border-border hover:border-border rounded-xl px-3 py-1 shadow-sm dark:shadow-none w-full min-h-[38px] transition-colors">
               <button
                 type="button"
                 onClick={() => handleDurationChange(durationVal - 5)}
-                className="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors shadow-sm cursor-pointer select-none active:scale-95 shrink-0"
+                className="w-6 h-6 rounded-full bg-muted hover:bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shadow-sm dark:shadow-none cursor-pointer select-none active:scale-95 shrink-0"
                 title="Decrease duration"
               >
                 <Minus className="h-3 w-3" />
@@ -816,9 +816,9 @@ export function TaskDetailFields({
                       const mins = durationVal % 60;
                       handleDurationChange(hours * 60 + mins);
                     }}
-                    className="w-4 text-center bg-transparent border-none outline-none text-xs font-bold text-slate-800 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0 focus:outline-none"
+                    className="w-4 text-center bg-transparent border-none outline-none text-xs font-bold text-foreground p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0 focus:outline-none"
                   />
-                  <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">h</span>
+                  <span className="text-[9px] text-muted-foreground font-extrabold uppercase tracking-wide">h</span>
                 </div>
                 <span className="text-slate-300 font-bold select-none">:</span>
                 <div className="flex items-center gap-1">
@@ -833,15 +833,15 @@ export function TaskDetailFields({
                       const hours = Math.floor(durationVal / 60);
                       handleDurationChange(hours * 60 + mins);
                     }}
-                    className="w-4 text-center bg-transparent border-none outline-none text-xs font-bold text-slate-800 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0 focus:outline-none"
+                    className="w-4 text-center bg-transparent border-none outline-none text-xs font-bold text-foreground p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-0 focus:outline-none"
                   />
-                  <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">m</span>
+                  <span className="text-[9px] text-muted-foreground font-extrabold uppercase tracking-wide">m</span>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => handleDurationChange(durationVal + 5)}
-                className="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors shadow-sm cursor-pointer select-none active:scale-95 shrink-0"
+                className="w-6 h-6 rounded-full bg-muted hover:bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shadow-sm dark:shadow-none cursor-pointer select-none active:scale-95 shrink-0"
                 title="Increase duration"
               >
                 <Plus className="h-3 w-3" />
@@ -852,8 +852,8 @@ export function TaskDetailFields({
 
         {/* Focused Time display */}
         <DetailRow icon={ClockCheck} label="Focused Time">
-          <div className="flex items-center justify-center bg-white border border-slate-200/50 rounded-xl px-3 py-2 shadow-sm w-full min-h-[38px] transition-colors select-none text-slate-800 text-xs font-bold">
-            <span className={cn(focusedSeconds > 0 ? "text-blue-600 font-extrabold" : "text-slate-400 font-semibold")}>
+          <div className="flex items-center justify-center bg-card border border-border rounded-xl px-3 py-2 shadow-sm dark:shadow-none w-full min-h-[38px] transition-colors select-none text-foreground text-xs font-bold">
+            <span className={cn(focusedSeconds > 0 ? "text-blue-600 dark:text-blue-400 font-extrabold" : "text-muted-foreground font-semibold")}>
               {formatFocusedTime(focusedSeconds)}
             </span>
           </div>
@@ -972,7 +972,7 @@ export function TaskDetailFields({
             <button
               type="button"
               onClick={() => clearStartEnd(task.id)}
-              className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100/80 text-rose-600 hover:text-rose-700 text-xs font-bold rounded-xl border border-rose-100 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+              className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:text-rose-400 text-xs font-bold rounded-xl border border-rose-100 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs dark:shadow-none active:scale-95"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Clear Schedule
@@ -1023,21 +1023,21 @@ export function TaskDetailFields({
 
 
         {/* Tags Label Row */}
-        <div className="flex gap-4 items-start pt-2 mt-1 border-t border-slate-200/50">
+        <div className="flex gap-4 items-start pt-2 mt-1 border-t border-border">
           <div className="w-28 flex items-center gap-2.5 shrink-0 mt-2 select-none">
-            <TagIcon className="h-4.5 w-4.5 text-slate-400" />
-            <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-widest">Labels</span>
+            <TagIcon className="h-4.5 w-4.5 text-muted-foreground" />
+            <span className="text-[10.5px] font-bold text-muted-foreground uppercase tracking-widest">Labels</span>
           </div>
           <div className="flex-1 flex flex-wrap gap-1.5 items-center pt-1.5">
             {task.tags?.map((tag: string) => (
               <Badge
                 key={tag}
                 variant="secondary"
-                className="bg-white text-slate-600 border border-slate-200 hover:border-slate-300 rounded-lg px-2 py-0.5 text-[10px] font-bold gap-1 shrink-0 transition-colors shadow-sm select-none"
+                className="bg-card text-muted-foreground border border-border hover:border-border rounded-lg px-2 py-0.5 text-[10px] font-bold gap-1 shrink-0 transition-colors shadow-sm dark:shadow-none select-none"
               >
                 #{tag}
                 <X
-                  className="h-2.5 w-2.5 cursor-pointer text-slate-400 hover:text-red-500 hover:scale-110 transition-all"
+                  className="h-2.5 w-2.5 cursor-pointer text-muted-foreground hover:text-red-500 hover:scale-110 transition-all"
                   onClick={() => {
                     const found = tags.find((tg) => tg.name === tag);
                     if (found) onRemoveTag(task.id, found.id);
@@ -1056,10 +1056,10 @@ export function TaskDetailFields({
 
       {/* Description note box */}
       <div className="space-y-2">
-        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</span>
-        <div className="p-1 bg-white border border-slate-200/80 rounded-xl focus-within:border-blue-500/80 focus-within:ring-4 focus-within:ring-blue-500/8 transition-all shadow-sm">
+        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Notes</span>
+        <div className="p-1 bg-card border border-border rounded-xl focus-within:border-blue-500/80 focus-within:ring-4 focus-within:ring-blue-500/8 transition-all shadow-sm dark:shadow-none">
           <textarea
-            className="w-full min-h-32 bg-transparent border-none resize-none focus:ring-0 text-sm leading-relaxed text-slate-700 placeholder:text-slate-300 p-3 font-semibold outline-none"
+            className="w-full min-h-32 bg-transparent border-none resize-none focus:ring-0 text-sm leading-relaxed text-foreground placeholder:text-slate-300 p-3 font-semibold outline-none"
             placeholder="Add notes, links, or context..."
             defaultValue={task.description || ''}
             onBlur={(e) =>

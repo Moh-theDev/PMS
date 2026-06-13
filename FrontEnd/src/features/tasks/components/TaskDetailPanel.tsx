@@ -34,22 +34,22 @@ export function TaskDetailPanel({
   return (
     <aside
       ref={panelRef as React.RefObject<HTMLElement>}
-      className="border-l bg-white flex flex-col shrink-0 overflow-visible relative animate-in slide-in-from-right duration-200"
+      className="border-l bg-card flex flex-col shrink-0 overflow-visible relative animate-in slide-in-from-right duration-200"
       style={{ width: '420px', willChange: 'width', minWidth: '400px', maxWidth: '750px' }}
     >
       {/* Header */}
-      <div className="px-5 py-3.5 border-b flex items-center justify-between bg-slate-50/80 shrink-0">
-        <div className="flex items-center gap-2.5 text-slate-500">
-          <div className="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center shadow-sm">
-            <Inbox className="h-3.5 w-3.5 text-blue-600" />
+      <div className="px-5 py-3.5 border-b flex items-center justify-between bg-muted/80 shrink-0">
+        <div className="flex items-center gap-2.5 text-muted-foreground">
+          <div className="w-7 h-7 rounded-lg bg-card border border-border flex items-center justify-center shadow-sm dark:shadow-none">
+            <Inbox className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
           </div>
-          <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Task Details</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Task Details</span>
         </div>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
+            className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
             onClick={() => onDelete(task.id)}
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -57,7 +57,7 @@ export function TaskDetailPanel({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-slate-400 hover:text-slate-700"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
             onClick={onClose}
           >
             <X className="h-3.5 w-3.5" />
@@ -82,7 +82,7 @@ export function TaskDetailPanel({
       </ScrollArea>
 
       {/* Footer */}
-      <div className="px-5 py-2.5 border-t flex items-center gap-2 text-[11px] font-medium text-slate-400 bg-slate-50/50 shrink-0">
+      <div className="px-5 py-2.5 border-t flex items-center gap-2 text-[11px] font-medium text-muted-foreground bg-muted/50 shrink-0">
         <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
         Synced
       </div>

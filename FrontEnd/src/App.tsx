@@ -12,16 +12,16 @@ import { Loader2 } from 'lucide-react';
 
 function FullScreenLoader() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8fafc] text-slate-800 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground relative overflow-hidden">
       {/* Premium ambient light glows */}
       <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-500/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none" />
       
       <div className="flex flex-col items-center gap-4 z-10">
-        <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-white border border-slate-200/60 shadow-lg shadow-slate-200/50">
-          <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />
+        <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-card border border-border shadow-lg dark:shadow-none shadow-slate-200/50">
+          <Loader2 className="h-6 w-6 text-blue-600 dark:text-blue-400 animate-spin" />
         </div>
-        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest animate-pulse">Initializing Workspace</p>
+        <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest animate-pulse">Initializing Workspace</p>
       </div>
     </div>
   );

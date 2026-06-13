@@ -148,7 +148,7 @@ export function TaskContextMenu({
   return (
     <div
       ref={containerRef}
-      className="fixed z-[9999] bg-white border border-slate-200/80 shadow-2xl rounded-2xl py-1.5 min-w-[200px] text-xs font-bold text-slate-700 animate-in fade-in slide-in-from-top-1 duration-150 select-none cursor-default"
+      className="fixed z-[9999] bg-card border border-border shadow-2xl dark:shadow-none rounded-2xl py-1.5 min-w-[200px] text-xs font-bold text-foreground animate-in fade-in slide-in-from-top-1 duration-150 select-none cursor-default"
       style={{
         left: `${adjustedCoords.left}px`,
         top: `${adjustedCoords.top}px`
@@ -164,39 +164,39 @@ export function TaskContextMenu({
         <button
           type="button"
           className={cn(
-            "w-full text-left px-3.5 py-2 hover:bg-slate-100/80 hover:text-slate-900 flex items-center justify-between transition-colors",
-            activeSubmenu === 'priority' && "bg-slate-100/80 text-slate-900"
+            "w-full text-left px-3.5 py-2 hover:bg-muted/80 hover:text-foreground flex items-center justify-between transition-colors",
+            activeSubmenu === 'priority' && "bg-muted/80 text-foreground"
           )}
         >
           <span className="flex items-center gap-2">
-            <Flag className="h-3.5 w-3.5 text-slate-400" />
+            <Flag className="h-3.5 w-3.5 text-muted-foreground" />
             Set Priority
           </span>
-          <ChevronRight className="h-3 w-3 text-slate-400" />
+          <ChevronRight className="h-3 w-3 text-muted-foreground" />
         </button>
 
         {activeSubmenu === 'priority' && (
-          <div className={cn("absolute bg-white border border-slate-200/80 rounded-xl shadow-xl py-1 min-w-[120px] z-50 animate-in fade-in zoom-in-95 duration-200", submenuAlignClass)}>
+          <div className={cn("absolute bg-card border border-border rounded-xl shadow-xl dark:shadow-none py-1 min-w-[120px] z-50 animate-in fade-in zoom-in-95 duration-200", submenuAlignClass)}>
             <button
               onClick={() => handlePrioritySelect(10)}
-              className="w-full text-left px-3 py-2 hover:bg-red-50 hover:text-red-600 flex items-center justify-between font-bold text-xs text-slate-600 transition-colors"
+              className="w-full text-left px-3 py-2 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400 flex items-center justify-between font-bold text-xs text-muted-foreground transition-colors"
             >
               <span>High</span>
               {task.priority >= 8 && <Check className="h-3.5 w-3.5 text-red-500 stroke-[2.5]" />}
             </button>
             <button
               onClick={() => handlePrioritySelect(6)}
-              className="w-full text-left px-3 py-2 hover:bg-amber-50 hover:text-amber-600 flex items-center justify-between font-bold text-xs text-slate-600 transition-colors"
+              className="w-full text-left px-3 py-2 hover:bg-amber-50 hover:text-amber-600 dark:text-amber-400 flex items-center justify-between font-bold text-xs text-muted-foreground transition-colors"
             >
               <span>Medium</span>
               {task.priority > 4 && task.priority < 8 && <Check className="h-3.5 w-3.5 text-amber-500 stroke-[2.5]" />}
             </button>
             <button
               onClick={() => handlePrioritySelect(3)}
-              className="w-full text-left px-3 py-2 hover:bg-slate-100/80 hover:text-slate-900 flex items-center justify-between font-bold text-xs text-slate-600 transition-colors"
+              className="w-full text-left px-3 py-2 hover:bg-muted/80 hover:text-foreground flex items-center justify-between font-bold text-xs text-muted-foreground transition-colors"
             >
               <span>Low</span>
-              {task.priority <= 4 && <Check className="h-3.5 w-3.5 text-slate-500 stroke-[2.5]" />}
+              {task.priority <= 4 && <Check className="h-3.5 w-3.5 text-muted-foreground stroke-[2.5]" />}
             </button>
           </div>
         )}
@@ -211,38 +211,38 @@ export function TaskContextMenu({
         <button
           type="button"
           className={cn(
-            "w-full text-left px-3.5 py-2 hover:bg-slate-100/80 hover:text-slate-900 flex items-center justify-between transition-colors",
-            activeSubmenu === 'date' && "bg-slate-100/80 text-slate-900"
+            "w-full text-left px-3.5 py-2 hover:bg-muted/80 hover:text-foreground flex items-center justify-between transition-colors",
+            activeSubmenu === 'date' && "bg-muted/80 text-foreground"
           )}
         >
           <span className="flex items-center gap-2">
-            <Calendar className="h-3.5 w-3.5 text-slate-400" />
+            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
             Set Date
           </span>
-          <ChevronRight className="h-3 w-3 text-slate-400" />
+          <ChevronRight className="h-3 w-3 text-muted-foreground" />
         </button>
 
         {activeSubmenu === 'date' && (
-          <div className={cn("absolute bg-white border border-slate-200/80 rounded-xl shadow-xl py-1 min-w-[140px] z-50 animate-in fade-in zoom-in-95 duration-100", submenuAlignClass)}>
+          <div className={cn("absolute bg-card border border-border rounded-xl shadow-xl dark:shadow-none py-1 min-w-[140px] z-50 animate-in fade-in zoom-in-95 duration-100", submenuAlignClass)}>
             <button
               onClick={() => handleDateSelect('today')}
-              className="w-full text-left px-3.5 py-2 hover:bg-slate-100/80 hover:text-slate-900 font-bold text-xs text-slate-600 transition-colors"
+              className="w-full text-left px-3.5 py-2 hover:bg-muted/80 hover:text-foreground font-bold text-xs text-muted-foreground transition-colors"
             >
               Today
             </button>
             <button
               onClick={() => handleDateSelect('tomorrow')}
-              className="w-full text-left px-3.5 py-2 hover:bg-slate-100/80 hover:text-slate-900 font-bold text-xs text-slate-600 transition-colors"
+              className="w-full text-left px-3.5 py-2 hover:bg-muted/80 hover:text-foreground font-bold text-xs text-muted-foreground transition-colors"
             >
               Tomorrow
             </button>
             <button
               onClick={() => handleDateSelect('week')}
-              className="w-full text-left px-3.5 py-2 hover:bg-slate-100/80 hover:text-slate-900 font-bold text-xs text-slate-600 transition-colors"
+              className="w-full text-left px-3.5 py-2 hover:bg-muted/80 hover:text-foreground font-bold text-xs text-muted-foreground transition-colors"
             >
               Next Week
             </button>
-            <div className="border-t border-slate-100 my-1" />
+            <div className="border-t border-border my-1" />
             <button
               onClick={() => {
                 if (onSelectTask) {
@@ -250,7 +250,7 @@ export function TaskContextMenu({
                 }
                 onClose();
               }}
-              className="w-full text-left px-3.5 py-2 hover:bg-slate-100/80 text-blue-600 font-bold italic flex items-center gap-1.5 transition-colors text-xs"
+              className="w-full text-left px-3.5 py-2 hover:bg-muted/80 text-blue-600 dark:text-blue-400 font-bold italic flex items-center gap-1.5 transition-colors text-xs"
             >
               Custom picker...
             </button>
@@ -267,32 +267,32 @@ export function TaskContextMenu({
         <button
           type="button"
           className={cn(
-            "w-full text-left px-3.5 py-2 hover:bg-slate-100/80 hover:text-slate-900 flex items-center justify-between transition-colors",
-            activeSubmenu === 'list' && "bg-slate-100/80 text-slate-900"
+            "w-full text-left px-3.5 py-2 hover:bg-muted/80 hover:text-foreground flex items-center justify-between transition-colors",
+            activeSubmenu === 'list' && "bg-muted/80 text-foreground"
           )}
         >
           <span className="flex items-center gap-2">
-            <FolderOpen className="h-3.5 w-3.5 text-slate-400" />
+            <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
             Move to List
           </span>
-          <ChevronRight className="h-3 w-3 text-slate-400" />
+          <ChevronRight className="h-3 w-3 text-muted-foreground" />
         </button>
 
         {activeSubmenu === 'list' && (
-          <div className={cn("absolute bg-white border border-slate-200/80 rounded-xl shadow-xl py-1 min-w-[170px] max-h-56 overflow-y-auto z-50 animate-in fade-in zoom-in-95 duration-100", submenuAlignClass)}>
+          <div className={cn("absolute bg-card border border-border rounded-xl shadow-xl dark:shadow-none py-1 min-w-[170px] max-h-56 overflow-y-auto z-50 animate-in fade-in zoom-in-95 duration-100", submenuAlignClass)}>
             <button
               onClick={() => handleCategorySelect(undefined)}
-              className="w-full text-left px-3.5 py-2 hover:bg-slate-100/80 hover:text-slate-900 flex items-center justify-between font-bold text-xs text-slate-600 transition-colors"
+              className="w-full text-left px-3.5 py-2 hover:bg-muted/80 hover:text-foreground flex items-center justify-between font-bold text-xs text-muted-foreground transition-colors"
             >
               <span>Inbox (No List)</span>
               {!task.categoryId && <Check className="h-3.5 w-3.5 text-blue-500 stroke-[2.5]" />}
             </button>
-            <div className="border-t border-slate-100 my-1" />
+            <div className="border-t border-border my-1" />
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => handleCategorySelect(cat.id)}
-                className="w-full text-left px-3.5 py-2 hover:bg-slate-100/80 hover:text-slate-900 flex items-center justify-between font-bold text-xs text-slate-600 transition-colors"
+                className="w-full text-left px-3.5 py-2 hover:bg-muted/80 hover:text-foreground flex items-center justify-between font-bold text-xs text-muted-foreground transition-colors"
               >
                 <span className="flex items-center gap-2 truncate">
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
@@ -314,21 +314,21 @@ export function TaskContextMenu({
         <button
           type="button"
           className={cn(
-            "w-full text-left px-3.5 py-2 hover:bg-slate-100/80 hover:text-slate-900 flex items-center justify-between transition-colors",
-            activeSubmenu === 'tags' && "bg-slate-100/80 text-slate-900"
+            "w-full text-left px-3.5 py-2 hover:bg-muted/80 hover:text-foreground flex items-center justify-between transition-colors",
+            activeSubmenu === 'tags' && "bg-muted/80 text-foreground"
           )}
         >
           <span className="flex items-center gap-2">
-            <TagIcon className="h-3.5 w-3.5 text-slate-400" />
+            <TagIcon className="h-3.5 w-3.5 text-muted-foreground" />
             Assign Tags
           </span>
-          <ChevronRight className="h-3 w-3 text-slate-400" />
+          <ChevronRight className="h-3 w-3 text-muted-foreground" />
         </button>
 
         {activeSubmenu === 'tags' && (
-          <div className={cn("absolute bg-white border border-slate-200/80 rounded-xl shadow-xl py-1 min-w-[160px] max-h-56 overflow-y-auto z-50 animate-in fade-in zoom-in-95 duration-100", submenuAlignClass)}>
+          <div className={cn("absolute bg-card border border-border rounded-xl shadow-xl dark:shadow-none py-1 min-w-[160px] max-h-56 overflow-y-auto z-50 animate-in fade-in zoom-in-95 duration-100", submenuAlignClass)}>
             {tags.length === 0 ? (
-              <span className="block px-3.5 py-2 text-slate-400 italic font-semibold">No tags created</span>
+              <span className="block px-3.5 py-2 text-muted-foreground italic font-semibold">No tags created</span>
             ) : (
               tags.map((tag) => {
                 const isAssigned = task.tags?.includes(tag.name);
@@ -336,7 +336,7 @@ export function TaskContextMenu({
                   <button
                     key={tag.id}
                     onClick={() => handleTagToggle(tag)}
-                    className="w-full text-left px-3.5 py-2 hover:bg-slate-100/80 hover:text-slate-900 flex items-center justify-between font-bold text-xs text-slate-600 transition-colors"
+                    className="w-full text-left px-3.5 py-2 hover:bg-muted/80 hover:text-foreground flex items-center justify-between font-bold text-xs text-muted-foreground transition-colors"
                   >
                     <span className="truncate">#{tag.name}</span>
                     {isAssigned && <Check className="h-3.5 w-3.5 text-blue-500 stroke-[2.5]" />}
@@ -348,13 +348,13 @@ export function TaskContextMenu({
         )}
       </div>
 
-      <div className="border-t border-slate-100 my-1" />
+      <div className="border-t border-border my-1" />
 
       {/* 5. Start Focus Tracking */}
       <button
         type="button"
         onClick={handleStartFocus}
-        className="w-full text-left px-3.5 py-2 hover:bg-slate-100/80 hover:text-slate-900 flex items-center gap-2 transition-colors text-blue-600"
+        className="w-full text-left px-3.5 py-2 hover:bg-muted/80 hover:text-foreground flex items-center gap-2 transition-colors text-blue-600 dark:text-blue-400"
       >
         <Play className="h-3.5 w-3.5 fill-blue-600 stroke-none" />
         Start Focus Mode
@@ -364,7 +364,7 @@ export function TaskContextMenu({
       <button
         type="button"
         onClick={handleToggleCancel}
-        className="w-full text-left px-3.5 py-2 hover:bg-slate-100/80 hover:text-slate-900 flex items-center gap-2 transition-colors"
+        className="w-full text-left px-3.5 py-2 hover:bg-muted/80 hover:text-foreground flex items-center gap-2 transition-colors"
       >
         {isCancelled ? (
           <>
@@ -379,7 +379,7 @@ export function TaskContextMenu({
         )}
       </button>
 
-      <div className="border-t border-slate-100 my-1" />
+      <div className="border-t border-border my-1" />
 
       {/* 7. Delete Task */}
       <button
@@ -388,7 +388,7 @@ export function TaskContextMenu({
           onDelete(task.id);
           onClose();
         }}
-        className="w-full text-left px-3.5 py-2 hover:bg-red-50 hover:text-red-600 flex items-center gap-2 transition-colors text-red-500"
+        className="w-full text-left px-3.5 py-2 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400 flex items-center gap-2 transition-colors text-red-500"
       >
         <Trash2 className="h-3.5 w-3.5" />
         Delete Task

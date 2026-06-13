@@ -278,28 +278,28 @@ export function TimelineViewMode({
   };
 
   return (
-    <div className="flex h-full bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+    <div className="flex h-full bg-card border border-border rounded-2xl shadow-xs dark:shadow-none overflow-hidden">
       
       {/* ── Main Gantt Chart Panel (Full Width) ────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
         
         {/* Navigation & timeframe header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50/50">
+        <div className="flex items-center justify-between p-4 border-b border-border bg-muted/50">
           <div className="flex items-center gap-3">
             
             {/* Premium Date Navigation Controls */}
-            <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+            <div className="flex items-center bg-card border border-border rounded-xl shadow-xs dark:shadow-none overflow-hidden">
               <button
                 onClick={handlePrev}
                 type="button"
                 disabled={timeframe === 'custom'}
-                className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer border-r border-slate-200/60"
+                className="h-9 w-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer border-r border-border"
                 title="Previous"
               >
                 <ChevronLeft className="h-4.5 w-4.5" />
               </button>
               
-              <div className="px-4 h-9 flex items-center gap-2 text-slate-800 font-bold text-xs select-none">
+              <div className="px-4 h-9 flex items-center gap-2 text-foreground font-bold text-xs select-none">
                 <CalendarRange className="h-4 w-4 text-indigo-500" />
                 <span className="min-w-[150px] text-center">
                   {timeframe === 'week' && `Week of ${format(boundaries.start, 'MMM d, yyyy')}`}
@@ -312,7 +312,7 @@ export function TimelineViewMode({
                 onClick={handleNext}
                 type="button"
                 disabled={timeframe === 'custom'}
-                className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer border-l border-slate-200/60"
+                className="h-9 w-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer border-l border-border"
                 title="Next"
               >
                 <ChevronRight className="h-4.5 w-4.5" />
@@ -323,7 +323,7 @@ export function TimelineViewMode({
             <button
               onClick={handleToday}
               type="button"
-              className="px-4 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-xs font-bold shadow-xs hover:border-slate-300 transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-4 h-9 rounded-xl border border-border bg-card hover:bg-muted text-foreground hover:text-foreground text-xs font-bold shadow-xs dark:shadow-none hover:border-border transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
               Today
@@ -332,24 +332,24 @@ export function TimelineViewMode({
 
           <div className="flex items-center gap-2">
             {timeframe === 'custom' && (
-              <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-sm mr-2 animate-in fade-in slide-in-from-right-1">
+              <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 shadow-sm dark:shadow-none mr-2 animate-in fade-in slide-in-from-right-1">
                 <input
                   type="date"
                   value={customStart}
                   onChange={(e) => handleCustomStartChange(e.target.value)}
-                  className="text-xs font-semibold px-2 py-0.5 outline-none text-slate-600 bg-transparent border-0 focus:ring-0 cursor-pointer"
+                  className="text-xs font-semibold px-2 py-0.5 outline-none text-muted-foreground bg-transparent border-0 focus:ring-0 cursor-pointer"
                 />
-                <span className="text-[10px] text-slate-400 font-bold px-0.5 select-none">to</span>
+                <span className="text-[10px] text-muted-foreground font-bold px-0.5 select-none">to</span>
                 <input
                   type="date"
                   value={customEnd}
                   onChange={(e) => handleCustomEndChange(e.target.value)}
-                  className="text-xs font-semibold px-2 py-0.5 outline-none text-slate-600 bg-transparent border-0 focus:ring-0 cursor-pointer"
+                  className="text-xs font-semibold px-2 py-0.5 outline-none text-muted-foreground bg-transparent border-0 focus:ring-0 cursor-pointer"
                 />
               </div>
             )}
 
-            <div className="flex bg-white border border-slate-200 rounded-xl p-0.5 shadow-sm">
+            <div className="flex bg-card border border-border rounded-xl p-0.5 shadow-sm dark:shadow-none">
               {(['week', 'month', 'custom'] as const).map((mode) => (
                 <button
                   key={mode}
@@ -358,8 +358,8 @@ export function TimelineViewMode({
                   className={cn(
                     "px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer",
                     timeframe === mode
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-500 hover:text-slate-800"
+                      ? "bg-foreground text-background shadow-sm dark:shadow-none"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {mode}
@@ -375,7 +375,7 @@ export function TimelineViewMode({
           className="flex-1 overflow-x-auto overflow-y-auto relative w-full select-none"
         >
           {/* Scrollable grid wrapper that expands to the total columns width */}
-          <div className="min-w-max w-full flex flex-col min-h-full relative bg-slate-50/5">
+          <div className="min-w-max w-full flex flex-col min-h-full relative bg-muted/5">
             
             {/* Today Vertical Line Indicator */}
             {todayLinePositionPercent !== null && (
@@ -384,18 +384,18 @@ export function TimelineViewMode({
                 style={{ left: `${todayLinePositionPercent}%` }}
               >
                 {/* Glowing marker dot at the top of header */}
-                <div className="w-2.5 h-2.5 rounded-full bg-blue-600 ring-4 ring-blue-500/20 shrink-0 mt-2 z-30 shadow-xs shadow-blue-500/10" title="Today" />
+                <div className="w-2.5 h-2.5 rounded-full bg-blue-600 ring-4 ring-blue-500/20 shrink-0 mt-2 z-30 shadow-xs dark:shadow-none shadow-blue-500/10" title="Today" />
               </div>
             )}
 
             {/* Timeline Grid Header */}
-            <div className="flex border-b border-slate-200 bg-slate-50/50 shrink-0 sticky top-0 z-10 w-full">
+            <div className="flex border-b border-border bg-muted/50 shrink-0 sticky top-0 z-10 w-full">
               {columns.map((col: { label: string; date: Date }, idx: number) => (
                 <div 
                   key={idx}
-                  className="flex-1 min-w-[140px] shrink-0 border-r border-slate-200/40 last:border-r-0 p-3.5 text-center flex flex-col items-center justify-center"
+                  className="flex-1 min-w-[140px] shrink-0 border-r border-border last:border-r-0 p-3.5 text-center flex flex-col items-center justify-center"
                 >
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate block">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate block">
                     {col.label}
                   </span>
                 </div>
@@ -415,14 +415,14 @@ export function TimelineViewMode({
                   <div 
                     key={task.id} 
                     className={cn(
-                      "relative w-full h-14 flex items-center hover:bg-slate-50/50 transition-colors group/row",
-                      selectedTaskId === task.id && "bg-slate-50/60"
+                      "relative w-full h-14 flex items-center hover:bg-muted/50 transition-colors group/row",
+                      selectedTaskId === task.id && "bg-muted/60"
                     )}
                   >
                     {/* Visual Day Guides */}
                     <div className="absolute inset-0 flex pointer-events-none">
                       {columns.map((_: any, idx: number) => (
-                        <div key={idx} className="flex-1 min-w-[140px] shrink-0 border-r border-slate-200/10 last:border-r-0 h-full" />
+                        <div key={idx} className="flex-1 min-w-[140px] shrink-0 border-r border-border last:border-r-0 h-full" />
                       ))}
                     </div>
 
@@ -430,7 +430,7 @@ export function TimelineViewMode({
                     <div
                       onClick={() => onSelectTask(task.id)}
                       className={cn(
-                        "absolute h-9 rounded-xl border flex items-center justify-between px-3 cursor-pointer shadow-2xs hover:shadow-xs hover:scale-[1.005] active:scale-98 transition-all text-xs font-bold text-white select-none overflow-hidden z-10",
+                        "absolute h-9 rounded-xl border flex items-center justify-between px-3 cursor-pointer shadow-2xs dark:shadow-none hover:shadow-xs dark:shadow-none hover:scale-[1.005] active:scale-98 transition-all text-xs font-bold text-white select-none overflow-hidden z-10",
                         isClosed ? "opacity-45 line-through" : "opacity-90 hover:opacity-100"
                       )}
                       style={{
@@ -449,7 +449,7 @@ export function TimelineViewMode({
 
                       {/* High-priority dot */}
                       {task.priority >= 8 && !isClosed && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-white shrink-0 animate-pulse ml-1" title="High Priority" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-card shrink-0 animate-pulse ml-1" title="High Priority" />
                       )}
                     </div>
 
@@ -458,8 +458,8 @@ export function TimelineViewMode({
                       <div
                         onClick={() => onSelectTask(task.id)}
                         className={cn(
-                          "absolute top-1/2 -translate-y-1/2 text-xs font-extrabold text-slate-700 hover:text-blue-600 cursor-pointer select-none transition-colors whitespace-nowrap z-10",
-                          isClosed && "line-through text-slate-400"
+                          "absolute top-1/2 -translate-y-1/2 text-xs font-extrabold text-foreground hover:text-blue-600 dark:text-blue-400 cursor-pointer select-none transition-colors whitespace-nowrap z-10",
+                          isClosed && "line-through text-muted-foreground"
                         )}
                         style={{ left: leftPx + widthPx + 6 }}
                       >
@@ -471,9 +471,9 @@ export function TimelineViewMode({
               })}
 
               {visibleScheduledTasks.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-24 text-slate-400 gap-2.5 w-full min-h-[300px]">
+                <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-2.5 w-full min-h-[300px]">
                   <Info className="h-8 w-8 text-slate-300" />
-                  <span className="text-xs font-semibold text-slate-400">No scheduled tasks within this timeframe</span>
+                  <span className="text-xs font-semibold text-muted-foreground">No scheduled tasks within this timeframe</span>
                 </div>
               )}
             </div>

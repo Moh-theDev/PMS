@@ -77,7 +77,7 @@ export function ResizableDivider({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      className="w-1.5 shrink-0 self-stretch cursor-col-resize bg-slate-200/80 hover:bg-blue-400 active:bg-blue-500 transition-colors duration-150 select-none z-10"
+      className="w-1.5 shrink-0 self-stretch cursor-col-resize bg-muted/80 hover:bg-blue-400 active:bg-blue-500 transition-colors duration-150 select-none z-10"
       style={{ willChange: 'width', touchAction: 'none' }}
     />
   );

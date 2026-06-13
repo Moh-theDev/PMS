@@ -295,8 +295,8 @@ const CustomTooltip = ({ active, payload, label, sessions = [], tasks = [], show
     }
 
     return (
-      <div className="bg-white/95 border border-slate-200/80 rounded-2xl shadow-xl p-3.5 flex flex-col gap-1.5 backdrop-blur-md">
-        <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{headerText}</span>
+      <div className="bg-card/95 border border-border rounded-2xl shadow-xl dark:shadow-none p-3.5 flex flex-col gap-1.5 backdrop-blur-md">
+        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">{headerText}</span>
         {payload.map((p: any, idx: number) => {
           const isFocusItem = p.name === 'Focused Hours' || 
                               p.name === 'Hours' || 
@@ -351,8 +351,8 @@ const CustomTooltip = ({ active, payload, label, sessions = [], tasks = [], show
           return (
             <div key={idx} className="flex items-center gap-2.5">
               <div className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color || p.fill || '#3b82f6' }} />
-              <span className="text-xs font-bold text-slate-700 capitalize">
-                {p.name}: <span className="text-blue-600 font-extrabold">{displayValue}</span>
+              <span className="text-xs font-bold text-foreground capitalize">
+                {p.name}: <span className="text-blue-600 dark:text-blue-400 font-extrabold">{displayValue}</span>
               </span>
             </div>
           );
@@ -392,22 +392,22 @@ function CardTimeframeSelector({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="bg-slate-50 hover:bg-slate-100 border-slate-200/60 hover:border-slate-300 text-slate-600 font-bold rounded-xl h-9 px-4 shadow-2xs flex items-center justify-between gap-2 transition-all cursor-pointer">
+        <Button variant="outline" size="sm" className="bg-muted hover:bg-muted border-border hover:border-border text-muted-foreground font-bold rounded-xl h-9 px-4 shadow-2xs dark:shadow-none flex items-center justify-between gap-2 transition-all cursor-pointer">
           <span className="capitalize text-xs">
             {timeframe === 'week' ? 'Week' : timeframe === 'month' ? 'Month' : timeframe === 'year' ? 'Year' : 'Custom Range'}
           </span>
           <ChevronDown className="h-3 w-3 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-52 p-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-50">
+      <PopoverContent className="w-52 p-2 bg-card border border-border rounded-2xl shadow-xl dark:shadow-none z-50">
         <div className="flex flex-col gap-0.5">
-          <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase select-none">Timeframe</span>
+          <span className="text-[9px] font-black text-muted-foreground tracking-wider px-2.5 py-1 uppercase select-none">Timeframe</span>
           <button
             type="button"
             onClick={() => { onChangeTimeframe('week'); setOpen(false); }}
             className={cn(
               "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer w-full text-left",
-              timeframe === 'week' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+              timeframe === 'week' ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-foreground hover:bg-muted hover:text-foreground"
             )}
           >
             Week
@@ -417,7 +417,7 @@ function CardTimeframeSelector({
             onClick={() => { onChangeTimeframe('month'); setOpen(false); }}
             className={cn(
               "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer w-full text-left",
-              timeframe === 'month' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+              timeframe === 'month' ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-foreground hover:bg-muted hover:text-foreground"
             )}
           >
             Month
@@ -427,31 +427,31 @@ function CardTimeframeSelector({
             onClick={() => { onChangeTimeframe('year'); setOpen(false); }}
             className={cn(
               "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer w-full text-left",
-              timeframe === 'year' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+              timeframe === 'year' ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-foreground hover:bg-muted hover:text-foreground"
             )}
           >
             Year
           </button>
           
-          <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-slate-100">
-            <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 uppercase select-none">Custom Range</span>
+          <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-border">
+            <span className="text-[9px] font-black text-muted-foreground tracking-wider px-2.5 uppercase select-none">Custom Range</span>
             <div className="flex flex-col gap-1.5 px-2.5">
               <div>
-                <label className="text-[8px] font-bold text-slate-400 block mb-0.5">Start</label>
+                <label className="text-[8px] font-bold text-muted-foreground block mb-0.5">Start</label>
                 <input 
                   type="date" 
                   value={tempStart}
                   onChange={(e) => setTempStart(e.target.value)}
-                  className="w-full text-xs font-bold border border-slate-200 rounded-lg p-1 px-2 focus:outline-none focus:border-blue-600 bg-white"
+                  className="w-full text-xs font-bold border border-border rounded-lg p-1 px-2 focus:outline-none focus:border-blue-600 bg-card"
                 />
               </div>
               <div>
-                <label className="text-[8px] font-bold text-slate-400 block mb-0.5">End</label>
+                <label className="text-[8px] font-bold text-muted-foreground block mb-0.5">End</label>
                 <input 
                   type="date" 
                   value={tempEnd}
                   onChange={(e) => setTempEnd(e.target.value)}
-                  className="w-full text-xs font-bold border border-slate-200 rounded-lg p-1 px-2 focus:outline-none focus:border-blue-600 bg-white"
+                  className="w-full text-xs font-bold border border-border rounded-lg p-1 px-2 focus:outline-none focus:border-blue-600 bg-card"
                 />
               </div>
               <Button 
@@ -490,10 +490,10 @@ interface HeatmapTooltip {
 
 // ── Colour helpers ───────────────────────────────────────────────────────────
 function getHeatColor(seconds: number): string {
-  if (!seconds || seconds <= 0) return 'bg-slate-100 border-slate-200/40';
+  if (!seconds || seconds <= 0) return 'bg-muted border-border';
   const h = seconds / 3600;
-  if (h < 0.5)  return 'bg-blue-100 border-blue-200';
-  if (h < 1.5)  return 'bg-blue-200 border-blue-300';
+  if (h < 0.5)  return 'bg-blue-500/20 border-blue-200 dark:border-blue-500/30';
+  if (h < 1.5)  return 'bg-blue-200 border-blue-300 dark:border-blue-500/30';
   if (h < 3)    return 'bg-blue-400 border-blue-500';
   if (h < 5)    return 'bg-blue-500 border-blue-600';
   return              'bg-blue-700 border-blue-800';
@@ -531,7 +531,7 @@ function HeatTooltip({ tip }: { tip: HeatmapTooltip | null }) {
       className="fixed z-[9999] pointer-events-none"
       style={{ left: pos.left, top: pos.top }}
     >
-      <div className="bg-blue-600 text-white text-[10px] font-black py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap">
+      <div className="bg-blue-600 text-white text-[10px] font-black py-1.5 px-3 rounded-lg shadow-xl dark:shadow-none whitespace-nowrap">
         {tip.label}
       </div>
       <div className="mx-auto w-1.5 h-1.5 bg-blue-600 rotate-45 -mt-0.5" />
@@ -661,9 +661,9 @@ function FocusHeatmap({ timeframe, customStart, customEnd, sessions, refDate }: 
             const sec = focusTimeByDate[d.dStr] || 0;
             return (
               <div key={d.dStr} className="flex flex-col items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400 truncate max-w-full text-center">{dayNamesShort[d.dayOfWeek]}</span>
+                <span className="text-[10px] font-bold text-muted-foreground truncate max-w-full text-center">{dayNamesShort[d.dayOfWeek]}</span>
                 <div
-                  className={cn('aspect-square w-full max-w-[40px] rounded-lg sm:rounded-xl border transition-all duration-200 cursor-pointer shadow-2xs hover:scale-110', getHeatColor(sec))}
+                  className={cn('aspect-square w-full max-w-[40px] rounded-lg sm:rounded-xl border transition-all duration-200 cursor-pointer shadow-2xs dark:shadow-none hover:scale-110', getHeatColor(sec))}
                   onMouseEnter={e => showTip(e, `${d.formattedDate}: ${formatSecondsFriendly(sec)}`)}
                   onMouseMove={e  => showTip(e, `${d.formattedDate}: ${formatSecondsFriendly(sec)}`)}
                   onMouseLeave={hideTip}
@@ -688,7 +688,7 @@ function FocusHeatmap({ timeframe, customStart, customEnd, sessions, refDate }: 
         <HeatTooltip tip={tooltip} />
         <div className="grid grid-cols-7 gap-2.5 max-w-sm mx-auto py-2 select-none">
           {['S','M','T','W','T','F','S'].map((day, i) => (
-            <div key={`hdr-${i}`} className="text-center text-[10px] font-black text-slate-400 w-8">{day}</div>
+            <div key={`hdr-${i}`} className="text-center text-[10px] font-black text-muted-foreground w-8">{day}</div>
           ))}
           {paddingBlocks.map((_, i) => <div key={`pad-${i}`} className="w-8 h-8 opacity-0" />)}
           {days.map(d => {
@@ -696,12 +696,12 @@ function FocusHeatmap({ timeframe, customStart, customEnd, sessions, refDate }: 
             return (
               <div key={d.dStr} className="flex justify-center items-center">
                 <div
-                  className={cn('w-8 h-8 rounded-lg border transition-all duration-200 cursor-pointer flex items-center justify-center text-[10px] font-bold shadow-2xs hover:scale-110', getHeatColor(sec))}
+                  className={cn('w-8 h-8 rounded-lg border transition-all duration-200 cursor-pointer flex items-center justify-center text-[10px] font-bold shadow-2xs dark:shadow-none hover:scale-110', getHeatColor(sec))}
                   onMouseEnter={e => showTip(e, `${d.formattedDate}: ${formatSecondsFriendly(sec)}`)}
                   onMouseMove={e  => showTip(e, `${d.formattedDate}: ${formatSecondsFriendly(sec)}`)}
                   onMouseLeave={hideTip}
                 >
-                  <span className={cn('select-none', sec > 0 ? (sec / 3600 >= 1.5 ? 'text-white' : 'text-blue-700') : 'text-slate-400')}>
+                  <span className={cn('select-none', sec > 0 ? (sec / 3600 >= 1.5 ? 'text-white' : 'text-blue-700 dark:text-blue-400') : 'text-muted-foreground')}>
                     {d.dayNum}
                   </span>
                 </div>
@@ -725,7 +725,7 @@ function FocusHeatmap({ timeframe, customStart, customEnd, sessions, refDate }: 
         className="flex items-start gap-1 overflow-x-auto pt-6 pb-2 scrollbar-thin select-none max-w-full"
       >
         {/* Row labels */}
-        <div className="grid grid-rows-7 gap-1 h-[108px] text-[8px] font-bold text-slate-400 pr-1.5 pt-0.5 leading-none shrink-0">
+        <div className="grid grid-rows-7 gap-1 h-[108px] text-[8px] font-bold text-muted-foreground pr-1.5 pt-0.5 leading-none shrink-0">
           <span className="flex items-center h-3">Sun</span>
           <span className="flex items-center h-3 opacity-0">Mon</span>
           <span className="flex items-center h-3">Tue</span>
@@ -745,7 +745,7 @@ function FocusHeatmap({ timeframe, customStart, customEnd, sessions, refDate }: 
             return (
               <div key={`wk-${wIdx}`} className="flex flex-col gap-1 relative h-[108px]">
                 {showLabel && firstValid && (
-                  <span className="absolute -top-6 left-0 text-[8px] font-black text-slate-400 whitespace-nowrap">
+                  <span className="absolute -top-6 left-0 text-[8px] font-black text-muted-foreground whitespace-nowrap">
                     {monthNames[labelMonth]}
                   </span>
                 )}
@@ -774,9 +774,9 @@ function FocusHeatmap({ timeframe, customStart, customEnd, sessions, refDate }: 
 
 // ── Legend row at the bottom of every layout ─────────────────────────────────
 const LEGEND_ITEMS = [
-  { color: 'bg-slate-100 border-slate-200/40', label: '0 min', title: 'No focus' },
-  { color: 'bg-blue-100 border-blue-200',      label: '< 30m',  title: '< 30 min' },
-  { color: 'bg-blue-200 border-blue-300',      label: '< 1.5h', title: '30 min – 1.5 h' },
+  { color: 'bg-muted border-border', label: '0 min', title: 'No focus' },
+  { color: 'bg-blue-500/20 border-blue-200 dark:border-blue-500/30',      label: '< 30m',  title: '< 30 min' },
+  { color: 'bg-blue-200 border-blue-300 dark:border-blue-500/30',      label: '< 1.5h', title: '30 min – 1.5 h' },
   { color: 'bg-blue-400 border-blue-500',      label: '< 3h',   title: '1.5 – 3 h' },
   { color: 'bg-blue-500 border-blue-600',      label: '< 5h',   title: '3 – 5 h' },
   { color: 'bg-blue-700 border-blue-800',      label: '≥ 5h',   title: '≥ 5 h' },
@@ -790,7 +790,7 @@ function HeatmapLegend({
   onHideTip: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3.5 justify-center mt-1 py-1 text-[9px] font-black text-slate-400 select-none uppercase tracking-wider">
+    <div className="flex items-center gap-3.5 justify-center mt-1 py-1 text-[9px] font-black text-muted-foreground select-none uppercase tracking-wider">
       <span>Less</span>
       <div className="flex gap-1.5 items-center">
         {LEGEND_ITEMS.map(item => (
@@ -1523,34 +1523,34 @@ export function AnalyticsView() {
 
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-50/50">
+      <div className="h-full flex items-center justify-center bg-muted/50">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-7 w-7 text-blue-600 animate-spin" />
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Loading Analytics...</span>
+          <Loader2 className="h-7 w-7 text-blue-600 dark:text-blue-400 animate-spin" />
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Loading Analytics...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full bg-slate-50/50">
+    <div className="h-full bg-muted/50">
       <ScrollArea className="h-full">
         <div className="max-w-6xl mx-auto px-4 py-6 md:px-10 md:py-10 space-y-8 md:space-y-12">
           
           {/* Header with Dashboard Tabs */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">Analytics</h1>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">Analytics</h1>
             </div>
             
             {/* Segmented Controller Tab Selector */}
-            <div className="flex bg-slate-200/50 backdrop-blur-xs rounded-2xl p-1 border border-slate-200/40 shrink-0 self-start md:self-center">
+            <div className="flex bg-muted/50 backdrop-blur-xs rounded-2xl p-1 border border-border shrink-0 self-start md:self-center">
               <button
                 type="button"
                 onClick={() => setActiveTab('overview')}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer select-none active:scale-95",
-                  activeTab === 'overview' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                  activeTab === 'overview' ? "bg-card text-blue-600 dark:text-blue-400 shadow-sm dark:shadow-none" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <Activity className="h-4 w-4" />
@@ -1561,7 +1561,7 @@ export function AnalyticsView() {
                 onClick={() => setActiveTab('tasks')}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer select-none active:scale-95",
-                  activeTab === 'tasks' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                  activeTab === 'tasks' ? "bg-card text-blue-600 dark:text-blue-400 shadow-sm dark:shadow-none" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <CheckSquare className="h-4 w-4" />
@@ -1572,7 +1572,7 @@ export function AnalyticsView() {
                 onClick={() => setActiveTab('focus')}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer select-none active:scale-95",
-                  activeTab === 'focus' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                  activeTab === 'focus' ? "bg-card text-blue-600 dark:text-blue-400 shadow-sm dark:shadow-none" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <Clock className="h-4 w-4" />
@@ -1587,25 +1587,25 @@ export function AnalyticsView() {
               title="Tasks Completed" 
               value={String(headerStats.completions)} 
               icon={CheckCircle2} 
-              iconColor="text-emerald-600 bg-emerald-50"
+              iconColor="text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
             />
             <StatCard 
               title="Total Time Focused" 
               value={headerStats.focusTime} 
               icon={Clock} 
-              iconColor="text-blue-600 bg-blue-50"
+              iconColor="text-blue-600 dark:text-blue-400 bg-blue-500/10"
             />
             <StatCard 
               title="Tasks Active" 
               value={String(headerStats.activeTasks)} 
               icon={Flame} 
-              iconColor="text-orange-600 bg-orange-50"
+              iconColor="text-orange-600 dark:text-orange-400 bg-orange-500/10"
             />
             <StatCard 
               title="Total Lists" 
               value={String(headerStats.categories)} 
               icon={LayoutGrid} 
-              iconColor="text-purple-600 bg-purple-50"
+              iconColor="text-purple-600 dark:text-purple-400 bg-purple-500/10"
             />
           </div>
 
@@ -1618,32 +1618,32 @@ export function AnalyticsView() {
                 
                 {/* Completed Tasks Overview Card (Card 1) */}
                 <Card 
-                  className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer"
+                  className="bg-card border-border shadow-xl dark:shadow-none shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl dark:shadow-none hover:border-border cursor-pointer"
                 >
                   <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-start justify-between gap-4">
                     <div className="flex flex-col gap-0.5">
-                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                      <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                         Completed Tasks
                       </CardTitle>
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground whitespace-nowrap flex-nowrap">
                         <span>{getCardRangeLabel(overviewTasksTimeframe, overviewTasksRefDate, overviewTasksCustomStart, overviewTasksCustomEnd)}</span>
                         {!isRefDateCurrent(overviewTasksTimeframe, overviewTasksRefDate) && (
                           <button
                             type="button"
                             onClick={() => setOverviewTasksRefDate(new Date())}
-                            className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
                           >
                             • Reset to Today
                           </button>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs">
+                    <div className="flex items-center gap-1 bg-muted border border-border rounded-xl p-0.5 shadow-2xs dark:shadow-none">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                        className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                         onClick={() => navigateRefDate('overviewTasks', -1)}
                         disabled={overviewTasksTimeframe === 'custom'}
                         title="Previous period"
@@ -1660,7 +1660,7 @@ export function AnalyticsView() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                        className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                         onClick={() => navigateRefDate('overviewTasks', 1)}
                         disabled={overviewTasksTimeframe === 'custom'}
                         title="Next period"
@@ -1703,32 +1703,32 @@ export function AnalyticsView() {
 
                 {/* Focus Hours Overview Card (Card 2) */}
                 <Card 
-                  className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer"
+                  className="bg-card border-border shadow-xl dark:shadow-none shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl dark:shadow-none hover:border-border cursor-pointer"
                 >
                   <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-start justify-between gap-4">
                     <div className="flex flex-col gap-0.5">
-                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <Clock className="h-5 w-5 text-blue-600" />
+                      <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                         Focus Hours
                       </CardTitle>
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground whitespace-nowrap flex-nowrap">
                         <span>{getCardRangeLabel(overviewFocusTimeframe, overviewFocusRefDate, overviewFocusCustomStart, overviewFocusCustomEnd)}</span>
                         {!isRefDateCurrent(overviewFocusTimeframe, overviewFocusRefDate) && (
                           <button
                             type="button"
                             onClick={() => setOverviewFocusRefDate(new Date())}
-                            className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
                           >
                             • Reset to Today
                           </button>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs">
+                    <div className="flex items-center gap-1 bg-muted border border-border rounded-xl p-0.5 shadow-2xs dark:shadow-none">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                        className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                         onClick={() => navigateRefDate('overviewFocus', -1)}
                         disabled={overviewFocusTimeframe === 'custom'}
                         title="Previous period"
@@ -1745,7 +1745,7 @@ export function AnalyticsView() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                        className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                         onClick={() => navigateRefDate('overviewFocus', 1)}
                         disabled={overviewFocusTimeframe === 'custom'}
                         title="Next period"
@@ -1786,32 +1786,32 @@ export function AnalyticsView() {
                 
                 {/* Task Progress Breakdown (Card 1) */}
                 <Card 
-                  className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer"
+                  className="bg-card border-border shadow-xl dark:shadow-none shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl dark:shadow-none hover:border-border cursor-pointer"
                 >
                   <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-start justify-between gap-4">
                     <div className="flex flex-col gap-0.5">
-                      <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <CheckSquare className="h-5 w-5 text-blue-600" />
+                      <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                        <CheckSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                         Progress Breakdown
                       </CardTitle>
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground whitespace-nowrap flex-nowrap">
                         <span>{getCardRangeLabel(tasksVolumeTimeframe, tasksVolumeRefDate, tasksVolumeCustomStart, tasksVolumeCustomEnd)}</span>
                         {!isRefDateCurrent(tasksVolumeTimeframe, tasksVolumeRefDate) && (
                           <button
                             type="button"
                             onClick={() => setTasksVolumeRefDate(new Date())}
-                            className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
                           >
                             • Reset to Today
                           </button>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs">
+                    <div className="flex items-center gap-1 bg-muted border border-border rounded-xl p-0.5 shadow-2xs dark:shadow-none">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                        className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                         onClick={() => navigateRefDate('tasksVolume', -1)}
                         disabled={tasksVolumeTimeframe === 'custom'}
                         title="Previous period"
@@ -1828,7 +1828,7 @@ export function AnalyticsView() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                        className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                         onClick={() => navigateRefDate('tasksVolume', 1)}
                         disabled={tasksVolumeTimeframe === 'custom'}
                         title="Next period"
@@ -1893,23 +1893,23 @@ export function AnalyticsView() {
 
                 {/* Completion Rate (Card 2) */}
                 <Card 
-                  className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer flex flex-col justify-between"
+                  className="bg-card border-border shadow-xl dark:shadow-none shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl dark:shadow-none hover:border-border cursor-pointer flex flex-col justify-between"
                 >
                   <CardHeader className="p-6 md:p-8 pb-4 flex flex-col gap-3">
                     {/* Row 1: Title, Subtitle and Timeframe Selector */}
                     <div className="flex flex-row items-start justify-between gap-4 w-full">
                       <div className="flex flex-col gap-0.5 min-w-0">
-                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                          <Target className="h-5 w-5 text-blue-600" />
+                        <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                          <Target className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                           Completion Rate
                         </CardTitle>
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground whitespace-nowrap flex-nowrap">
                           <span>{getCardRangeLabel(tasksRatioTimeframe, tasksRatioRefDate, tasksRatioCustomStart, tasksRatioCustomEnd)}</span>
                           {!isRefDateCurrent(tasksRatioTimeframe, tasksRatioRefDate) && (
                             <button
                               type="button"
                               onClick={() => setTasksRatioRefDate(new Date())}
-                              className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
                             >
                               • Reset to Today
                             </button>
@@ -1917,11 +1917,11 @@ export function AnalyticsView() {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs shrink-0">
+                      <div className="flex items-center gap-1 bg-muted border border-border rounded-xl p-0.5 shadow-2xs dark:shadow-none shrink-0">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                           onClick={() => navigateRefDate('tasksRatio', -1)}
                           disabled={tasksRatioTimeframe === 'custom'}
                           title="Previous period"
@@ -1938,7 +1938,7 @@ export function AnalyticsView() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                           onClick={() => navigateRefDate('tasksRatio', 1)}
                           disabled={tasksRatioTimeframe === 'custom'}
                           title="Next period"
@@ -1953,21 +1953,21 @@ export function AnalyticsView() {
                       {/* Category Selector */}
                       <Popover open={ratioCatOpen} onOpenChange={setRatioCatOpen}>
                         <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1.5 cursor-pointer">
-                            <Sliders className="h-3.5 w-3.5 text-slate-400" />
+                          <Button variant="outline" size="sm" className="bg-muted border-border text-muted-foreground font-bold rounded-xl h-9 px-3 shadow-2xs dark:shadow-none flex items-center gap-1.5 cursor-pointer">
+                            <Sliders className="h-3.5 w-3.5 text-muted-foreground" />
                             <span className="text-[11px] truncate max-w-[70px]">
                               {tasksRatioCategory === 'all' ? 'All Lists' : tasksRatioCategory === 'none' ? 'No List' : categories.find(c => c.id === tasksRatioCategory)?.name || 'List'}
                             </span>
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-44 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50">
+                        <PopoverContent className="w-44 p-1.5 bg-card border border-border rounded-2xl shadow-xl dark:shadow-none z-50">
                           <div className="flex flex-col gap-0.5">
-                            <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by List</span>
+                            <span className="text-[9px] font-black text-muted-foreground tracking-wider px-2.5 py-1 uppercase">Filter by List</span>
                             <button
                               onClick={() => { setTasksRatioCategory('none'); setRatioCatOpen(false); }}
                               className={cn(
                                 "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                tasksRatioCategory === 'none' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                tasksRatioCategory === 'none' ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-foreground hover:bg-muted"
                               )}
                             >
                               No List
@@ -1976,7 +1976,7 @@ export function AnalyticsView() {
                               onClick={() => { setTasksRatioCategory('all'); setRatioCatOpen(false); }}
                               className={cn(
                                 "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                tasksRatioCategory === 'all' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                tasksRatioCategory === 'all' ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-foreground hover:bg-muted"
                               )}
                             >
                               All Lists
@@ -1987,7 +1987,7 @@ export function AnalyticsView() {
                                 onClick={() => { setTasksRatioCategory(c.id); setRatioCatOpen(false); }}
                                 className={cn(
                                   "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  tasksRatioCategory === c.id ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                  tasksRatioCategory === c.id ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-foreground hover:bg-muted"
                                 )}
                               >
                                 <div className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />
@@ -2001,22 +2001,22 @@ export function AnalyticsView() {
                       {/* Tag Selector */}
                       <Popover open={ratioTagOpen} onOpenChange={setRatioTagOpen}>
                         <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1.5 cursor-pointer">
-                            <Filter className="h-3.5 w-3.5 text-slate-400" />
+                          <Button variant="outline" size="sm" className="bg-muted border-border text-muted-foreground font-bold rounded-xl h-9 px-3 shadow-2xs dark:shadow-none flex items-center gap-1.5 cursor-pointer">
+                            <Filter className="h-3.5 w-3.5 text-muted-foreground" />
                             <span className="text-[11px] truncate max-w-[70px]">
                               {tasksRatioTag === 'all' ? 'All Tags' : tasksRatioTag === 'none' ? 'No Tags' : tasksRatioTag}
                             </span>
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-44 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 max-h-[220px]">
+                        <PopoverContent className="w-44 p-1.5 bg-card border border-border rounded-2xl shadow-xl dark:shadow-none z-50 max-h-[220px]">
                           <ScrollArea className="h-full">
                             <div className="flex flex-col gap-0.5">
-                              <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by Tag</span>
+                              <span className="text-[9px] font-black text-muted-foreground tracking-wider px-2.5 py-1 uppercase">Filter by Tag</span>
                               <button
                                 onClick={() => { setTasksRatioTag('none'); setRatioTagOpen(false); }}
                                 className={cn(
                                   "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  tasksRatioTag === 'none' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                  tasksRatioTag === 'none' ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-foreground hover:bg-muted"
                                 )}
                               >
                                 No Tags
@@ -2025,7 +2025,7 @@ export function AnalyticsView() {
                                 onClick={() => { setTasksRatioTag('all'); setRatioTagOpen(false); }}
                                 className={cn(
                                   "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  tasksRatioTag === 'all' ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                  tasksRatioTag === 'all' ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-foreground hover:bg-muted"
                                 )}
                               >
                                 All Tags
@@ -2036,7 +2036,7 @@ export function AnalyticsView() {
                                   onClick={() => { setTasksRatioTag(t.name); setRatioTagOpen(false); }}
                                   className={cn(
                                     "flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                    tasksRatioTag === t.name ? "bg-blue-50 text-blue-600" : "text-slate-700 hover:bg-slate-50"
+                                    tasksRatioTag === t.name ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-foreground hover:bg-muted"
                                   )}
                                 >
                                   #{t.name}
@@ -2084,24 +2084,24 @@ export function AnalyticsView() {
                           </svg>
                           
                           <div className="absolute flex flex-col items-center text-center">
-                            <span className="text-3xl font-black text-slate-900 tracking-tight">{tasksCompletionRatio.ratio}%</span>
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Rate</span>
+                            <span className="text-3xl font-black text-foreground tracking-tight">{tasksCompletionRatio.ratio}%</span>
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Rate</span>
                           </div>
                         </div>
 
                         {/* Stat Metric Grid */}
                         <div className="grid grid-cols-3 gap-2 w-full mt-4">
-                          <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-center">
-                            <span className="text-[8px] font-black text-slate-400 uppercase block tracking-wider">Completed</span>
-                            <span className="text-sm font-bold text-emerald-600">{tasksCompletionRatio.completed}</span>
+                          <div className="bg-muted border border-border rounded-xl p-2 text-center">
+                            <span className="text-[8px] font-black text-muted-foreground uppercase block tracking-wider">Completed</span>
+                            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{tasksCompletionRatio.completed}</span>
                           </div>
-                          <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-center">
-                            <span className="text-[8px] font-black text-slate-400 uppercase block tracking-wider">In Progress</span>
-                            <span className="text-sm font-bold text-blue-600">{tasksCompletionRatio.active}</span>
+                          <div className="bg-muted border border-border rounded-xl p-2 text-center">
+                            <span className="text-[8px] font-black text-muted-foreground uppercase block tracking-wider">In Progress</span>
+                            <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{tasksCompletionRatio.active}</span>
                           </div>
-                          <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 text-center">
-                            <span className="text-[8px] font-black text-slate-400 uppercase block tracking-wider">Total</span>
-                            <span className="text-sm font-bold text-slate-800">{tasksCompletionRatio.total}</span>
+                          <div className="bg-muted border border-border rounded-xl p-2 text-center">
+                            <span className="text-[8px] font-black text-muted-foreground uppercase block tracking-wider">Total</span>
+                            <span className="text-sm font-bold text-foreground">{tasksCompletionRatio.total}</span>
                           </div>
                         </div>
 
@@ -2121,23 +2121,23 @@ export function AnalyticsView() {
                   
                   {/* Focus Distribution (Card 1) */}
                   <Card 
-                    className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer flex flex-col justify-between"
+                    className="bg-card border-border shadow-xl dark:shadow-none shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl dark:shadow-none hover:border-border cursor-pointer flex flex-col justify-between"
                   >
                     <CardHeader className="p-6 md:p-8 pb-4 flex flex-col gap-3">
                       {/* Row 1: Title, Subtitle and Timeframe Selector */}
                       <div className="flex flex-row items-start justify-between gap-4 w-full">
                         <div className="flex flex-col gap-0.5 min-w-0">
-                          <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                            <LayoutGrid className="h-5 w-5 text-blue-600" />
+                          <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                            <LayoutGrid className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                             Focus Distribution
                           </CardTitle>
-                          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground whitespace-nowrap flex-nowrap">
                             <span>{getCardRangeLabel(focusPieTimeframe, focusPieRefDate, focusPieCustomStart, focusPieCustomEnd)}</span>
                             {!isRefDateCurrent(focusPieTimeframe, focusPieRefDate) && (
                               <button
                                 type="button"
                                 onClick={() => setFocusPieRefDate(new Date())}
-                                className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
                               >
                                 • Reset to Today
                               </button>
@@ -2145,11 +2145,11 @@ export function AnalyticsView() {
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs shrink-0">
+                        <div className="flex items-center gap-1 bg-muted border border-border rounded-xl p-0.5 shadow-2xs dark:shadow-none shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                            className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                             onClick={() => navigateRefDate('focusPie', -1)}
                             disabled={focusPieTimeframe === 'custom'}
                             title="Previous period"
@@ -2166,7 +2166,7 @@ export function AnalyticsView() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                            className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                             onClick={() => navigateRefDate('focusPie', 1)}
                             disabled={focusPieTimeframe === 'custom'}
                             title="Next period"
@@ -2182,8 +2182,8 @@ export function AnalyticsView() {
                         {/* Category Dropdown */}
                         <Popover open={focusPieCatOpen} onOpenChange={setFocusPieCatOpen}>
                           <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1.5 cursor-pointer">
-                              <Sliders className="h-3.5 w-3.5 text-slate-400" />
+                            <Button variant="outline" size="sm" className="bg-muted border-border text-muted-foreground font-bold rounded-xl h-9 px-3 shadow-2xs dark:shadow-none flex items-center gap-1.5 cursor-pointer">
+                              <Sliders className="h-3.5 w-3.5 text-muted-foreground" />
                               <span className="text-[11px] truncate max-w-[90px]">
                                 {focusPieCategories.length === 0
                                   ? 'List'
@@ -2197,14 +2197,14 @@ export function AnalyticsView() {
                               </span>
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-44 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50">
+                          <PopoverContent className="w-44 p-1.5 bg-card border border-border rounded-2xl shadow-xl dark:shadow-none z-50">
                             <div className="flex flex-col gap-0.5">
-                              <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by List</span>
+                              <span className="text-[9px] font-black text-muted-foreground tracking-wider px-2.5 py-1 uppercase">Filter by List</span>
                               <button
                                 onClick={() => setFocusPieCategories([])}
                                 className={cn(
                                   "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  focusPieCategories.length === 0 ? "bg-rose-50/60 text-rose-605 font-extrabold" : "text-slate-500 hover:bg-slate-50"
+                                  focusPieCategories.length === 0 ? "bg-rose-500/10 text-rose-605 font-extrabold" : "text-muted-foreground hover:bg-muted"
                                 )}
                               >
                                 <span>Clear Filters</span>
@@ -2214,13 +2214,13 @@ export function AnalyticsView() {
                                 onClick={() => setFocusPieCategories([...categories.map(c => c.id), 'inbox'])}
                                 className={cn(
                                   "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  focusPieCategories.length === categories.length + 1 ? "bg-blue-50 text-blue-600 font-extrabold" : "text-slate-755 hover:bg-slate-50"
+                                  focusPieCategories.length === categories.length + 1 ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 font-extrabold" : "text-slate-755 hover:bg-muted"
                                 )}
                               >
                                 <span>All Lists</span>
                                 {focusPieCategories.length === categories.length + 1 && <Check className="h-3.5 w-3.5 text-blue-500" />}
                               </button>
-                              <div className="h-[1px] bg-slate-100 my-1" />
+                              <div className="h-[1px] bg-muted my-1" />
                               <div className="max-h-[160px] overflow-y-auto pr-1 space-y-0.5 scrollbar-thin">
                                 {/* Inbox List Option */}
                                 {(() => {
@@ -2234,11 +2234,11 @@ export function AnalyticsView() {
                                       }}
                                       className={cn(
                                         "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                        isSelected ? "bg-blue-50/50 text-blue-600" : "text-slate-750 hover:bg-slate-50"
+                                        isSelected ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-slate-750 hover:bg-muted"
                                       )}
                                     >
                                       <div className="flex items-center gap-2 truncate">
-                                        <Inbox className="h-3.5 w-3.5 text-slate-405 shrink-0" />
+                                        <Inbox className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                         <span className="truncate">Inbox</span>
                                       </div>
                                       {isSelected && <Check className="h-3.5 w-3.5 text-blue-500" />}
@@ -2258,7 +2258,7 @@ export function AnalyticsView() {
                                       }}
                                       className={cn(
                                         "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                        isSelected ? "bg-blue-50/50 text-blue-600" : "text-slate-750 hover:bg-slate-50"
+                                        isSelected ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-slate-750 hover:bg-muted"
                                       )}
                                     >
                                       <div className="flex items-center gap-2 truncate">
@@ -2277,8 +2277,8 @@ export function AnalyticsView() {
                         {/* Tag Dropdown */}
                         <Popover open={focusPieTagOpen} onOpenChange={setFocusPieTagOpen}>
                           <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" className="bg-slate-50 border-slate-200/60 text-slate-600 font-bold rounded-xl h-9 px-3 shadow-2xs flex items-center gap-1.5 cursor-pointer">
-                              <Filter className="h-3.5 w-3.5 text-slate-400" />
+                            <Button variant="outline" size="sm" className="bg-muted border-border text-muted-foreground font-bold rounded-xl h-9 px-3 shadow-2xs dark:shadow-none flex items-center gap-1.5 cursor-pointer">
+                              <Filter className="h-3.5 w-3.5 text-muted-foreground" />
                               <span className="text-[11px] truncate max-w-[90px]">
                                 {focusPieTags.length === 0
                                   ? 'Tag'
@@ -2290,14 +2290,14 @@ export function AnalyticsView() {
                               </span>
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-44 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50">
+                          <PopoverContent className="w-44 p-1.5 bg-card border border-border rounded-2xl shadow-xl dark:shadow-none z-50">
                             <div className="flex flex-col gap-0.5">
-                              <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase">Filter by Tag</span>
+                              <span className="text-[9px] font-black text-muted-foreground tracking-wider px-2.5 py-1 uppercase">Filter by Tag</span>
                               <button
                                 onClick={() => setFocusPieTags([])}
                                 className={cn(
                                   "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  focusPieTags.length === 0 ? "bg-rose-50/60 text-rose-605 font-extrabold" : "text-slate-500 hover:bg-slate-50"
+                                  focusPieTags.length === 0 ? "bg-rose-500/10 text-rose-605 font-extrabold" : "text-muted-foreground hover:bg-muted"
                                 )}
                               >
                                 <span>Clear Filters</span>
@@ -2307,13 +2307,13 @@ export function AnalyticsView() {
                                 onClick={() => setFocusPieTags(tags.map(t => t.name))}
                                 className={cn(
                                   "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                  focusPieTags.length === tags.length ? "bg-blue-50 text-blue-600 font-extrabold" : "text-slate-755 hover:bg-slate-50"
+                                  focusPieTags.length === tags.length ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 font-extrabold" : "text-slate-755 hover:bg-muted"
                                 )}
                               >
                                 <span>All Tags</span>
                                 {focusPieTags.length === tags.length && <Check className="h-3.5 w-3.5 text-blue-500" />}
                               </button>
-                              <div className="h-[1px] bg-slate-100 my-1" />
+                              <div className="h-[1px] bg-muted my-1" />
                               <div className="max-h-[160px] overflow-y-auto pr-1 space-y-0.5 scrollbar-thin">
                                 {tags.map(t => {
                                   const isSelected = focusPieTags.includes(t.name);
@@ -2327,7 +2327,7 @@ export function AnalyticsView() {
                                       }}
                                       className={cn(
                                         "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer text-left w-full",
-                                        isSelected ? "bg-blue-50/50 text-blue-600" : "text-slate-750 hover:bg-slate-50"
+                                        isSelected ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-slate-750 hover:bg-muted"
                                       )}
                                     >
                                       <span className="truncate">#{t.name}</span>
@@ -2346,13 +2346,13 @@ export function AnalyticsView() {
                           size="sm"
                           onClick={() => setFocusPieShowTasks(!focusPieShowTasks)}
                           className={cn(
-                            "rounded-xl h-9 px-3 font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all border",
+                            "rounded-xl h-9 px-3 font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-2xs dark:shadow-none transition-all border",
                             focusPieShowTasks 
-                              ? "bg-blue-50 border-blue-200/80 text-blue-600 hover:bg-blue-100/50" 
-                              : "bg-slate-50 border-slate-200/60 text-slate-600 hover:bg-slate-100"
+                              ? "bg-blue-500/10 border-blue-200 dark:border-blue-500/30/80 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20" 
+                              : "bg-muted border-border text-muted-foreground hover:bg-muted"
                           )}
                         >
-                          <CheckSquare className={cn("h-3.5 w-3.5 transition-colors", focusPieShowTasks ? "text-blue-500" : "text-slate-400")} />
+                          <CheckSquare className={cn("h-3.5 w-3.5 transition-colors", focusPieShowTasks ? "text-blue-500" : "text-muted-foreground")} />
                           Tasks
                         </Button>
                       </div>
@@ -2393,16 +2393,16 @@ export function AnalyticsView() {
                                 <div className="flex items-center justify-between text-xs font-bold mb-1">
                                   <div className="flex items-center gap-2 max-w-[70%]">
                                     <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                                    <span className="text-slate-700 truncate w-18" title={item.name}>{item.name}</span>
+                                    <span className="text-foreground truncate w-18" title={item.name}>{item.name}</span>
                                   </div>
-                                  <span className="text-slate-900 shrink-0 font-extrabold">
+                                  <span className="text-foreground shrink-0 font-extrabold">
                                     {formatSecondsFriendly(item.value)}{' '}
-                                    <span className="text-slate-400 font-semibold text-[10px]">({item.percentage}%)</span>
+                                    <span className="text-muted-foreground font-semibold text-[10px]">({item.percentage}%)</span>
                                   </span>
                                 </div>
                                 
                                 {/* Tiny matching progress bar (Thinner for elegant look) */}
-                                <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
                                   <div 
                                     className="h-full rounded-full transition-all duration-500" 
                                     style={{ width: `${item.percentage}%`, backgroundColor: item.color }} 
@@ -2418,32 +2418,32 @@ export function AnalyticsView() {
 
                   {/* Focus Trend (Card 2) */}
                   <Card 
-                    className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer flex flex-col justify-between"
+                    className="bg-card border-border shadow-xl dark:shadow-none shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl dark:shadow-none hover:border-border cursor-pointer flex flex-col justify-between"
                   >
                     <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-start justify-between gap-4">
                       <div className="flex flex-col gap-0.5">
-                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                          <Clock className="h-5 w-5 text-blue-600" />
+                        <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                          <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                           Focus Trend
                         </CardTitle>
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground whitespace-nowrap flex-nowrap">
                           <span>{getCardRangeLabel(focusTrendTimeframe, focusTrendRefDate, focusTrendCustomStart, focusTrendCustomEnd)}</span>
                           {!isRefDateCurrent(focusTrendTimeframe, focusTrendRefDate) && (
                             <button
                               type="button"
                               onClick={() => setFocusTrendRefDate(new Date())}
-                              className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
                             >
                               • Reset to Today
                             </button>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs">
+                      <div className="flex items-center gap-1 bg-muted border border-border rounded-xl p-0.5 shadow-2xs dark:shadow-none">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                           onClick={() => navigateRefDate('focusTrend', -1)}
                           disabled={focusTrendTimeframe === 'custom'}
                           title="Previous period"
@@ -2460,7 +2460,7 @@ export function AnalyticsView() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                           onClick={() => navigateRefDate('focusTrend', 1)}
                           disabled={focusTrendTimeframe === 'custom'}
                           title="Next period"
@@ -2499,32 +2499,32 @@ export function AnalyticsView() {
                   
                   {/* Heatmap Activity Grid (Card 1) */}
                   <Card 
-                    className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer flex flex-col justify-between"
+                    className="bg-card border-border shadow-xl dark:shadow-none shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl dark:shadow-none hover:border-border cursor-pointer flex flex-col justify-between"
                   >
                     <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-start justify-between gap-4">
                       <div className="flex flex-col gap-0.5">
-                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                          <Activity className="h-5 w-5 text-blue-600" />
+                        <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                          <Activity className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                           Focus Activity Map
                         </CardTitle>
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground whitespace-nowrap flex-nowrap">
                           <span>{getCardRangeLabel(focusHeatmapTimeframe, focusHeatmapRefDate, focusHeatmapCustomStart, focusHeatmapCustomEnd)}</span>
                           {!isRefDateCurrent(focusHeatmapTimeframe, focusHeatmapRefDate) && (
                             <button
                               type="button"
                               onClick={() => setFocusHeatmapRefDate(new Date())}
-                              className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
                             >
                               • Reset to Today
                             </button>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs">
+                      <div className="flex items-center gap-1 bg-muted border border-border rounded-xl p-0.5 shadow-2xs dark:shadow-none">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                           onClick={() => navigateRefDate('focusHeatmap', -1)}
                           disabled={focusHeatmapTimeframe === 'custom'}
                           title="Previous period"
@@ -2541,7 +2541,7 @@ export function AnalyticsView() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                           onClick={() => navigateRefDate('focusHeatmap', 1)}
                           disabled={focusHeatmapTimeframe === 'custom'}
                           title="Next period"
@@ -2563,32 +2563,32 @@ export function AnalyticsView() {
 
                   {/* Focus Session Lengths (Card 2) */}
                   <Card 
-                    className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80 cursor-pointer flex flex-col justify-between"
+                    className="bg-card border-border shadow-xl dark:shadow-none shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl dark:shadow-none hover:border-border cursor-pointer flex flex-col justify-between"
                   >
                     <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-start justify-between gap-4">
                       <div className="flex flex-col gap-0.5">
-                        <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                          <Zap className="h-5 w-5 text-blue-600" />
+                        <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                          <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                           Session Durations
                         </CardTitle>
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 whitespace-nowrap flex-nowrap">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground whitespace-nowrap flex-nowrap">
                           <span>{getCardRangeLabel(focusLengthTimeframe, focusLengthRefDate, focusLengthCustomStart, focusLengthCustomEnd)}</span>
                           {!isRefDateCurrent(focusLengthTimeframe, focusLengthRefDate) && (
                             <button
                               type="button"
                               onClick={() => setFocusLengthRefDate(new Date())}
-                              className="text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-0.5 text-[10px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-left-1 duration-200 whitespace-nowrap shrink-0"
                             >
                               • Reset to Today
                             </button>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/60 rounded-xl p-0.5 shadow-2xs">
+                      <div className="flex items-center gap-1 bg-muted border border-border rounded-xl p-0.5 shadow-2xs dark:shadow-none">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                           onClick={() => navigateRefDate('focusLength', -1)}
                           disabled={focusLengthTimeframe === 'custom'}
                           title="Previous period"
@@ -2605,7 +2605,7 @@ export function AnalyticsView() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
+                          className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                           onClick={() => navigateRefDate('focusLength', 1)}
                           disabled={focusLengthTimeframe === 'custom'}
                           title="Next period"
@@ -2666,15 +2666,15 @@ function StatCard({
   iconColor?: string 
 }) {
   return (
-    <Card className="bg-white border-slate-100 shadow-xl shadow-slate-900/5 rounded-3xl p-5 md:p-6 transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-slate-200/80">
+    <Card className="bg-card border-border shadow-xl dark:shadow-none shadow-slate-900/5 rounded-3xl p-5 md:p-6 transition-[shadow,border-color] duration-300 hover:shadow-2xl dark:shadow-none hover:border-border">
       <CardHeader className="flex flex-row items-center justify-between p-0 pb-4">
-        <CardTitle className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{title}</CardTitle>
-        <div className={cn("p-2 rounded-xl shadow-2xs", iconColor)}>
+        <CardTitle className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{title}</CardTitle>
+        <div className={cn("p-2 rounded-xl shadow-2xs dark:shadow-none", iconColor)}>
           <Icon className="h-4.5 w-4.5 animate-in spin-in-12 duration-500" />
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <span className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">{value}</span>
+        <span className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">{value}</span>
       </CardContent>
     </Card>
   );
@@ -2692,11 +2692,11 @@ function EmptyStateIcon({
 }) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center p-6 min-h-[220px]">
-      <div className="h-11 w-11 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mb-3">
-        <Icon className="h-5 w-5 text-slate-400/80" />
+      <div className="h-11 w-11 rounded-2xl bg-muted border border-border flex items-center justify-center mb-3">
+        <Icon className="h-5 w-5 text-muted-foreground" />
       </div>
-      <p className="text-xs font-bold text-slate-500 mb-0.5">{title}</p>
-      <p className="text-[10px] text-slate-400/80 max-w-[200px] leading-normal font-medium">{description}</p>
+      <p className="text-xs font-bold text-muted-foreground mb-0.5">{title}</p>
+      <p className="text-[10px] text-muted-foreground max-w-[200px] leading-normal font-medium">{description}</p>
     </div>
   );
 }

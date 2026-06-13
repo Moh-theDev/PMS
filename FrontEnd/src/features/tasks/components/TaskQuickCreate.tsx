@@ -30,10 +30,10 @@ export function TaskQuickCreate({ onAddTask }: TaskQuickCreateProps) {
 
   const getPriorityInfo = (p: number) => {
     switch (p) {
-      case 10: return { label: 'High', bg: 'bg-red-50 hover:bg-red-100/80 border-red-100 text-red-600' };
-      case 6:return { label: 'Mid', bg: 'bg-amber-50 hover:bg-amber-100/80 border-amber-100 text-amber-600' };
+      case 10: return { label: 'High', bg: 'bg-red-500/10 hover:bg-red-500/20 border-red-100 text-red-600 dark:text-red-400' };
+      case 6:return { label: 'Mid', bg: 'bg-amber-50 hover:bg-amber-100/80 border-amber-100 text-amber-600 dark:text-amber-400' };
       case 3: 
-      default: return { label: 'Low', bg: 'bg-slate-50 hover:bg-slate-100/80 border-slate-200/60 text-slate-500' };
+      default: return { label: 'Low', bg: 'bg-muted hover:bg-muted/80 border-border text-muted-foreground' };
     }
   };
 
@@ -52,27 +52,27 @@ export function TaskQuickCreate({ onAddTask }: TaskQuickCreateProps) {
   return (
     <div className="px-8 py-3 w-full animate-fade-in">
       <form onSubmit={handleSubmit} className="max-w-4xl mx-auto w-full flex flex-col gap-2">
-        <div className="relative flex items-center bg-white border border-slate-200/80 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/8 transition-all shadow-sm rounded-2xl p-1.5 min-h-[50px]">
-          <Plus className="absolute left-4 h-4 w-4 text-slate-400 pointer-events-none" />
+        <div className="relative flex items-center bg-card border border-border focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/8 transition-all shadow-sm dark:shadow-none rounded-2xl p-1.5 min-h-[50px]">
+          <Plus className="absolute left-4 h-4 w-4 text-muted-foreground pointer-events-none" />
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Capture a task instantly..."
-            className="flex-1 pl-10 pr-4 bg-transparent border-none outline-none text-sm placeholder:text-slate-400 font-semibold text-slate-900 focus:ring-0"
+            className="flex-1 pl-10 pr-4 bg-transparent border-none outline-none text-sm placeholder:text-muted-foreground font-semibold text-foreground focus:ring-0"
           />
 
           {/* Inline controls */}
           <div className="flex items-center gap-1.5 pr-2 shrink-0">
             {/* Active Deadline Badge */}
             {deadline && (
-              <span className="flex items-center gap-1 text-[10px] font-black text-blue-600 bg-blue-50 border border-blue-100/60 px-2.5 py-1 rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-200 select-none">
+              <span className="flex items-center gap-1 text-[10px] font-black text-blue-600 dark:text-blue-400 bg-blue-500/10 border border-blue-100/60 px-2.5 py-1 rounded-xl shadow-sm dark:shadow-none animate-in fade-in zoom-in-95 duration-200 select-none">
                 <CalendarIcon className="h-2.5 w-2.5 shrink-0" />
                 <span>{formatDeadlineFriendly(deadline)}</span>
                 <button
                   type="button"
                   onClick={() => setDeadline(null)}
-                  className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-blue-400 hover:text-red-500 hover:bg-red-50 transition-colors ml-0.5 cursor-pointer shrink-0"
+                  className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-blue-400 hover:text-red-500 hover:bg-red-500/10 transition-colors ml-0.5 cursor-pointer shrink-0"
                   title="Remove deadline"
                 >
                   <X className="h-2 w-2" />
@@ -86,7 +86,7 @@ export function TaskQuickCreate({ onAddTask }: TaskQuickCreateProps) {
                 <button
                   type="button"
                   className={cn(
-                    "h-8 px-2.5 rounded-xl border flex items-center gap-1.5 transition-all text-[10px] font-extrabold cursor-pointer active:scale-95 shadow-sm shrink-0",
+                    "h-8 px-2.5 rounded-xl border flex items-center gap-1.5 transition-all text-[10px] font-extrabold cursor-pointer active:scale-95 shadow-sm dark:shadow-none shrink-0",
                     activePriority.bg
                   )}
                   title="Set importance"
@@ -95,13 +95,13 @@ export function TaskQuickCreate({ onAddTask }: TaskQuickCreateProps) {
                   <span className="hidden sm:inline">{activePriority.label}</span>
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-40 p-1.5 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-50">
+              <PopoverContent className="w-40 p-1.5 bg-card border border-border rounded-2xl shadow-xl dark:shadow-none z-50">
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[9px] font-black text-slate-400 tracking-wider px-2.5 py-1 uppercase select-none">Importance</span>
+                  <span className="text-[9px] font-black text-muted-foreground tracking-wider px-2.5 py-1 uppercase select-none">Importance</span>
                   <button
                     type="button"
                     onClick={() => { setPriority(10); setPriorityOpen(false); }}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer w-full text-left"
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold text-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer w-full text-left"
                   >
                     <Flag className="h-3.5 w-3.5 text-red-500 fill-current shrink-0" />
                     High Priority
@@ -109,7 +109,7 @@ export function TaskQuickCreate({ onAddTask }: TaskQuickCreateProps) {
                   <button
                     type="button"
                     onClick={() => { setPriority(6); setPriorityOpen(false); }}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer w-full text-left"
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold text-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer w-full text-left"
                   >
                     <Flag className="h-3.5 w-3.5 text-amber-500 fill-current shrink-0" />
                     Mid Priority
@@ -117,9 +117,9 @@ export function TaskQuickCreate({ onAddTask }: TaskQuickCreateProps) {
                   <button
                     type="button"
                     onClick={() => { setPriority(3); setPriorityOpen(false); }}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer w-full text-left"
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold text-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer w-full text-left"
                   >
-                    <Flag className="h-3.5 w-3.5 text-slate-400 fill-current shrink-0" />
+                    <Flag className="h-3.5 w-3.5 text-muted-foreground fill-current shrink-0" />
                     Low Priority
                   </button>
                 </div>
@@ -132,15 +132,15 @@ export function TaskQuickCreate({ onAddTask }: TaskQuickCreateProps) {
                 <button
                   type="button"
                   className={cn(
-                    "h-8 w-8 rounded-xl border border-slate-200/60 hover:border-blue-500/40 hover:ring-4 hover:ring-blue-500/5 bg-white text-slate-500 hover:text-blue-600 transition-all flex items-center justify-center cursor-pointer active:scale-95 shadow-sm shrink-0",
-                    deadline && "border-blue-500/40 text-blue-600 hover:bg-blue-50/50"
+                    "h-8 w-8 rounded-xl border border-border hover:border-blue-500/40 hover:ring-4 hover:ring-blue-500/5 bg-card text-muted-foreground hover:text-blue-600 dark:text-blue-400 transition-all flex items-center justify-center cursor-pointer active:scale-95 shadow-sm dark:shadow-none shrink-0",
+                    deadline && "border-blue-500/40 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
                   )}
                   title="Set deadline date"
                 >
                   <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-3 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-50">
+              <PopoverContent className="w-auto p-3 bg-card border border-border rounded-2xl shadow-xl dark:shadow-none z-50">
                 <DayPickerCalendar
                   mode="single"
                   selected={deadline ? new Date(deadline) : undefined}
@@ -160,7 +160,7 @@ export function TaskQuickCreate({ onAddTask }: TaskQuickCreateProps) {
             {title.trim() && (
               <button
                 type="submit"
-                className="h-8 px-3 text-xs font-black text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer shrink-0 shadow-sm"
+                className="h-8 px-3 text-xs font-black text-white bg-foreground hover:bg-foreground rounded-xl transition-colors cursor-pointer shrink-0 shadow-sm dark:shadow-none"
               >
                 Add
               </button>

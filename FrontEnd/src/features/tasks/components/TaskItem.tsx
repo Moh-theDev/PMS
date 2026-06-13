@@ -43,10 +43,10 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
   return (
     <div
       className={cn(
-        'group flex items-center gap-3 px-3.5 py-2.5 rounded-lg cursor-pointer bg-white border transition-all',
+        'group flex items-center gap-3 px-3.5 py-2.5 rounded-lg cursor-pointer bg-card border transition-all',
         isSelected
-          ? 'border-blue-500 ring-2 ring-blue-500/10 shadow-sm'
-          : 'border-slate-100 hover:border-slate-200 hover:shadow-sm',
+          ? 'border-blue-500 ring-2 ring-blue-500/10 shadow-sm dark:shadow-none'
+          : 'border-border hover:border-border hover:shadow-sm dark:shadow-none',
         isClosed && 'opacity-55'
       )}
       onClick={onClick}
@@ -69,7 +69,7 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
               ? 'border-red-500 hover:border-red-600 focus-visible:ring-red-500/20 data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500'
               : task.priority > 4 
                 ? 'border-amber-500 hover:border-amber-600 focus-visible:ring-amber-500/20 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500'
-                : 'border-slate-300 hover:border-slate-400 focus-visible:ring-slate-500/20 data-[state=checked]:bg-slate-500 data-[state=checked]:border-slate-500'
+                : 'border-border hover:border-border focus-visible:ring-slate-500/20 data-[state=checked]:bg-slate-500 data-[state=checked]:border-slate-500'
           )}
         />
       </div>
@@ -86,8 +86,8 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
       {/* Title */}
       <span
         className={cn(
-          'flex-1 text-sm font-medium truncate text-slate-800',
-          isClosed && 'line-through text-slate-400'
+          'flex-1 text-sm font-medium truncate text-foreground',
+          isClosed && 'line-through text-muted-foreground'
         )}
       >
         {task.title}
@@ -122,7 +122,7 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
                       navigate(`/tasks/tag/${tagObj.id}`);
                     }
                   }}
-                  className="group/tag inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200/80 px-2 py-0.5 rounded border border-slate-200/50 cursor-pointer transition-all select-none"
+                  className="group/tag inline-flex items-center gap-1 text-[10px] font-bold text-muted-foreground bg-muted hover:bg-muted/80 px-2 py-0.5 rounded border border-border cursor-pointer transition-all select-none"
                 >
                   #{tagName}
                   {onRemoveTag && tagObj && (
@@ -132,7 +132,7 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
                         e.preventDefault();
                         onRemoveTag(task.id, tagObj.id);
                       }}
-                      className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-0.5 rounded transition-colors shrink-0"
+                      className="text-muted-foreground hover:text-red-500 hover:bg-red-500/10 p-0.5 rounded transition-colors shrink-0"
                     >
                       <X className="h-2.5 w-2.5" />
                     </span>
@@ -141,7 +141,7 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
               );
             })}
             {task.tags.length > 2 && (
-              <span className="text-[10px] text-slate-400 font-bold">+{task.tags.length - 2}</span>
+              <span className="text-[10px] text-muted-foreground font-bold">+{task.tags.length - 2}</span>
             )}
           </div>
         )}
@@ -152,9 +152,9 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
             variant={isOverdue ? 'destructive' : 'secondary'}
             className={cn(
               'h-5 px-2 text-[10px] font-semibold rounded-md gap-1',
-              isCompleted && 'bg-emerald-100 text-emerald-600 hover:bg-emerald-100',
-              isCancelled && 'bg-rose-100 text-rose-600 hover:bg-rose-100',
-              !isOverdue && !isClosed && 'bg-slate-100 text-slate-500'
+              isCompleted && 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20',
+              isCancelled && 'bg-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20',
+              !isOverdue && !isClosed && 'bg-muted text-muted-foreground'
             )}
           >
             {isOverdue && <span className="h-1.5 w-1.5 rounded-full bg-red-400 inline-block" />}
@@ -168,7 +168,7 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
                 <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
-            {!isOverdue && !isClosed && <Clock className="h-2.5 w-2.5 text-slate-400" />}
+            {!isOverdue && !isClosed && <Clock className="h-2.5 w-2.5 text-muted-foreground" />}
             {badgeText}
           </Badge>
         )}

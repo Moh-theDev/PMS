@@ -523,19 +523,19 @@ export function FocusView() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 relative overflow-y-auto flex flex-col pb-10">
+    <div className="min-h-screen bg-muted/50 relative overflow-x-hidden overflow-y-auto flex flex-col pb-10">
       {/* Decorative Gradient Background Blur Elements */}
       <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-600/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/5 rounded-full blur-[120px] pointer-events-none" />
 
       {/* ── Header section (top-left corner) ─────────────────────────────── */}
-      <div className="flex items-center gap-3 text-slate-400 px-6 py-5 md:pl-10 md:pt-8 select-none shrink-0">
-        <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center shrink-0">
-          <Clock className={cn("h-4 w-4 text-blue-600", isRunning && "animate-pulse")} />
+      <div className="flex items-center gap-3 text-muted-foreground px-6 py-5 md:pl-10 md:pt-8 select-none shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-card border border-border shadow-sm dark:shadow-none flex items-center justify-center shrink-0">
+          <Clock className={cn("h-4 w-4 text-blue-600 dark:text-blue-400", isRunning && "animate-pulse")} />
         </div>
         <div>
-          <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight leading-tight">Time Tracking</h1>
-          <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Focus and track active tasks in real time</p>
+          <h1 className="text-lg md:text-xl font-black text-foreground tracking-tight leading-tight">Time Tracking</h1>
+          <p className="text-[11px] text-muted-foreground font-semibold mt-0.5">Focus and track active tasks in real time</p>
         </div>
       </div>
 
@@ -545,7 +545,7 @@ export function FocusView() {
 
           {/* Error Banner */}
           {errorMsg && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold px-4 py-3 rounded-2xl w-full flex items-center gap-2.5 shadow-sm animate-in fade-in slide-in-from-top-2">
+            <div className="bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-400 text-xs font-bold px-4 py-3 rounded-2xl w-full flex items-center gap-2.5 shadow-sm dark:shadow-none animate-in fade-in slide-in-from-top-2">
               <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -553,8 +553,8 @@ export function FocusView() {
 
           {/* ── Task Selector Dropdown ─────────────────────────────────────── */}
           {activeEntry === null && (
-            <div ref={dropdownRef} className="w-full max-w-xs relative">
-              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-1 mb-1 block text-center select-none">
+            <div ref={dropdownRef} className="w-full max-w-md relative">
+              <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest pl-1 mb-1 block text-center select-none">
                 Select task to track
               </label>
               
@@ -567,7 +567,7 @@ export function FocusView() {
                     setDropdownView('tasks');
                   }}
                   disabled={isApiLoading}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50/50 rounded-xl shadow-xs text-xs font-semibold text-slate-700 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-between px-3 py-2 bg-card border border-border hover:border-border hover:bg-muted/50 rounded-xl shadow-xs dark:shadow-none text-xs font-semibold text-foreground transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-muted disabled:cursor-not-allowed"
                 >
                   <span className="truncate flex items-center gap-2 min-w-0">
                     {selectedTask ? (
@@ -585,42 +585,42 @@ export function FocusView() {
                         <span className="truncate">{selectedTask.title}</span>
                       </>
                     ) : selectedTaskId ? (
-                      <span className="text-slate-400 flex items-center gap-1.5">
+                      <span className="text-muted-foreground flex items-center gap-1.5">
                         <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500 shrink-0" />
                         <span className="truncate">Loading selected task...</span>
                       </span>
                     ) : (
-                      <span className="text-slate-400">Choose a task to track...</span>
+                      <span className="text-muted-foreground">Choose a task to track...</span>
                     )}
                   </span>
-                  <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform duration-200 shrink-0 ml-2", isDropdownOpen && "rotate-180")} />
+                  <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ml-2", isDropdownOpen && "rotate-180")} />
                 </button>
 
                 {/* Floating Dropdown Panel — compact */}
                 {isDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 shadow-xl rounded-2xl z-50 text-left overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-card border border-border shadow-xl dark:shadow-none rounded-2xl z-50 text-left overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
                     
                     {/* Tasks List View */}
                     {dropdownView === 'tasks' ? (
                       <div className="flex flex-col" style={{ maxHeight: '260px' }}>
                         
                         {/* Search + Filter row */}
-                        <div className="p-2 pb-1.5 border-b border-slate-100 shrink-0 space-y-1.5">
+                        <div className="p-2 pb-1.5 border-b border-border shrink-0 space-y-1.5">
                           {/* Search */}
                           <div className="relative">
-                            <Search className="absolute left-2.5 top-2 h-3 w-3 text-slate-400" />
+                            <Search className="absolute left-2.5 top-2 h-3 w-3 text-muted-foreground" />
                             <input
                               type="text"
                               placeholder="Search tasks..."
                               value={searchQuery}
                               onChange={(e) => setSearchQuery(e.target.value)}
-                              className="w-full pl-7 pr-7 py-1.5 bg-slate-50 border border-slate-100 rounded-lg text-xs font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-400 transition-all"
+                              className="w-full pl-7 pr-7 py-1.5 bg-muted border border-border rounded-lg text-xs font-medium text-foreground placeholder-slate-400 focus:outline-none focus:bg-card focus:border-blue-400 transition-all"
                             />
                             {searchQuery && (
                               <button
                                 type="button"
                                 onClick={() => setSearchQuery('')}
-                                className="absolute right-2 top-1.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                                className="absolute right-2 top-1.5 text-muted-foreground hover:text-muted-foreground cursor-pointer"
                               >
                                 <X className="h-3.5 w-3.5" />
                               </button>
@@ -631,13 +631,13 @@ export function FocusView() {
                           <button
                             type="button"
                             onClick={() => setDropdownView('filters')}
-                            className="w-full flex items-center justify-between px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-[11px] font-semibold text-slate-600 transition-all cursor-pointer"
+                            className="w-full flex items-center justify-between px-2.5 py-1.5 bg-muted hover:bg-muted rounded-lg text-[11px] font-semibold text-muted-foreground transition-all cursor-pointer"
                           >
                             <span className="flex items-center gap-1.5">
                               {activeFilterIcon()}
                               {activeFilterLabel()}
                             </span>
-                            <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" />
+                            <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
                           </button>
                         </div>
 
@@ -650,12 +650,12 @@ export function FocusView() {
                               <button
                                 type="button"
                                 onClick={() => setIsOverdueCollapsed(!isOverdueCollapsed)}
-                                className="w-full flex items-center justify-between px-2 py-1 hover:bg-slate-50 rounded-lg text-left cursor-pointer"
+                                className="w-full flex items-center justify-between px-2 py-1 hover:bg-muted rounded-lg text-left cursor-pointer"
                               >
-                                <span className="flex items-center gap-1 text-[10px] font-bold text-red-600">
+                                <span className="flex items-center gap-1 text-[10px] font-bold text-red-600 dark:text-red-400">
                                   <AlertTriangle className="h-3 w-3 text-red-500" />
                                   Overdue
-                                  <span className="bg-red-50 text-red-600 text-[9px] font-extrabold px-1 py-0.5 rounded-full">
+                                  <span className="bg-red-500/10 text-red-600 dark:text-red-400 text-[9px] font-extrabold px-1 py-0.5 rounded-full">
                                     {overdueTasks.length}
                                   </span>
                                 </span>
@@ -669,11 +669,11 @@ export function FocusView() {
                                       key={t.id}
                                       type="button"
                                       onClick={() => handleSelectTask(t.id)}
-                                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left hover:bg-red-50/40 transition-all group cursor-pointer"
+                                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left hover:bg-red-500/10 transition-all group cursor-pointer"
                                     >
                                       <div className="flex items-center gap-2 min-w-0 flex-1">
                                         <span className="w-2.5 h-2.5 rounded-full border-2 border-red-500 shrink-0" />
-                                        <span className="text-xs font-semibold text-slate-700 truncate">{t.title}</span>
+                                        <span className="text-xs font-semibold text-foreground truncate">{t.title}</span>
                                       </div>
                                       {t.deadline && (
                                         <span className="text-[10px] font-bold text-red-500 ml-2 shrink-0">
@@ -690,7 +690,7 @@ export function FocusView() {
                           {/* Regular Tasks */}
                           {regularTasks.length > 0 ? (
                             <div>
-                              <div className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest px-2 py-1 select-none">
+                              <div className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest px-2 py-1 select-none">
                                 Tasks
                               </div>
                               {regularTasks.map((t) => {
@@ -700,16 +700,16 @@ export function FocusView() {
                                     key={t.id}
                                     type="button"
                                     onClick={() => handleSelectTask(t.id)}
-                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-slate-50 transition-all cursor-pointer"
+                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-muted transition-all cursor-pointer"
                                   >
                                     <span 
                                       className="w-2.5 h-2.5 rounded-full border-2 shrink-0 transition-all"
                                       style={{ borderColor: priorityColor, backgroundColor: selectedTaskId === t.id ? priorityColor : 'transparent' }}
                                     />
                                     <div className="min-w-0 flex-1">
-                                      <div className="text-xs font-semibold text-slate-700 truncate">{t.title}</div>
+                                      <div className="text-xs font-semibold text-foreground truncate">{t.title}</div>
                                       {t.description && (
-                                        <div className="text-[10px] text-slate-400 truncate">{t.description}</div>
+                                        <div className="text-[10px] text-muted-foreground truncate">{t.description}</div>
                                       )}
                                     </div>
                                   </button>
@@ -718,7 +718,7 @@ export function FocusView() {
                             </div>
                           ) : (
                             overdueTasks.length === 0 && (
-                              <div className="text-center py-4 text-slate-400 text-xs font-semibold select-none">
+                              <div className="text-center py-4 text-muted-foreground text-xs font-semibold select-none">
                                 No tasks found
                               </div>
                             )
@@ -731,14 +731,14 @@ export function FocusView() {
                         <button
                           type="button"
                           onClick={() => setDropdownView('tasks')}
-                          className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer mb-1"
+                          className="flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-400 transition-colors cursor-pointer mb-1"
                         >
                           <ChevronLeft className="h-3.5 w-3.5" />
                           Back
                         </button>
 
                         {/* Views */}
-                        <div className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest px-2 py-1 select-none">Views</div>
+                        <div className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest px-2 py-1 select-none">Views</div>
                         {[
                           { type: 'all', name: 'All Active Tasks', icon: Clock, color: 'text-blue-500' },
                           { type: 'today', name: "Today's Tasks", icon: Calendar, color: 'text-emerald-500' },
@@ -752,14 +752,14 @@ export function FocusView() {
                               setActiveFilter({ type: item.type as any });
                               setDropdownView('tasks');
                             }}
-                            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left hover:bg-slate-50 transition-all text-xs font-semibold text-slate-700 cursor-pointer"
+                            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left hover:bg-muted transition-all text-xs font-semibold text-foreground cursor-pointer"
                           >
                             <span className="flex items-center gap-2">
                               <item.icon className={cn("h-3.5 w-3.5 shrink-0", item.color)} />
                               {item.name}
                             </span>
                             {activeFilter.type === item.type && (
-                              <Check className="h-3 w-3 text-blue-600 shrink-0" />
+                              <Check className="h-3 w-3 text-blue-600 dark:text-blue-400 shrink-0" />
                             )}
                           </button>
                         ))}
@@ -767,7 +767,7 @@ export function FocusView() {
                         {/* Lists */}
                         {categories.length > 0 && (
                           <>
-                            <div className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest px-2 pt-2 pb-1 select-none">Lists</div>
+                            <div className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest px-2 pt-2 pb-1 select-none">Lists</div>
                             {categories.map((c) => {
                               const isSelected = activeFilter.type === 'category' && activeFilter.id === c.id;
                               return (
@@ -778,7 +778,7 @@ export function FocusView() {
                                     setActiveFilter({ type: 'category', id: c.id, name: c.name });
                                     setDropdownView('tasks');
                                   }}
-                                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left hover:bg-slate-50 transition-all text-xs font-semibold text-slate-700 cursor-pointer"
+                                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left hover:bg-muted transition-all text-xs font-semibold text-foreground cursor-pointer"
                                 >
                                   <span className="flex items-center gap-2">
                                     <span 
@@ -787,7 +787,7 @@ export function FocusView() {
                                     />
                                     {c.name}
                                   </span>
-                                  {isSelected && <Check className="h-3 w-3 text-blue-600 shrink-0" />}
+                                  {isSelected && <Check className="h-3 w-3 text-blue-600 dark:text-blue-400 shrink-0" />}
                                 </button>
                               );
                             })}
@@ -797,7 +797,7 @@ export function FocusView() {
                         {/* Tags */}
                         {tags && tags.length > 0 && (
                           <>
-                            <div className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest px-2 pt-2 pb-1 select-none">Tags</div>
+                            <div className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest px-2 pt-2 pb-1 select-none">Tags</div>
                             {tags.map((tg) => {
                               const isSelected = activeFilter.type === 'tag' && activeFilter.name === tg.name;
                               return (
@@ -808,13 +808,13 @@ export function FocusView() {
                                     setActiveFilter({ type: 'tag', name: tg.name });
                                     setDropdownView('tasks');
                                   }}
-                                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left hover:bg-slate-50 transition-all text-xs font-semibold text-slate-700 cursor-pointer"
+                                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left hover:bg-muted transition-all text-xs font-semibold text-foreground cursor-pointer"
                                 >
                                   <span className="flex items-center gap-2">
-                                    <Tag className="h-3 w-3 text-slate-400 shrink-0" />
+                                    <Tag className="h-3 w-3 text-muted-foreground shrink-0" />
                                     {tg.name}
                                   </span>
-                                  {isSelected && <Check className="h-3 w-3 text-blue-600 shrink-0" />}
+                                  {isSelected && <Check className="h-3 w-3 text-blue-600 dark:text-blue-400 shrink-0" />}
                                 </button>
                               );
                             })}
@@ -830,8 +830,8 @@ export function FocusView() {
 
           {/* ── Active Task Card ────────────────────────────────────────────── */}
           {activeEntry !== null && !selectedTask && (
-            <div className="bg-white border border-slate-200/95 rounded-2xl p-4 shadow-xs max-w-sm w-full relative overflow-hidden animate-pulse select-none text-left h-24 flex items-center justify-center">
-              <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold">
+            <div className="bg-card border border-border rounded-2xl p-4 shadow-xs dark:shadow-none max-w-md w-full relative overflow-hidden animate-pulse select-none text-left h-24 flex items-center justify-center">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold">
                 <Loader2 className="h-4 w-4 animate-spin text-blue-500 shrink-0" />
                 <span>Loading task details...</span>
               </div>
@@ -839,7 +839,7 @@ export function FocusView() {
           )}
 
           {selectedTask && (
-            <div className="bg-white border border-slate-200/95 rounded-2xl p-4 shadow-xs max-w-sm w-full relative overflow-hidden transition-all hover:border-slate-300 select-none text-left">
+            <div className="bg-card border border-border rounded-2xl p-4 shadow-xs dark:shadow-none max-w-md w-full relative overflow-hidden transition-all hover:border-border select-none text-left">
               {/* Left-edge priority indicator */}
               <div 
                 className="absolute top-0 left-0 w-1 h-full rounded-l-2xl" 
@@ -857,10 +857,10 @@ export function FocusView() {
                   <span className={cn(
                     "text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider",
                     selectedTask.priority >= 8 
-                      ? "bg-red-50 text-red-600 border border-red-100"
+                      ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-100"
                       : selectedTask.priority > 4
-                        ? "bg-amber-50 text-amber-600 border border-amber-100"
-                        : "bg-blue-50 text-blue-600 border border-blue-100"
+                        ? "bg-amber-50 text-amber-600 dark:text-amber-400 border border-amber-100"
+                        : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-100"
                   )}>
                     {selectedTask.priority >= 8 ? 'High' : selectedTask.priority > 4 ? 'Medium' : 'Low'}
                   </span>
@@ -875,21 +875,21 @@ export function FocusView() {
                   )}
                 </div>
                 
-                <h3 className="text-sm font-black text-slate-800 leading-snug line-clamp-2">
+                <h3 className="text-sm font-black text-foreground leading-snug line-clamp-2">
                   {selectedTask.title}
                 </h3>
                 
                 {selectedTask.description && (
-                  <p className="text-[11px] text-slate-400 line-clamp-1 leading-relaxed font-semibold">
+                  <p className="text-[11px] text-muted-foreground line-clamp-1 leading-relaxed font-semibold">
                     {selectedTask.description}
                   </p>
                 )}
                 
-                <div className="flex items-center justify-between pt-1 border-t border-slate-100 mt-2 text-[10px] font-bold">
-                  <div className="flex items-center gap-1.5 text-slate-400">
-                    <span>Planned: {selectedTask.durationInMinutes}m</span>
+                <div className="flex items-center justify-between pt-1 border-t border-border mt-2 text-[10px] font-bold">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <span>Planned: {formatFocusedTime(selectedTask.durationInMinutes * 60)}</span>
                     <span className="opacity-40">•</span>
-                    <span className="text-blue-600">Focused: {formatFocusedTime(taskFocusedSeconds)}</span>
+                    <span className="text-blue-600 dark:text-blue-400">Focused: {formatFocusedTime(taskFocusedSeconds)}</span>
                   </div>
                   {activeEntry === null && (
                     <div className="flex items-center gap-2.5">
@@ -900,13 +900,13 @@ export function FocusView() {
                           setManualDate(new Date().toISOString().split('T')[0]);
                           setIsManualLogOpen(true);
                         }}
-                        className="text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                        className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:text-emerald-400 transition-colors cursor-pointer"
                       >
                         Log Time
                       </button>
                       <button
                         onClick={() => setSelectedTaskId(null)}
-                        className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                        className="text-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer"
                       >
                         Change
                       </button>
@@ -919,19 +919,19 @@ export function FocusView() {
 
           {/* 🚨 Session Warning */}
           {showMinSessionWarning && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm max-w-xs w-full text-left animate-in fade-in zoom-in duration-200">
+            <div className="bg-amber-50 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4 shadow-sm dark:shadow-none max-w-xs w-full text-left animate-in fade-in zoom-in duration-200">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 animate-pulse" />
                 <div className="space-y-2">
                   <h4 className="text-xs font-black text-amber-800 uppercase tracking-wider">Keep focusing?</h4>
-                  <p className="text-[11px] text-amber-700 leading-relaxed font-semibold">
+                  <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-relaxed font-semibold">
                     You've been focusing for less than 5 minutes. To keep your history clean and accurate, sessions this short won't be saved. Would you like to keep focusing or discard this session?
                   </p>
                   <div className="flex items-center gap-2 pt-1">
                     <Button
                       size="sm"
                       onClick={() => setShowMinSessionWarning(false)}
-                      className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl shadow-xs cursor-pointer active:scale-95"
+                      className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl shadow-xs dark:shadow-none cursor-pointer active:scale-95"
                     >
                       Keep Focusing
                     </Button>
@@ -939,7 +939,7 @@ export function FocusView() {
                       size="sm"
                       onClick={handleDiscard}
                       disabled={isApiLoading}
-                      className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl cursor-pointer active:scale-95"
+                      className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-100 text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl cursor-pointer active:scale-95"
                     >
                       Discard Session
                     </Button>
@@ -951,12 +951,12 @@ export function FocusView() {
 
           {/* 🚨 Discard Session Confirmation */}
           {showDiscardConfirm && (
-            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 shadow-sm max-w-xs w-full text-left animate-in fade-in zoom-in duration-200">
+            <div className="bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-2xl p-4 shadow-sm dark:shadow-none max-w-xs w-full text-left animate-in fade-in zoom-in duration-200">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5 animate-pulse" />
+                <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5 animate-pulse" />
                 <div className="space-y-2">
                   <h4 className="text-xs font-black text-rose-800 uppercase tracking-wider">Discard Session?</h4>
-                  <p className="text-[11px] text-rose-700 leading-relaxed font-semibold">
+                  <p className="text-[11px] text-rose-700 dark:text-rose-400 leading-relaxed font-semibold">
                     Are you sure you want to discard this focus session? All tracked time from this session will be lost and not saved.
                   </p>
                   <div className="flex items-center gap-2 pt-1">
@@ -964,7 +964,7 @@ export function FocusView() {
                       size="sm"
                       onClick={handleDiscard}
                       disabled={isApiLoading}
-                      className="bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl shadow-xs cursor-pointer active:scale-95"
+                      className="bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl shadow-xs dark:shadow-none cursor-pointer active:scale-95"
                     >
                       Yes, Discard
                     </Button>
@@ -972,7 +972,7 @@ export function FocusView() {
                       size="sm"
                       variant="ghost"
                       onClick={() => setShowDiscardConfirm(false)}
-                      className="text-rose-800 hover:bg-rose-100 text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl cursor-pointer active:scale-95"
+                      className="text-rose-800 hover:bg-rose-500/20 text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl cursor-pointer active:scale-95"
                     >
                       Cancel
                     </Button>
@@ -985,7 +985,7 @@ export function FocusView() {
           {/* ── Timer Circle ───────────────────────────────────────────────── */}
           <div className="relative flex items-center justify-center shrink-0 select-none">
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-[260px] h-[260px] rounded-full border border-slate-100/60 shadow-inner bg-white/20 backdrop-blur-[2px]" />
+              <div className="w-[260px] h-[260px] rounded-full border border-border shadow-inner bg-card/20 backdrop-blur-[2px]" />
             </div>
             
             <svg className="w-[240px] h-[240px] -rotate-90 relative">
@@ -1022,7 +1022,7 @@ export function FocusView() {
                 animate={{ opacity: 1 }}
                 className={cn(
                   "text-4xl font-black tracking-tighter tabular-nums leading-none",
-                  progressExceeded ? "text-red-500" : "text-slate-800"
+                  progressExceeded ? "text-red-500" : "text-foreground"
                 )}
               >
                 {formatTime(seconds)}
@@ -1037,7 +1037,7 @@ export function FocusView() {
                       ? "bg-amber-400" 
                       : "bg-slate-300"
                 )} />
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-none">
                   {isRunning 
                     ? "Active Tracking" 
                     : activeEntry !== null 
@@ -1049,7 +1049,7 @@ export function FocusView() {
           </div>
 
           {/* ── Playback Buttons ───────────────────────────────────────────── */}
-          <div className="flex items-center justify-center gap-3 max-w-sm w-full select-none">
+          <div className="flex items-center justify-center gap-3 max-w-md w-full select-none">
             {/* Start / Pause / Resume */}
             <Button
               onClick={
@@ -1061,16 +1061,16 @@ export function FocusView() {
               }
               disabled={isApiLoading || selectedTaskId === null || showMinSessionWarning || showDiscardConfirm}
               className={cn(
-                "h-11 rounded-xl font-bold text-xs shadow-md transition-all active:scale-98 text-white",
+                "h-11 rounded-xl font-bold text-xs shadow-md dark:shadow-none transition-all active:scale-98",
                 activeEntry === null
-                  ? "bg-slate-900 hover:bg-slate-800 shadow-slate-900/10 disabled:bg-slate-300"
+                  ? "bg-foreground hover:bg-foreground/90 text-background shadow-slate-900/10 disabled:bg-muted disabled:text-muted-foreground"
                   : isRunning
-                    ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/10"
-                    : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/10"
+                    ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/10"
+                    : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/10"
               )}
             >
               {isApiLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
+                <Loader2 className="h-4 w-4 animate-spin text-background" />
               ) : activeEntry === null ? (
                 "Start Session"
               ) : isRunning ? (
@@ -1085,7 +1085,7 @@ export function FocusView() {
               <Button
                 onClick={handleStop}
                 disabled={isApiLoading || showMinSessionWarning || showDiscardConfirm}
-                className="h-11 rounded-xl font-bold text-xs bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-600/10 transition-all active:scale-98"
+                className="h-11 rounded-xl font-bold text-xs bg-blue-600 hover:bg-blue-500 text-white shadow-md dark:shadow-none shadow-blue-600/10 transition-all active:scale-98"
               >
                 {isApiLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin text-white" />
@@ -1100,7 +1100,7 @@ export function FocusView() {
               <Button
                 onClick={() => setShowDiscardConfirm(true)}
                 disabled={isApiLoading || showMinSessionWarning || showDiscardConfirm}
-                className="h-11 rounded-xl font-bold text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 shadow-sm transition-all active:scale-98 px-4 cursor-pointer"
+                className="h-11 rounded-xl font-bold text-xs bg-red-950 hover:bg-red-900 text-red-50 border border-red-900 shadow-sm dark:shadow-none transition-all active:scale-98 px-4 cursor-pointer"
               >
                 Discard
               </Button>
@@ -1113,29 +1113,29 @@ export function FocusView() {
       {/* ── Manual Time Logging Modal ────────────────────────────────────── */}
       <AnimatePresence>
         {isManualLogOpen && selectedTask && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-[99999] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-foreground/40 backdrop-blur-xs z-[99999] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white border border-slate-200/80 shadow-2xl rounded-2xl p-6 max-w-sm w-full relative flex flex-col gap-4 text-left"
+              className="bg-card border border-border shadow-2xl dark:shadow-none rounded-2xl p-6 max-w-sm w-full relative flex flex-col gap-4 text-left"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Close Button */}
               <button
                 type="button"
                 onClick={() => setIsManualLogOpen(false)}
-                className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer active:scale-95"
+                className="absolute top-4 right-4 p-1.5 rounded-full text-muted-foreground hover:text-muted-foreground hover:bg-muted transition-all cursor-pointer active:scale-95"
               >
                 <X className="h-4 w-4" />
               </button>
 
               <div>
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Log Focus Time</h3>
-                <p className="text-[10px] text-slate-400 font-semibold mt-0.5 leading-relaxed">
+                <h3 className="text-sm font-black text-foreground uppercase tracking-wider">Log Focus Time</h3>
+                <p className="text-[10px] text-muted-foreground font-semibold mt-0.5 leading-relaxed">
                   Add manual focus time for:
                 </p>
-                <div className="mt-2 inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-1 rounded-lg">
+                <div className="mt-2 inline-flex items-center gap-1.5 bg-blue-500/10 border border-blue-100 text-blue-700 dark:text-blue-400 text-[10px] font-bold px-2.5 py-1 rounded-lg">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                   {selectedTask.title}
                 </div>
@@ -1146,40 +1146,40 @@ export function FocusView() {
                 <div className="flex items-center gap-3">
                   {/* Hours Input */}
                   <div className="flex flex-col gap-1 flex-1">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Hours</label>
+                    <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest pl-0.5">Hours</label>
                     <input
                       type="number"
                       min="0"
                       max="24"
                       value={manualHours}
                       onChange={(e) => setManualHours(Math.max(0, Math.min(24, parseInt(e.target.value) || 0)))}
-                      className="w-full text-center font-bold text-sm bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
+                      className="w-full text-center font-bold text-sm bg-muted border border-border rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500 focus:bg-card transition-all"
                     />
                   </div>
 
                   {/* Minutes Input */}
                   <div className="flex flex-col gap-1 flex-1">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Minutes</label>
+                    <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest pl-0.5">Minutes</label>
                     <input
                       type="number"
                       min="0"
                       max="59"
                       value={manualMinutes}
                       onChange={(e) => setManualMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
-                      className="w-full text-center font-bold text-sm bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
+                      className="w-full text-center font-bold text-sm bg-muted border border-border rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500 focus:bg-card transition-all"
                     />
                   </div>
                 </div>
 
                 {/* Date Input */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Date Focused</label>
+                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest pl-0.5">Date Focused</label>
                   <input
                     type="date"
                     value={manualDate}
                     max={new Date().toISOString().split('T')[0]}
                     onChange={(e) => setManualDate(e.target.value)}
-                    className="w-full font-bold text-xs bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:bg-white transition-all text-slate-700"
+                    className="w-full font-bold text-xs bg-muted border border-border rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:bg-card transition-all text-foreground"
                   />
                 </div>
               </div>
@@ -1188,14 +1188,14 @@ export function FocusView() {
               <div className="flex items-center gap-2 pt-2">
                 <Button
                   onClick={handleSaveManualLog}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex-1 h-10 shadow-sm cursor-pointer active:scale-98"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex-1 h-10 shadow-sm dark:shadow-none cursor-pointer active:scale-98"
                 >
                   Log Session
                 </Button>
                 <Button
                   variant="ghost"
                   onClick={() => setIsManualLogOpen(false)}
-                  className="text-slate-500 hover:bg-slate-100 font-bold text-xs rounded-xl h-10 px-4 cursor-pointer"
+                  className="text-muted-foreground hover:bg-muted font-bold text-xs rounded-xl h-10 px-4 cursor-pointer"
                 >
                   Cancel
                 </Button>
@@ -1212,14 +1212,14 @@ export function FocusView() {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="fixed bottom-6 right-6 z-[99999] flex items-center gap-3 bg-emerald-50 border border-emerald-200 px-4 py-3.5 rounded-xl shadow-lg shadow-emerald-900/10 text-emerald-800 text-xs font-bold max-w-xs sm:max-w-sm"
+            className="fixed bottom-6 right-6 z-[99999] flex items-center gap-3 bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 px-4 py-3.5 rounded-xl shadow-lg dark:shadow-none shadow-emerald-900/10 text-emerald-800 text-xs font-bold max-w-xs sm:max-w-sm"
           >
-            <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+            <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="flex-1 leading-relaxed">{toastMessage}</span>
             <button 
               type="button"
               onClick={() => setToastMessage(null)} 
-              className="ml-2 p-0.5 text-emerald-500 hover:text-emerald-700 rounded-md hover:bg-emerald-100 transition-colors cursor-pointer"
+              className="ml-2 p-0.5 text-emerald-500 hover:text-emerald-700 dark:text-emerald-400 rounded-md hover:bg-emerald-500/20 transition-colors cursor-pointer"
             >
               <X className="h-3.5 w-3.5" />
             </button>

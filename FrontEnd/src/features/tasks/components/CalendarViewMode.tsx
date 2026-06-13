@@ -227,32 +227,32 @@ export function CalendarViewMode({
       >
         <span className="truncate flex-1 font-semibold">{task.title}</span>
         {task.priority >= 8 && !isClosed && (
-          <span className="w-1 h-1 rounded-full bg-white animate-pulse shrink-0" />
+          <span className="w-1 h-1 rounded-full bg-card animate-pulse shrink-0" />
         )}
       </button>
     );
   };
 
   return (
-    <div className="flex h-full bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden flex-col">
+    <div className="flex h-full bg-card border border-border rounded-2xl shadow-xs dark:shadow-none overflow-hidden flex-col">
       
       {/* ── Calendar Header ─────────────────────────────────────────── */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50/50 shrink-0 select-none">
+      <div className="flex items-center justify-between p-4 border-b border-border bg-muted/50 shrink-0 select-none">
         <div className="flex items-center gap-3">
           
           {/* Navigation controls */}
-          <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+          <div className="flex items-center bg-card border border-border rounded-xl shadow-xs dark:shadow-none overflow-hidden">
             <button
               onClick={handlePrev}
               type="button"
               disabled={timeframe === 'custom'}
-              className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer border-r border-slate-200/60"
+              className="h-9 w-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer border-r border-border"
               title="Previous"
             >
               <ChevronLeft className="h-4.5 w-4.5" />
             </button>
             
-            <div className="px-4 h-9 flex items-center gap-2 text-slate-800 font-bold text-xs">
+            <div className="px-4 h-9 flex items-center gap-2 text-foreground font-bold text-xs">
               <CalendarRange className="h-4 w-4 text-indigo-500" />
               <span className="min-w-[150px] text-center">
                 {timeframe === 'week' && `Week of ${format(boundaries.start, 'MMM d, yyyy')}`}
@@ -265,7 +265,7 @@ export function CalendarViewMode({
               onClick={handleNext}
               type="button"
               disabled={timeframe === 'custom'}
-              className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer border-l border-slate-200/60"
+              className="h-9 w-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer border-l border-border"
               title="Next"
             >
               <ChevronRight className="h-4.5 w-4.5" />
@@ -276,7 +276,7 @@ export function CalendarViewMode({
           <button
             onClick={handleToday}
             type="button"
-            className="px-4 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-xs font-bold shadow-xs hover:border-slate-300 transition-all flex items-center gap-1.5 cursor-pointer"
+            className="px-4 h-9 rounded-xl border border-border bg-card hover:bg-muted text-foreground hover:text-foreground text-xs font-bold shadow-xs dark:shadow-none hover:border-border transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
             Today
@@ -286,24 +286,24 @@ export function CalendarViewMode({
         {/* Views timeframe selector */}
         <div className="flex items-center gap-2">
           {timeframe === 'custom' && (
-            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-sm mr-2 animate-in fade-in slide-in-from-right-1">
+            <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 shadow-sm dark:shadow-none mr-2 animate-in fade-in slide-in-from-right-1">
               <input
                 type="date"
                 value={customStart}
                 onChange={(e) => handleCustomStartChange(e.target.value)}
-                className="text-xs font-semibold px-2 py-0.5 outline-none text-slate-600 bg-transparent border-0 focus:ring-0 cursor-pointer"
+                className="text-xs font-semibold px-2 py-0.5 outline-none text-muted-foreground bg-transparent border-0 focus:ring-0 cursor-pointer"
               />
-              <span className="text-[10px] text-slate-400 font-bold px-0.5 select-none">to</span>
+              <span className="text-[10px] text-muted-foreground font-bold px-0.5 select-none">to</span>
               <input
                 type="date"
                 value={customEnd}
                 onChange={(e) => handleCustomEndChange(e.target.value)}
-                className="text-xs font-semibold px-2 py-0.5 outline-none text-slate-600 bg-transparent border-0 focus:ring-0 cursor-pointer"
+                className="text-xs font-semibold px-2 py-0.5 outline-none text-muted-foreground bg-transparent border-0 focus:ring-0 cursor-pointer"
               />
             </div>
           )}
 
-          <div className="flex bg-white border border-slate-200 rounded-xl p-0.5 shadow-sm">
+          <div className="flex bg-card border border-border rounded-xl p-0.5 shadow-sm dark:shadow-none">
             {(['week', 'month', 'custom'] as const).map((mode) => (
               <button
                 key={mode}
@@ -312,8 +312,8 @@ export function CalendarViewMode({
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer",
                   timeframe === mode
-                    ? "bg-slate-900 text-white shadow-sm"
-                    : "text-slate-500 hover:text-slate-800"
+                    ? "bg-foreground text-background shadow-sm dark:shadow-none"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {mode}
@@ -327,9 +327,9 @@ export function CalendarViewMode({
       {timeframe === 'month' && (
         <div className="flex-1 flex flex-col min-h-0">
           {/* Weekday headers — sticky so they stay visible while scrolling */}
-          <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/50 text-center select-none py-2.5 shrink-0 sticky top-0 z-10">
+          <div className="grid grid-cols-7 border-b border-border bg-muted/50 text-center select-none py-2.5 shrink-0 sticky top-0 z-10">
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-              <span key={day} className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              <span key={day} className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                 {day}
               </span>
             ))}
@@ -337,7 +337,7 @@ export function CalendarViewMode({
 
           {/* Scrollable month grid — each row gets generous height */}
           <div className="overflow-y-auto flex-1">
-            <div className="grid grid-cols-7 divide-x divide-y divide-slate-100 border-b border-slate-100"
+            <div className="grid grid-cols-7 divide-x divide-y divide-slate-100 border-b border-border"
                  style={{ gridAutoRows: '160px' }}>
               {dayCells.map((day: Date) => {
                 const dayTasks = scheduledTasks.filter((t) => isTaskActiveOnDay(t, day));
@@ -349,8 +349,8 @@ export function CalendarViewMode({
                     key={day.toString()}
                     ref={isDayToday ? todayMonthRef : undefined}
                     className={cn(
-                      "p-2 flex flex-col gap-1 transition-all bg-white relative hover:bg-slate-50/30",
-                      !isCurrentMonth && "bg-slate-50/40"
+                      "p-2 flex flex-col gap-1 transition-all bg-card relative hover:bg-muted/30",
+                      !isCurrentMonth && "bg-muted/40"
                     )}
                   >
                     {/* Day number + task count badge */}
@@ -359,16 +359,16 @@ export function CalendarViewMode({
                         className={cn(
                           "text-[11px] font-extrabold h-6 w-6 rounded-full flex items-center justify-center select-none transition-colors",
                           isDayToday
-                            ? "bg-indigo-600 text-white font-black shadow-sm"
+                            ? "bg-indigo-600 text-white font-black shadow-sm dark:shadow-none"
                             : isCurrentMonth
-                              ? "text-slate-600"
+                              ? "text-muted-foreground"
                               : "text-slate-300"
                         )}
                       >
                         {format(day, 'd')}
                       </span>
                       {dayTasks.length > 0 && (
-                        <span className="text-[9px] font-black text-slate-400 bg-slate-100 rounded-full px-1.5 py-0.5 select-none leading-none">
+                        <span className="text-[9px] font-black text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 select-none leading-none">
                           {dayTasks.length}
                         </span>
                       )}
@@ -390,9 +390,9 @@ export function CalendarViewMode({
       {timeframe === 'week' && (
         <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
           {/* Weekday headers */}
-          <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/50 text-center select-none py-2.5 shrink-0">
+          <div className="grid grid-cols-7 border-b border-border bg-muted/50 text-center select-none py-2.5 shrink-0">
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-              <span key={day} className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              <span key={day} className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                 {day}
               </span>
             ))}
@@ -408,20 +408,20 @@ export function CalendarViewMode({
                 <div
                   key={day.toString()}
                   className={cn(
-                    "p-3 flex flex-col gap-2 transition-all bg-white relative hover:bg-slate-50/15",
-                    isDayToday && "bg-slate-50/5"
+                    "p-3 flex flex-col gap-2 transition-all bg-card relative hover:bg-muted/15",
+                    isDayToday && "bg-muted/5"
                   )}
                 >
-                  <div className="flex items-center justify-between shrink-0 mb-1.5 border-b border-slate-100 pb-1.5 select-none">
+                  <div className="flex items-center justify-between shrink-0 mb-1.5 border-b border-border pb-1.5 select-none">
                     <span 
                       className={cn(
-                        "text-xs font-extrabold h-6 w-6 rounded-full flex items-center justify-center text-slate-600",
-                        isDayToday && "bg-indigo-600 text-white font-black shadow-sm"
+                        "text-xs font-extrabold h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground",
+                        isDayToday && "bg-indigo-600 text-white font-black shadow-sm dark:shadow-none"
                       )}
                     >
                       {format(day, 'd')}
                     </span>
-                    <span className="text-[9.5px] font-black text-slate-400">
+                    <span className="text-[9.5px] font-black text-muted-foreground">
                       {format(day, 'EEE')}
                     </span>
                   </div>
@@ -442,11 +442,11 @@ export function CalendarViewMode({
 
       {/* ── Custom Range View ───────────────────────────────────────── */}
       {timeframe === 'custom' && (
-        <div className="flex-1 overflow-y-auto min-h-0 bg-slate-50/15 p-6">
+        <div className="flex-1 overflow-y-auto min-h-0 bg-muted/15 p-6">
           {dayCells.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-white p-8 gap-2 max-w-md mx-auto mt-12 shadow-sm animate-fade-in">
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border border-dashed border-border rounded-2xl bg-card p-8 gap-2 max-w-md mx-auto mt-12 shadow-sm dark:shadow-none animate-fade-in">
               <AlertCircle className="h-8 w-8 text-slate-300 animate-bounce" />
-              <span className="text-xs font-black text-slate-700 uppercase tracking-wider mt-1">No days selected</span>
+              <span className="text-xs font-black text-foreground uppercase tracking-wider mt-1">No days selected</span>
               <span className="text-[10px] text-slate-450 font-medium text-center">Please choose a valid start and end range within 31 days above.</span>
             </div>
           ) : (
@@ -460,21 +460,21 @@ export function CalendarViewMode({
                     key={day.toString()}
                     ref={isDayToday ? todayCustomRef : undefined}
                     className={cn(
-                      "bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col gap-3 min-h-[140px]",
+                      "bg-card border border-border rounded-2xl p-4 shadow-sm dark:shadow-none hover:shadow-md dark:shadow-none hover:border-border transition-all flex flex-col gap-3 min-h-[140px]",
                       isDayToday && "border-indigo-400 ring-4 ring-indigo-50"
                     )}
                   >
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2 select-none">
+                    <div className="flex items-center justify-between border-b border-border pb-2 select-none">
                       <div className="flex flex-col">
-                        <span className="text-xs font-black text-slate-800">
+                        <span className="text-xs font-black text-foreground">
                           {format(day, 'EEEE')}
                         </span>
-                        <span className="text-[9.5px] font-bold text-slate-400 mt-0.5">
+                        <span className="text-[9.5px] font-bold text-muted-foreground mt-0.5">
                           {format(day, 'MMM d, yyyy')}
                         </span>
                       </div>
                       {isDayToday && (
-                        <span className="bg-indigo-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm shrink-0">
+                        <span className="bg-indigo-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm dark:shadow-none shrink-0">
                           Today
                         </span>
                       )}

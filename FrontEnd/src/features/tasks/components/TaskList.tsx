@@ -29,9 +29,9 @@ interface SectionHeaderProps {
 
 function SectionHeader({ icon, label, count, color, isCollapsed, onToggle }: SectionHeaderProps) {
   const colorMap = {
-    red: { bg: 'bg-red-50', text: 'text-red-600', badge: 'bg-red-100 text-red-600' },
-    blue: { bg: 'bg-blue-50', text: 'text-blue-600', badge: 'bg-blue-100 text-blue-600' },
-    green: { bg: 'bg-emerald-50', text: 'text-emerald-600', badge: 'bg-emerald-100 text-emerald-600' },
+    red: { bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400', badge: 'bg-red-500/20 text-red-600 dark:text-red-400' },
+    blue: { bg: 'bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400', badge: 'bg-blue-500/20 text-blue-600 dark:text-blue-400' },
+    green: { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', badge: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' },
   };
   const c = colorMap[color];
 
@@ -41,12 +41,12 @@ function SectionHeader({ icon, label, count, color, isCollapsed, onToggle }: Sec
       onClick={onToggle}
     >
       <div className={`p-1 ${c.bg} ${c.text} rounded-md shrink-0`}>{icon}</div>
-      <span className="text-xs font-bold text-slate-700">{label}</span>
+      <span className="text-xs font-bold text-foreground">{label}</span>
       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${c.badge} shrink-0`}>{count}</span>
       <ChevronRight 
         className={cn(
-          "h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ml-auto mr-1",
-          !isCollapsed && "rotate-90 text-slate-600"
+          "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ml-auto mr-1",
+          !isCollapsed && "rotate-90 text-muted-foreground"
         )}
       />
     </div>
@@ -74,7 +74,7 @@ export function TaskList({
 
   if (isLoading && totalTasks === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
         <Clock className="h-7 w-7 animate-spin" />
         <span className="text-sm font-medium">Loading tasks...</span>
       </div>
@@ -83,10 +83,10 @@ export function TaskList({
 
   if (totalTasks === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-white/60 p-8">
+      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border border-dashed border-border rounded-xl bg-card/60 p-8">
         <InboxIcon className="h-10 w-10 text-slate-300 mb-3" />
-        <span className="text-sm font-bold text-slate-700">All clear</span>
-        <span className="text-xs text-slate-400 font-medium text-center mt-1 max-w-[240px]">
+        <span className="text-sm font-bold text-foreground">All clear</span>
+        <span className="text-xs text-muted-foreground font-medium text-center mt-1 max-w-[240px]">
           No tasks in this view. Add one above to get started!
         </span>
       </div>

@@ -67,14 +67,14 @@ export function LoginView() {
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-red-50 border border-red-200 px-4 py-3.5 rounded-xl shadow-lg shadow-red-900/5 text-red-700 text-sm max-w-sm"
+            className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-red-500/10 border border-red-200 dark:border-red-500/30 px-4 py-3.5 rounded-xl shadow-lg dark:shadow-none shadow-red-900/5 text-red-700 dark:text-red-400 text-sm max-w-sm"
           >
             <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
             <span className="font-semibold flex-1 leading-snug">{toastMessage}</span>
             <button 
               type="button"
               onClick={() => setToastMessage(null)} 
-              className="ml-2 p-0.5 text-red-400 hover:text-red-600 rounded-md hover:bg-red-100 transition-colors cursor-pointer"
+              className="ml-2 p-0.5 text-red-400 hover:text-red-600 dark:text-red-400 rounded-md hover:bg-red-500/20 transition-colors cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
@@ -85,20 +85,20 @@ export function LoginView() {
       <div className="flex flex-col h-screen justify-center px-6 lg:px-20 bg-accent gap-6">
         <form 
           onSubmit={handleSubmit(onSubmit)} 
-          className="flex flex-col gap-5 w-fit min-w-[360px] md:min-w-[400px] bg-card p-6 rounded-2xl shadow-xl border border-slate-100"
+          className="flex flex-col gap-5 w-fit min-w-[360px] md:min-w-[400px] bg-card p-6 rounded-2xl shadow-xl dark:shadow-none border border-border"
         >
           <div className="flex flex-col gap-2">
-            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Welcome back</h2>
-            <p className="text-slate-500 text-sm">Enter your credentials to access your workspace</p>
+            <h2 className="text-3xl font-bold text-foreground tracking-tight">Welcome back</h2>
+            <p className="text-muted-foreground text-sm">Enter your credentials to access your workspace</p>
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-semibold text-slate-700" htmlFor="email">Email</label>
+            <label className="text-sm font-semibold text-foreground" htmlFor="email">Email</label>
             <Input 
               type="email" 
               id="email" 
               placeholder="name@company.com" 
-              className="w-full px-4 py-2.5 h-11 rounded-lg border-slate-200 focus:ring-blue-600/10 focus:border-blue-600 transition-all text-sm bg-slate-50/50" 
+              className="w-full px-4 py-2.5 h-11 rounded-lg border-border focus:ring-blue-600/10 focus:border-blue-600 transition-all text-sm bg-muted/50" 
               {...register('email')}
             />
             {errors.email && (
@@ -108,13 +108,13 @@ export function LoginView() {
           
           <div className="flex flex-col gap-1">
             <div className="flex justify-between">
-              <label className="text-sm font-semibold text-slate-700" htmlFor="password">Password</label>
+              <label className="text-sm font-semibold text-foreground" htmlFor="password">Password</label>
             </div>
             <Input 
               type="password" 
               id="password" 
               placeholder="••••••••" 
-              className="w-full px-4 py-2.5 h-11 rounded-lg border-slate-200 focus:ring-blue-600/10 focus:border-blue-600 transition-all text-sm bg-slate-50/50" 
+              className="w-full px-4 py-2.5 h-11 rounded-lg border-border focus:ring-blue-600/10 focus:border-blue-600 transition-all text-sm bg-muted/50" 
               {...register('password')}
             />
             {errors.password && (
@@ -125,7 +125,7 @@ export function LoginView() {
           <Button 
             type="submit" 
             disabled={isLoading}
-            className="w-full bg-slate-900 text-white h-11 rounded-lg font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 active:scale-[0.98] mt-2 group flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="w-full bg-foreground text-background h-11 rounded-lg font-bold hover:bg-foreground transition-all shadow-lg dark:shadow-none shadow-slate-900/10 active:scale-[0.98] mt-2 group flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             {isLoading ? (
               <>
@@ -140,15 +140,15 @@ export function LoginView() {
             )}
           </Button>
           
-          <p className="text-center text-sm text-slate-500 pt-2">
-            Don't have an account? <Link to="/signup" className="text-blue-600 font-bold hover:underline">Create account</Link>
+          <p className="text-center text-sm text-muted-foreground pt-2">
+            Don't have an account? <Link to="/signup" className="text-blue-600 dark:text-blue-400 font-bold hover:underline">Create account</Link>
           </p>
         </form>
       </div>
       
-      <div className="flex gap-6 text-xs md:text-lg p-2 font-medium text-slate-400">
-        <Link to="#" className="hover:text-slate-600 transition-colors">Privacy Policy</Link>
-        <Link to="#" className="hover:text-slate-600 transition-colors">Terms of Service</Link>
+      <div className="flex gap-6 text-xs md:text-lg p-2 font-medium text-muted-foreground">
+        <Link to="#" className="hover:text-muted-foreground transition-colors">Privacy Policy</Link>
+        <Link to="#" className="hover:text-muted-foreground transition-colors">Terms of Service</Link>
         <span>&copy; 2024 FocusFlow v2.0.4</span>
       </div>
     </div>

@@ -303,26 +303,26 @@ export function AiAssistantView() {
     date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30 overflow-hidden">
+    <div className="flex flex-col h-full bg-muted/30 overflow-hidden">
       {/* Ambient glows */}
       <div className="pointer-events-none absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-[100px]" />
       <div className="pointer-events-none absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-[100px]" />
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <header className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-slate-200/80 bg-white/70 backdrop-blur-sm shrink-0">
+      <header className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-border bg-card/70 backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-sm shadow-blue-200">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-sm dark:shadow-none shadow-blue-200">
             <Sparkles className="h-4.5 w-4.5 text-white" />
           </div>
           <div>
-            <h1 className="text-base font-black text-slate-900 tracking-tight leading-tight">AI Assistant</h1>
-            <p className="text-[11px] text-slate-400 font-medium">Smart scheduling & insights</p>
+            <h1 className="text-base font-black text-foreground tracking-tight leading-tight">AI Assistant</h1>
+            <p className="text-[11px] text-muted-foreground font-medium">Smart scheduling & insights</p>
           </div>
         </div>
         <button
           onClick={resetChat}
           title="Clear chat"
-          className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer px-2.5 py-1.5 rounded-lg hover:bg-slate-100"
+          className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer px-2.5 py-1.5 rounded-lg hover:bg-muted"
         >
           <RotateCcw className="h-3.5 w-3.5" />
           Clear
@@ -346,8 +346,8 @@ export function AiAssistantView() {
                 <div className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5",
                   isUser
-                    ? "bg-slate-800 text-white text-xs font-black"
-                    : "bg-gradient-to-br from-blue-600 to-indigo-600 shadow-sm shadow-blue-200"
+                    ? "bg-foreground text-background text-xs font-black"
+                    : "bg-gradient-to-br from-blue-600 to-indigo-600 shadow-sm dark:shadow-none shadow-blue-200"
                 )}>
                   {isUser
                     ? <span className="text-[11px] font-black">You</span>
@@ -358,10 +358,10 @@ export function AiAssistantView() {
                 {/* Bubble + timestamp */}
                 <div className={cn("flex flex-col max-w-[80%]", isUser ? "items-end" : "items-start")}>
                   <div className={cn(
-                    "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-xs",
+                    "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-xs dark:shadow-none",
                     isUser
-                      ? "bg-slate-900 text-white rounded-tr-sm"
-                      : "bg-white border border-slate-200/80 text-slate-700 rounded-tl-sm"
+                      ? "bg-foreground text-background rounded-tr-sm"
+                      : "bg-card border border-border text-foreground rounded-tl-sm"
                   )}>
                     {/* Text with bold support */}
                     {message.text && (
@@ -376,18 +376,18 @@ export function AiAssistantView() {
                         <button
                           onClick={() => handleScheduleClickDirectly(true)}
                           disabled={isProcessing}
-                          className="flex flex-col text-left p-3.5 rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50/50 hover:from-blue-100 hover:to-indigo-100/50 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 group"
+                          className="flex flex-col text-left p-3.5 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-indigo-500/5 hover:from-blue-500/20 hover:to-indigo-500/10 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 group"
                         >
-                          <div className="flex items-center gap-2 text-xs font-bold text-blue-600 mb-1.5">
-                            <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                              <Calendar className="h-3.5 w-3.5 text-blue-600" />
+                          <div className="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 mb-1.5">
+                            <div className="w-6 h-6 rounded-lg bg-blue-500/20 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                              <Calendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                             </div>
                             Schedule Tasks
                           </div>
-                          <span className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                          <span className="text-[11px] text-muted-foreground font-medium leading-relaxed">
                             Automatically fit all your tasks into open time slots on your calendar.
                           </span>
-                          <span className="flex items-center gap-1 text-[10px] font-bold text-blue-600 mt-2.5">
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 mt-2.5">
                             Let's go <ArrowRight className="h-3 w-3" />
                           </span>
                         </button>
@@ -395,18 +395,18 @@ export function AiAssistantView() {
                         <button
                           onClick={() => handleReportClickDirectly(true)}
                           disabled={isProcessing}
-                          className="flex flex-col text-left p-3.5 rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50/50 hover:from-emerald-100 hover:to-teal-100/50 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 group"
+                          className="flex flex-col text-left p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 hover:from-emerald-500/20 hover:to-teal-500/10 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 group"
                         >
-                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 mb-1.5">
-                            <div className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
-                              <BarChart3 className="h-3.5 w-3.5 text-emerald-600" />
+                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1.5">
+                            <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                              <BarChart3 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                             </div>
                             Report
                           </div>
-                          <span className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                          <span className="text-[11px] text-muted-foreground font-medium leading-relaxed">
                             Get a personalized AI summary of your productivity, focus time, and achievements today.
                           </span>
-                          <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 mt-2.5">
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-2.5">
                             Generate <ArrowRight className="h-3 w-3" />
                           </span>
                         </button>
@@ -417,7 +417,7 @@ export function AiAssistantView() {
                     {message.type === 'loading' && (
                       <div className="flex items-center gap-2.5 mt-1">
                         <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500 shrink-0" />
-                        <span className="text-xs text-slate-500 font-medium italic">
+                        <span className="text-xs text-muted-foreground font-medium italic">
                           {message.text}
                         </span>
                       </div>
@@ -441,7 +441,7 @@ export function AiAssistantView() {
                     )}
                   </div>
 
-                  <span className="text-[10px] text-slate-400 font-medium mt-1 px-1">
+                  <span className="text-[10px] text-muted-foreground font-medium mt-1 px-1">
                     {formatTime(message.timestamp)}
                   </span>
                 </div>
@@ -452,10 +452,10 @@ export function AiAssistantView() {
           {/* Typing indicator when processing but no loading message */}
           {isProcessing && !messages.some(m => m.type === 'loading') && (
             <div className="flex gap-3 items-start animate-in fade-in duration-200 mb-5">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shrink-0 shadow-sm shadow-blue-200">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shrink-0 shadow-sm dark:shadow-none shadow-blue-200">
                 <Sparkles className="h-3.5 w-3.5 text-white" />
               </div>
-              <div className="bg-white border border-slate-200/80 rounded-2xl rounded-tl-sm px-4 py-3 shadow-xs flex items-center gap-1.5">
+              <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 shadow-xs dark:shadow-none flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0ms' }} />
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '150ms' }} />
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -468,7 +468,7 @@ export function AiAssistantView() {
       </div>
 
       {/* ── Input bar ────────────────────────────────────────────────────── */}
-      <div className="relative z-10 border-t border-slate-200/80 bg-white/80 backdrop-blur-sm px-4 md:px-8 py-4 shrink-0">
+      <div className="relative z-10 border-t border-border bg-card/80 backdrop-blur-sm px-4 md:px-8 py-4 shrink-0">
         <div className="max-w-2xl mx-auto w-full space-y-3">
           {/* Quick chips */}
           {!isProcessing && (
@@ -476,7 +476,7 @@ export function AiAssistantView() {
               <button
                 type="button"
                 onClick={() => handleScheduleClickDirectly(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 dark:border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-400 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs dark:shadow-none"
               >
                 <Calendar className="h-3 w-3" />
                 Schedule Tasks
@@ -484,7 +484,7 @@ export function AiAssistantView() {
               <button
                 type="button"
                 onClick={() => handleReportClickDirectly(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs dark:shadow-none"
               >
                 <BarChart3 className="h-3 w-3" />
                 Report
@@ -495,7 +495,7 @@ export function AiAssistantView() {
           {/* Input form */}
           <form
             onSubmit={handleSendMessage}
-            className="flex items-center gap-2 bg-white border border-slate-200 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-500/8 rounded-2xl px-4 py-2.5 shadow-xs transition-all"
+            className="flex items-center gap-2 bg-card border border-border focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-500/8 rounded-2xl px-4 py-2.5 shadow-xs dark:shadow-none transition-all"
           >
             <input
               ref={inputRef}
@@ -504,14 +504,14 @@ export function AiAssistantView() {
               onChange={(e) => setInputValue(e.target.value)}
               disabled={isProcessing}
               placeholder={isProcessing ? 'Working on it…' : 'Type a message or use the buttons above…'}
-              className="flex-1 text-sm bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 font-medium text-slate-800 p-0"
+              className="flex-1 text-sm bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground font-medium text-foreground p-0"
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) handleSendMessage(); }}
             />
             <Button
               type="submit"
               disabled={isProcessing || !inputValue.trim()}
               size="icon"
-              className="h-8 w-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xs transition-all shrink-0 cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-8 w-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xs dark:shadow-none transition-all shrink-0 cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
             </Button>
@@ -555,13 +555,13 @@ function DeadlineWizard({
   return (
     <div className="mt-3 space-y-3">
       {/* Bulk assign */}
-      <div className="p-3 rounded-xl border border-blue-100 bg-blue-50/50 space-y-2">
+      <div className="p-3 rounded-xl border border-blue-100 bg-blue-500/10 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">Assign to multiple</span>
+          <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Assign to multiple</span>
           <button
             type="button"
             onClick={toggleSelectAll}
-            className="text-[10px] font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+            className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 transition-colors cursor-pointer"
           >
             {selectedIds.length === wizardTasks.length ? 'Deselect all' : 'Select all'}
           </button>
@@ -573,7 +573,7 @@ function DeadlineWizard({
             onChange={(e) => setBulkDate(e.target.value)}
             disabled={isProcessing}
             min={new Date().toISOString().split('T')[0]}
-            className="flex-1 text-xs font-semibold text-slate-700 bg-white border border-slate-200 focus:border-blue-400 rounded-lg px-2.5 py-1.5 outline-none cursor-pointer"
+            className="flex-1 text-xs font-semibold text-foreground bg-card border border-border focus:border-blue-400 rounded-lg px-2.5 py-1.5 outline-none cursor-pointer"
           />
           <Button
             type="button"
@@ -594,8 +594,8 @@ function DeadlineWizard({
             <div
               key={t.id}
               className={cn(
-                "flex items-center gap-2.5 p-2.5 bg-white rounded-xl border transition-all",
-                isChecked ? "border-blue-200 shadow-xs" : "border-slate-150 opacity-70"
+                "flex items-center gap-2.5 p-2.5 bg-card rounded-xl border transition-all",
+                isChecked ? "border-blue-200 dark:border-blue-500/30 shadow-xs dark:shadow-none" : "border-slate-150 opacity-70"
               )}
             >
               <Checkbox
@@ -605,7 +605,7 @@ function DeadlineWizard({
               />
               <span
                 onClick={() => toggleSelect(t.id)}
-                className="text-xs font-semibold text-slate-800 truncate flex-1 cursor-pointer select-none"
+                className="text-xs font-semibold text-foreground truncate flex-1 cursor-pointer select-none"
               >
                 {t.title}
               </span>
@@ -615,7 +615,7 @@ function DeadlineWizard({
                 onChange={(e) => handleDateChange(t.id, e.target.value)}
                 disabled={isProcessing}
                 min={new Date().toISOString().split('T')[0]}
-                className="text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 focus:border-blue-400 rounded-lg px-2 py-1 outline-none cursor-pointer shrink-0"
+                className="text-xs font-semibold text-foreground bg-muted border border-border focus:border-blue-400 rounded-lg px-2 py-1 outline-none cursor-pointer shrink-0"
               />
             </div>
           );
@@ -624,14 +624,14 @@ function DeadlineWizard({
 
       {/* Submit */}
       <div className="flex items-center justify-between gap-3 pt-1">
-        <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
+        <span className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
           <AlertCircle className="h-3 w-3 text-blue-400 shrink-0" />
           All tasks need a deadline to schedule
         </span>
         <Button
           onClick={() => onSubmit(wizardTasks)}
           disabled={!isFormValid || isProcessing}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-8 px-4 rounded-xl shadow-xs shrink-0"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-8 px-4 rounded-xl shadow-xs dark:shadow-none shrink-0"
         >
           {isProcessing ? (
             <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Scheduling…</>
@@ -651,18 +651,18 @@ function ReportPresenter({ score, content }: { score: number; content: string })
   const sections = React.useMemo(() => parseReportContent(content), [content]);
 
   const scoreColors = (() => {
-    if (score >= 80) return { text: 'text-emerald-600', ring: 'stroke-emerald-500', bg: 'bg-emerald-50', label: 'Great day! 🎉' };
-    if (score >= 50) return { text: 'text-amber-600', ring: 'stroke-amber-500', bg: 'bg-amber-50', label: 'Decent progress 👍' };
-    return { text: 'text-rose-600', ring: 'stroke-rose-500', bg: 'bg-rose-50', label: 'Tough day — keep going 💪' };
+    if (score >= 80) return { text: 'text-emerald-600 dark:text-emerald-400', ring: 'stroke-emerald-500', bg: 'bg-emerald-500/10', label: 'Great day! 🎉' };
+    if (score >= 50) return { text: 'text-amber-600 dark:text-amber-400', ring: 'stroke-amber-500', bg: 'bg-amber-50', label: 'Decent progress 👍' };
+    return { text: 'text-rose-600 dark:text-rose-400', ring: 'stroke-rose-500', bg: 'bg-rose-500/10', label: 'Tough day — keep going 💪' };
   })();
 
   const getSectionStyles = (color: string) => {
     switch (color) {
-      case 'emerald': return { bg: 'bg-emerald-50/60 border-emerald-100', title: 'text-emerald-700', icon: <Trophy className="h-3.5 w-3.5 text-emerald-600" />, iconBg: 'bg-emerald-100' };
-      case 'blue': return { bg: 'bg-blue-50/60 border-blue-100', title: 'text-blue-700', icon: <TrendingUp className="h-3.5 w-3.5 text-blue-600" />, iconBg: 'bg-blue-100' };
-      case 'amber': return { bg: 'bg-amber-50/60 border-amber-100', title: 'text-amber-700', icon: <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />, iconBg: 'bg-amber-100' };
-      case 'purple': return { bg: 'bg-purple-50/60 border-purple-100', title: 'text-purple-700', icon: <Lightbulb className="h-3.5 w-3.5 text-purple-600" />, iconBg: 'bg-purple-100' };
-      default: return { bg: 'bg-indigo-50/60 border-indigo-100', title: 'text-indigo-700', icon: <Quote className="h-3.5 w-3.5 text-indigo-600" />, iconBg: 'bg-indigo-100' };
+      case 'emerald': return { bg: 'bg-emerald-500/10 border-emerald-100', title: 'text-emerald-700 dark:text-emerald-400', icon: <Trophy className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />, iconBg: 'bg-emerald-500/20' };
+      case 'blue': return { bg: 'bg-blue-500/10 border-blue-100', title: 'text-blue-700 dark:text-blue-400', icon: <TrendingUp className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />, iconBg: 'bg-blue-500/20' };
+      case 'amber': return { bg: 'bg-amber-50/60 border-amber-100', title: 'text-amber-700 dark:text-amber-400', icon: <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />, iconBg: 'bg-amber-100' };
+      case 'purple': return { bg: 'bg-purple-500/10 border-purple-100', title: 'text-purple-700 dark:text-purple-400', icon: <Lightbulb className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />, iconBg: 'bg-purple-500/20' };
+      default: return { bg: 'bg-indigo-500/10 border-indigo-100', title: 'text-indigo-700 dark:text-indigo-400', icon: <Quote className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />, iconBg: 'bg-indigo-500/20' };
     }
   };
 
@@ -673,7 +673,7 @@ function ReportPresenter({ score, content }: { score: number; content: string })
   return (
     <div className="mt-3 space-y-3 animate-in zoom-in-95 duration-300">
       {/* Score card */}
-      <div className={cn("p-4 rounded-xl border flex items-center gap-4 bg-white", `border-${scoreColors.ring.split('-')[1]}-100`)}>
+      <div className={cn("p-4 rounded-xl border flex items-center gap-4 bg-card", `border-${scoreColors.ring.split('-')[1]}-100`)}>
         <div className="relative h-14 w-14 shrink-0 flex items-center justify-center">
           <svg className="h-full w-full rotate-[-90deg]">
             <circle cx="28" cy="28" r={radius} className="stroke-slate-100 fill-none" strokeWidth="4" />
@@ -683,7 +683,7 @@ function ReportPresenter({ score, content }: { score: number; content: string })
           <span className={cn("absolute text-[11px] font-black", scoreColors.text)}>{Math.round(score)}%</span>
         </div>
         <div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Productivity Score</p>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Productivity Score</p>
           <p className={cn("text-sm font-black", scoreColors.text)}>{scoreColors.label}</p>
         </div>
       </div>
@@ -706,7 +706,7 @@ function ReportPresenter({ score, content }: { score: number; content: string })
               </div>
               <div className={cn(
                 "text-xs leading-relaxed whitespace-pre-wrap",
-                isQuote ? "text-indigo-900/80 italic font-medium" : "text-slate-600 font-medium"
+                isQuote ? "text-indigo-900/80 italic font-medium" : "text-muted-foreground font-medium"
               )}>
                 {sect.body}
               </div>

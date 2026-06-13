@@ -112,7 +112,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+          className="absolute inset-0 bg-foreground/60 backdrop-blur-sm"
         />
         
         {/* Modal content container */}
@@ -120,26 +120,26 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           initial={{ opacity: 0, scale: 0.96, y: -10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: -10 }}
-          className="relative w-full max-w-2xl bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xl z-10 font-sans flex flex-col max-h-[500px]"
+          className="relative w-full max-w-2xl bg-card border border-border rounded-2xl overflow-hidden shadow-2xl dark:shadow-none z-10 font-sans flex flex-col max-h-[500px]"
         >
           {/* Header Search Input */}
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 bg-slate-50/50">
-            <Search className="h-5 w-5 text-slate-400 shrink-0" />
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-border bg-muted/50">
+            <Search className="h-5 w-5 text-muted-foreground shrink-0" />
             <input
               ref={inputRef}
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search tasks by title..."
-              className="flex-1 bg-transparent border-0 outline-none text-base text-slate-800 placeholder:text-slate-400 focus:ring-0 focus:outline-none p-0"
+              className="flex-1 bg-transparent border-0 outline-none text-base text-foreground placeholder:text-muted-foreground focus:ring-0 focus:outline-none p-0"
             />
             <div className="flex items-center gap-2 shrink-0">
-              <span className="hidden sm:inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 bg-white text-slate-400 border border-slate-200/70 rounded shadow-sm">
+              <span className="hidden sm:inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 bg-card text-muted-foreground border border-border rounded shadow-sm dark:shadow-none">
                 ESC
               </span>
               <button
                 onClick={onClose}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -149,34 +149,34 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           {/* Scrollable Body */}
           <div className="flex-1 overflow-y-auto p-2">
             {isLoading ? (
-              <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-400">
+              <div className="py-12 flex flex-col items-center justify-center gap-3 text-muted-foreground">
                 <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
                 <span className="text-xs font-semibold">Searching your tasks...</span>
               </div>
             ) : query.trim() === '' ? (
-              <div className="py-12 flex flex-col items-center justify-center text-center p-6 text-slate-400 select-none">
-                <div className="h-12 w-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-4 text-blue-500 shadow-sm">
+              <div className="py-12 flex flex-col items-center justify-center text-center p-6 text-muted-foreground select-none">
+                <div className="h-12 w-12 rounded-2xl bg-blue-500/10 border border-blue-100 flex items-center justify-center mb-4 text-blue-500 shadow-sm dark:shadow-none">
                   <Search className="h-5 w-5" />
                 </div>
-                <h4 className="text-sm font-bold text-slate-800">Quick Search</h4>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm leading-relaxed">
+                <h4 className="text-sm font-bold text-foreground">Quick Search</h4>
+                <p className="text-xs text-muted-foreground mt-1 max-w-sm leading-relaxed">
                   Type task keywords to search in real time. Use arrow keys to navigate and enter to select.
                 </p>
               </div>
             ) : results.length === 0 ? (
-              <div className="py-12 flex flex-col items-center justify-center text-center p-6 text-slate-400 select-none">
-                <div className="h-12 w-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mb-4 text-slate-400">
+              <div className="py-12 flex flex-col items-center justify-center text-center p-6 text-muted-foreground select-none">
+                <div className="h-12 w-12 rounded-2xl bg-muted border border-border flex items-center justify-center mb-4 text-muted-foreground">
                   <AlertCircle className="h-5 w-5" />
                 </div>
-                <h4 className="text-sm font-bold text-slate-800">No tasks found</h4>
-                <p className="text-xs text-slate-400 mt-1">
-                  We couldn't find any tasks matching <span className="font-semibold text-slate-600">"{query}"</span>
+                <h4 className="text-sm font-bold text-foreground">No tasks found</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  We couldn't find any tasks matching <span className="font-semibold text-muted-foreground">"{query}"</span>
                 </p>
               </div>
             ) : (
               <div className="space-y-0.5">
                 <div className="px-3 py-1.5 mb-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                     Search Results ({results.length})
                   </span>
                 </div>
@@ -194,8 +194,8 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       className={cn(
                         'group flex items-center gap-3 px-3.5 py-2.5 rounded-xl cursor-pointer transition-all border border-transparent',
                         isSelected
-                          ? 'bg-slate-50 border-slate-100 shadow-sm'
-                          : 'hover:bg-slate-50/50'
+                          ? 'bg-muted border-border shadow-sm dark:shadow-none'
+                          : 'hover:bg-muted/50'
                       )}
                     >
                       {/* Custom Checkbox accent */}
@@ -206,7 +206,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                             ? 'border-red-400' + (isCompleted ? ' bg-red-500 border-red-500 text-white' : '')
                             : task.priority > 4 
                               ? 'border-amber-400' + (isCompleted ? ' bg-amber-500 border-amber-500 text-white' : '')
-                              : 'border-slate-300' + (isCompleted ? ' bg-slate-500 border-slate-500 text-white' : '')
+                              : 'border-border' + (isCompleted ? ' bg-slate-500 border-slate-500 text-white' : '')
                         )}
                       >
                         {isCompleted && (
@@ -227,9 +227,9 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       {/* Title */}
                       <span
                         className={cn(
-                          'flex-1 text-sm font-semibold truncate text-slate-700 transition-colors',
-                          isSelected && 'text-slate-900',
-                          isCompleted && 'line-through text-slate-400 group-hover:text-slate-400'
+                          'flex-1 text-sm font-semibold truncate text-foreground transition-colors',
+                          isSelected && 'text-foreground',
+                          isCompleted && 'line-through text-muted-foreground group-hover:text-muted-foreground'
                         )}
                       >
                         {task.title}
@@ -248,17 +248,17 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                         )}
                         
                         {task.deadline && !task.deadline.startsWith('0001-01-01') && (
-                          <span className="flex items-center gap-1 text-[10px] text-slate-400 font-bold bg-slate-100/50 px-2 py-0.5 rounded border border-slate-200/40">
-                            <Calendar className="h-3 w-3 text-slate-400/80" />
+                          <span className="flex items-center gap-1 text-[10px] text-muted-foreground font-bold bg-muted/50 px-2 py-0.5 rounded border border-border">
+                            <Calendar className="h-3 w-3 text-muted-foreground" />
                             {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </span>
                         )}
                         
                         {/* Select hint action */}
                         {isSelected && (
-                          <span className="flex items-center gap-0.5 text-[9px] font-bold text-slate-400 bg-white border border-slate-200 rounded px-1 py-0.5 shadow-sm animate-in fade-in duration-200">
+                          <span className="flex items-center gap-0.5 text-[9px] font-bold text-muted-foreground bg-card border border-border rounded px-1 py-0.5 shadow-sm dark:shadow-none animate-in fade-in duration-200">
                             <span>Select</span>
-                            <CornerDownLeft className="h-2.5 w-2.5 text-slate-400" />
+                            <CornerDownLeft className="h-2.5 w-2.5 text-muted-foreground" />
                           </span>
                         )}
                       </div>
@@ -270,16 +270,16 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           </div>
           
           {/* Footer Shortcuts hint */}
-          <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 text-[10px] text-slate-400 font-bold flex items-center justify-between">
+          <div className="px-5 py-3 border-t border-border bg-muted/50 text-[10px] text-muted-foreground font-bold flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1">
-                <span className="px-1 py-0.5 bg-white border border-slate-200 rounded shadow-xs">↑↓</span> Navigate
+                <span className="px-1 py-0.5 bg-card border border-border rounded shadow-xs dark:shadow-none">↑↓</span> Navigate
               </span>
               <span className="flex items-center gap-1">
-                <span className="px-1 py-0.5 bg-white border border-slate-200 rounded shadow-xs">↵</span> Select
+                <span className="px-1 py-0.5 bg-card border border-border rounded shadow-xs dark:shadow-none">↵</span> Select
               </span>
             </div>
-            <span>Press <kbd className="px-1 py-0.5 bg-white border border-slate-200 rounded shadow-xs">ESC</kbd> to close</span>
+            <span>Press <kbd className="px-1 py-0.5 bg-card border border-border rounded shadow-xs dark:shadow-none">ESC</kbd> to close</span>
           </div>
         </motion.div>
       </div>

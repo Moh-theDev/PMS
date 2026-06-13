@@ -26,6 +26,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Separator } from '../ui/separator';
 import { ProfileModal } from '@/features/profile/components/ProfileModal';
 import { SearchModal } from '@/features/search/components/SearchModal';
+import { useTheme } from '../theme-provider';
+import { Sun, Moon } from 'lucide-react';
 
 /* ── Category colour palette ──────────────────────────────────────────── */
 const COLORS = [
@@ -60,12 +62,12 @@ function InlineNameEditor({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-        className="flex-1 h-6 px-1.5 text-xs font-semibold text-slate-900 bg-white border border-blue-400 rounded-md outline-none focus:ring-2 focus:ring-blue-500/20 min-w-0"
+        className="flex-1 h-6 px-1.5 text-xs font-semibold text-foreground bg-card border border-blue-400 rounded-md outline-none focus:ring-2 focus:ring-blue-500/20 min-w-0"
       />
-      <button type="submit" className="text-emerald-600 hover:text-emerald-700 shrink-0">
+      <button type="submit" className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:text-emerald-400 shrink-0">
         <Check className="h-3.5 w-3.5" />
       </button>
-      <button type="button" onClick={onCancel} className="text-slate-400 hover:text-slate-600 shrink-0">
+      <button type="button" onClick={onCancel} className="text-muted-foreground hover:text-muted-foreground shrink-0">
         <X className="h-3.5 w-3.5" />
       </button>
     </form>
@@ -97,12 +99,12 @@ function InlineCreate({
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => e.key === 'Escape' && onCancel()}
         placeholder={placeholder}
-        className="flex-1 h-6 px-2 text-xs font-semibold text-slate-900 bg-white border border-blue-400 rounded-md outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-400 min-w-0"
+        className="flex-1 h-6 px-2 text-xs font-semibold text-foreground bg-card border border-blue-400 rounded-md outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-muted-foreground min-w-0"
       />
-      <button type="submit" disabled={!value.trim()} className="text-emerald-600 hover:text-emerald-700 disabled:opacity-30 shrink-0">
+      <button type="submit" disabled={!value.trim()} className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:text-emerald-400 disabled:opacity-30 shrink-0">
         <Check className="h-3.5 w-3.5" />
       </button>
-      <button type="button" onClick={onCancel} className="text-slate-400 hover:text-slate-600 shrink-0">
+      <button type="button" onClick={onCancel} className="text-muted-foreground hover:text-muted-foreground shrink-0">
         <X className="h-3.5 w-3.5" />
       </button>
     </form>
@@ -137,6 +139,7 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
   const [isListsCollapsed, setIsListsCollapsed] = useState(false);
   const [isTagsCollapsed, setIsTagsCollapsed] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { theme, setTheme } = useTheme();
 
   /* Global keyboard listener for search modal toggling */
   useEffect(() => {
@@ -189,33 +192,33 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
   const categoryLists = lists.filter((l) => !['inbox', 'today', 'upcoming'].includes(l.id));
 
   return (
-    <aside className="w-60 bg-slate-50 border-r border-slate-200 flex flex-col h-screen sticky top-0 text-slate-600 select-none shrink-0">
+    <aside className="w-60 bg-background border-r border-border flex flex-col h-screen sticky top-0 text-foreground select-none shrink-0">
 
       {/* ── User section with Collapse trigger ─────────────────────── */}
       <div className="relative flex items-center justify-between px-3 pt-3" ref={dropdownRef}>
         <div
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           className={cn(
-            'flex-1 p-2 bg-white rounded-xl border flex items-center justify-between cursor-pointer hover:border-blue-200 hover:shadow-sm transition-all min-w-0',
-            isDropdownOpen ? 'border-blue-300 ring-4 ring-blue-50' : 'border-slate-200'
+            'flex-1 p-2 bg-card rounded-xl border flex items-center justify-between cursor-pointer hover:border-border hover:shadow-sm dark:shadow-none transition-all min-w-0',
+            isDropdownOpen ? 'border-primary/50 ring-4 ring-primary/10' : 'border-border'
           )}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <Avatar className="h-7 w-7 ring-2 ring-white shrink-0">
+            <Avatar className="h-7 w-7 ring-2 ring-background shrink-0">
               <AvatarImage src={user?.avatar} />
-              <AvatarFallback className="bg-blue-100 text-blue-700 text-[10px] font-bold">
+              <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
                 {user?.name?.charAt(0)}
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-slate-900 truncate overflow-hidden">{user?.name}</span>
+              <span className="text-xs font-bold text-foreground truncate overflow-hidden">{user?.name}</span>
               
             </div>
           </div>
           <ChevronDown
             className={cn(
-              'h-3.5 w-3.5 text-slate-300 transition-transform duration-200 shrink-0',
-              isDropdownOpen && 'rotate-180 text-blue-500'
+              'h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 shrink-0',
+              isDropdownOpen && 'rotate-180 text-primary'
             )}
           />
         </div>
@@ -224,25 +227,35 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
         <button
           type="button"
           onClick={toggleSidebar}
-          className="ml-2 h-11 w-11 bg-white border border-slate-300 hover:border-red-200 hover:text-red-400 rounded-xl shadow-2xs flex items-center justify-center shrink-0 cursor-pointer text-slate-400 hover:bg-slate-50 transition-all active:scale-95"
+          className="ml-2 h-11 w-11 bg-card border border-border hover:border-destructive/50 hover:text-destructive rounded-xl shadow-2xs dark:shadow-none flex items-center justify-center shrink-0 cursor-pointer text-muted-foreground transition-all active:scale-95"
           title="Collapse Sidebar"
         >
           <X className="h-4.5 w-4.5" />
         </button>
 
         {isDropdownOpen && (
-          <div className="absolute top-[52px] left-3 right-12 z-50 bg-white border border-slate-100 rounded-xl shadow-xl shadow-slate-200/60 p-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="absolute top-[52px] left-3 right-12 z-50 bg-card border border-border rounded-xl shadow-xl dark:shadow-none p-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-2 duration-150">
             <button
               onClick={() => { setIsProfileOpen(true); setIsDropdownOpen(false); }}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors w-full text-left"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full text-left"
             >
-              <UserIcon className="h-3.5 w-3.5 text-slate-400" />
+              <UserIcon className="h-3.5 w-3.5 text-muted-foreground" />
               Profile Settings
+            </button>
+            <button
+              onClick={() => {
+                setTheme(theme === "dark" ? "light" : "dark");
+                setIsDropdownOpen(false);
+              }}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-foreground hover:bg-accent hover:text-accent-foreground transition-colors w-full text-left"
+            >
+              {theme === "dark" ? <Sun className="h-3.5 w-3.5 text-muted-foreground" /> : <Moon className="h-3.5 w-3.5 text-muted-foreground" />}
+              {theme === "dark" ? "Light Mode" : "Dark Mode"}
             </button>
             <Separator className="my-0.5" />
             <button
               onClick={() => { logout(); setIsDropdownOpen(false); }}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors w-full text-left"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors w-full text-left"
             >
               <LogOut className="h-3.5 w-3.5" />
               Log Out
@@ -255,13 +268,13 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
       <div className="px-3 pb-2 mt-4">
         <button 
           onClick={() => setIsSearchOpen(true)}
-          className="flex items-center justify-between w-full px-3 py-2 bg-white border border-slate-200 hover:border-blue-200 rounded-xl text-slate-400 text-xs font-semibold transition-all shadow-sm group"
+          className="flex items-center justify-between w-full px-3 py-2 bg-card border border-border hover:border-primary/50 rounded-xl text-muted-foreground text-xs font-semibold transition-all shadow-sm dark:shadow-none group"
         >
           <div className="flex items-center gap-2">
-            <Search className="h-3.5 w-3.5 shrink-0 text-slate-400 group-hover:text-blue-500 transition-colors" />
+            <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
             <span>Quick search...</span>
           </div>
-          <kbd className="hidden sm:inline-flex items-center text-[9px] px-1.5 py-0.5 bg-slate-50 text-slate-400 border border-slate-100 rounded font-sans font-bold group-hover:bg-slate-100 transition-colors">
+          <kbd className="hidden sm:inline-flex items-center text-[9px] px-1.5 py-0.5 bg-muted text-muted-foreground border border-border rounded font-sans font-bold group-hover:bg-accent transition-colors">
             ctrl + k
           </kbd>
         </button>
@@ -273,7 +286,7 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
         {/* Main nav */}
         <section>
           <div className="px-2 py-1 mb-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Navigation</span>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.18em]">Navigation</span>
           </div>
           <nav className="space-y-0.5">
             {navItems.map((item) => (
@@ -282,8 +295,8 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
                 to={item.path}
                 className={({ isActive }) =>
                   cn(
-                    'sidebar-item text-slate-500 hover:text-slate-900 hover:bg-white',
-                    isActive && 'sidebar-item-active text-white bg-blue-600'
+                    'sidebar-item text-muted-foreground hover:text-foreground hover:bg-accent',
+                    isActive && 'sidebar-item-active text-primary-foreground bg-primary'
                   )
                 }
               >
@@ -294,8 +307,8 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
                     className={cn(
                       'text-[10px] font-bold px-1.5 py-0.5 rounded-md',
                       location.pathname === item.path
-                        ? 'bg-blue-700/50 text-white'
-                        : 'bg-slate-100 text-slate-500'
+                        ? 'bg-primary-foreground/20 text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
                     )}
                   >
                     {item.count}
@@ -313,15 +326,15 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
               onClick={() => setIsListsCollapsed(!isListsCollapsed)}
               className="flex items-center gap-1.5 cursor-pointer select-none"
             >
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Lists</span>
-              <ChevronDown className={cn("h-3 w-3 text-slate-400 transition-transform duration-150", isListsCollapsed && "-rotate-90")} />
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.18em]">Lists</span>
+              <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform duration-150", isListsCollapsed && "-rotate-90")} />
             </div>
             <button
               onClick={() => {
                 setIsListsCollapsed(false);
                 setCreatingCategory(true);
               }}
-              className="h-5 w-5 flex items-center justify-center rounded-md bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-300 opacity-0 group-hover:opacity-100 transition-all"
+              className="h-5 w-5 flex items-center justify-center rounded-md bg-card border border-border text-muted-foreground hover:text-primary hover:border-primary/50 opacity-0 group-hover:opacity-100 transition-all"
             >
               <Plus className="h-3 w-3" />
             </button>
@@ -354,7 +367,7 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
                     >
                       {isEditing ? (
                         <div className="flex items-center gap-2 px-2 py-1.5">
-                          <FolderOpen className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                          <FolderOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           <InlineNameEditor
                             initial={list.name}
                             onSave={(val) => { updateCategory(catId, val); setEditingCategoryId(null); }}
@@ -366,8 +379,8 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
                           to={`/tasks/list/${list.id}`}
                           className={({ isActive }) =>
                             cn(
-                              'sidebar-item text-slate-500 hover:text-slate-900 hover:bg-white group/cat',
-                              isActive && 'sidebar-item-active text-white bg-blue-600'
+                              'sidebar-item text-muted-foreground hover:text-foreground hover:bg-accent group/cat',
+                              isActive && 'sidebar-item-active text-primary-foreground bg-primary'
                             )
                           }
                         >
@@ -380,8 +393,8 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
                             <span className={cn(
                               'text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0',
                               location.pathname.includes(list.id)
-                                ? 'bg-blue-700/50 text-white'
-                                : 'bg-slate-100 text-slate-500'
+                                ? 'bg-primary-foreground/20 text-primary-foreground'
+                                : 'bg-muted text-muted-foreground'
                             )}>
                               {taskCount}
                             </span>
@@ -392,14 +405,14 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
                               <button
                                 type="button"
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingCategoryId(catId); }}
-                                className="h-5 w-5 flex items-center justify-center rounded text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                               >
                                 <Pencil className="h-3 w-3" />
                               </button>
                               <button
                                 type="button"
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteCategory(catId); }}
-                                className="h-5 w-5 flex items-center justify-center rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                               >
                                 <Trash2 className="h-3 w-3" />
                               </button>
@@ -422,15 +435,15 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
               onClick={() => setIsTagsCollapsed(!isTagsCollapsed)}
               className="flex items-center gap-1.5 cursor-pointer select-none"
             >
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em]">Tags</span>
-              <ChevronDown className={cn("h-3 w-3 text-slate-400 transition-transform duration-150", isTagsCollapsed && "-rotate-90")} />
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.18em]">Tags</span>
+              <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform duration-150", isTagsCollapsed && "-rotate-90")} />
             </div>
             <button
               onClick={() => {
                 setIsTagsCollapsed(false);
                 setCreatingTag(true);
               }}
-              className="h-5 w-5 flex items-center justify-center rounded-md bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-300 opacity-0 group-hover:opacity-100 transition-all"
+              className="h-5 w-5 flex items-center justify-center rounded-md bg-card border border-border text-muted-foreground hover:text-primary hover:border-primary/50 opacity-0 group-hover:opacity-100 transition-all"
             >
               <Plus className="h-3 w-3" />
             </button>
@@ -461,7 +474,7 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
                     >
                       {isEditing ? (
                         <div className="flex items-center gap-2 px-2 py-1.5">
-                          <Hash className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                          <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           <InlineNameEditor
                             initial={tag.name}
                             onSave={(val) => { updateTag(tag.id, val); setEditingTagId(null); }}
@@ -473,19 +486,19 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
                           to={`/tasks/tag/${tag.id}`}
                           className={({ isActive }) =>
                             cn(
-                              'sidebar-item text-slate-500 hover:text-slate-900 hover:bg-white',
-                              isActive && 'sidebar-item-active text-white bg-blue-600'
+                              'sidebar-item text-muted-foreground hover:text-foreground hover:bg-accent',
+                              isActive && 'sidebar-item-active text-primary-foreground bg-primary'
                             )
                           }
                         >
-                          <Hash className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                          <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           <span className="flex-1 truncate capitalize">{tag.name}</span>
                           {tagTaskCount > 0 && (
                             <span className={cn(
                               'text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0',
                               location.pathname.includes(String(tag.id))
-                                ? 'bg-blue-700/50 text-white'
-                                : 'bg-slate-100 text-slate-500'
+                                ? 'bg-primary-foreground/20 text-primary-foreground'
+                                : 'bg-muted text-muted-foreground'
                             )}>
                               {tagTaskCount}
                             </span>
@@ -495,14 +508,14 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
                               <button
                                 type="button"
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingTagId(tag.id); }}
-                                className="h-5 w-5 flex items-center justify-center rounded text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                               >
                                 <Pencil className="h-3 w-3" />
                               </button>
                               <button
                                 type="button"
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteTag(tag.id); }}
-                                className="h-5 w-5 flex items-center justify-center rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                               >
                                 <Trash2 className="h-3 w-3" />
                               </button>

@@ -439,7 +439,7 @@ export function InboxView() {
   };
 
   return (
-    <div className="flex h-full bg-slate-50/40 overflow-hidden">
+    <div className="flex h-full bg-muted/40 overflow-hidden">
 
       {/* ── Left pane ─────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -448,7 +448,7 @@ export function InboxView() {
         <header className={cn("px-8 pt-7 pb-4 flex items-start justify-between shrink-0 transition-all duration-300", !sidebarOpen && "pl-18")}>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold tracking-tight text-slate-900 capitalize">{viewTitle}</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground capitalize">{viewTitle}</h1>
               
               {/* View Settings sliders Button next to Title */}
               <Popover>
@@ -456,17 +456,17 @@ export function InboxView() {
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg shrink-0 cursor-pointer" 
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg shrink-0 cursor-pointer" 
                     title="View Settings"
                   >
                     <SlidersHorizontal className="h-4.5 w-4.5" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-4 border border-slate-200 bg-white shadow-xl rounded-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-top-1">
+                <PopoverContent className="w-80 p-4 border border-border bg-card shadow-xl dark:shadow-none rounded-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-top-1">
                   
-                  <div className="flex flex-col border-b border-slate-100 pb-2">
-                    <h4 className="font-extrabold text-sm text-slate-800">General View Settings</h4>
-                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Toggle visibility of task segments</p>
+                  <div className="flex flex-col border-b border-border pb-2">
+                    <h4 className="font-extrabold text-sm text-foreground">General View Settings</h4>
+                    <p className="text-[10px] font-semibold text-muted-foreground mt-0.5">Toggle visibility of task segments</p>
                   </div>
 
                   <div className="space-y-3">
@@ -475,31 +475,31 @@ export function InboxView() {
                       className="flex items-center gap-3 cursor-pointer select-none py-1 hover:opacity-80 transition-opacity"
                     >
                       <Checkbox checked={showOverdue} onCheckedChange={undefined} />
-                      <span className="text-xs font-bold text-slate-700">Show Overdue Tasks</span>
+                      <span className="text-xs font-bold text-foreground">Show Overdue Tasks</span>
                     </div>
                     <div 
                       onClick={() => setShowCompleted(!showCompleted)} 
                       className="flex items-center gap-3 cursor-pointer select-none py-1 hover:opacity-80 transition-opacity"
                     >
                       <Checkbox checked={showCompleted} onCheckedChange={undefined} />
-                      <span className="text-xs font-bold text-slate-700">Show Completed Tasks</span>
+                      <span className="text-xs font-bold text-foreground">Show Completed Tasks</span>
                     </div>
                     <div 
                       onClick={() => setShowCancelled(!showCancelled)} 
                       className="flex items-center gap-3 cursor-pointer select-none py-1 hover:opacity-80 transition-opacity"
                     >
                       <Checkbox checked={showCancelled} onCheckedChange={undefined} />
-                      <span className="text-xs font-bold text-slate-700">Show Cancelled Tasks</span>
+                      <span className="text-xs font-bold text-foreground">Show Cancelled Tasks</span>
                     </div>
                   </div>
 
                   {listId === 'upcoming' && (
-                    <div className="flex flex-col gap-2.5 pt-3 border-t border-slate-100">
+                    <div className="flex flex-col gap-2.5 pt-3 border-t border-border">
                       <div className="flex flex-col">
-                        <h4 className="font-extrabold text-sm text-slate-800">Upcoming Layout Mode</h4>
-                        <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Switch view layout display</p>
+                        <h4 className="font-extrabold text-sm text-foreground">Upcoming Layout Mode</h4>
+                        <p className="text-[10px] font-semibold text-muted-foreground mt-0.5">Switch view layout display</p>
                       </div>
-                      <div className="grid grid-cols-3 gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                      <div className="grid grid-cols-3 gap-1 bg-muted p-0.5 rounded-xl border border-border">
                         {(['list', 'calendar', 'timeline'] as const).map((mode) => (
                           <button
                             key={mode}
@@ -508,8 +508,8 @@ export function InboxView() {
                             className={cn(
                               "py-1 rounded-lg text-xs font-black capitalize transition-all cursor-pointer",
                               upcomingViewMode === mode 
-                                ? "bg-white text-slate-800 shadow-sm"
-                                : "text-slate-500 hover:text-slate-800"
+                                ? "bg-card text-foreground shadow-sm dark:shadow-none"
+                                : "text-muted-foreground hover:text-foreground"
                             )}
                           >
                             {mode}
@@ -521,11 +521,11 @@ export function InboxView() {
                 </PopoverContent>
               </Popover>
             </div>
-            <p className="text-sm text-slate-400 mt-1 font-medium">{viewSubtitle}</p>
+            <p className="text-sm text-muted-foreground mt-1 font-medium">{viewSubtitle}</p>
           </div>
 
           <div className="flex items-center gap-2 mt-1">
-            <div className="flex bg-white rounded-lg border border-slate-200 p-0.5 shadow-sm">
+            <div className="flex bg-card rounded-lg border border-border p-0.5 shadow-sm dark:shadow-none">
               
               {/* Premium Filter Popover */}
               <Popover>
@@ -536,8 +536,8 @@ export function InboxView() {
                     className={cn(
                       "h-8 w-8 rounded-lg cursor-pointer transition-colors relative",
                       isAnyFilterActive
-                        ? "text-blue-600 bg-blue-50 hover:bg-blue-100"
-                        : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                        ? "text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     )}
                     title="Filters"
                   >
@@ -547,18 +547,18 @@ export function InboxView() {
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-4 border border-slate-200 bg-white shadow-xl rounded-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-top-1 max-h-[480px] overflow-y-auto">
+                <PopoverContent className="w-80 p-4 border border-border bg-card shadow-xl dark:shadow-none rounded-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-top-1 max-h-[480px] overflow-y-auto">
                   
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <div className="flex items-center justify-between border-b border-border pb-2">
                     <div className="flex flex-col">
-                      <h4 className="font-extrabold text-sm text-slate-800">Filters</h4>
-                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Narrow down your task list</p>
+                      <h4 className="font-extrabold text-sm text-foreground">Filters</h4>
+                      <p className="text-[10px] font-semibold text-muted-foreground mt-0.5">Narrow down your task list</p>
                     </div>
                     {isAnyFilterActive && (
                       <button
                         onClick={handleClearFilters}
                         type="button"
-                        className="text-[10px] font-black text-blue-600 hover:text-blue-700 cursor-pointer"
+                        className="text-[10px] font-black text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-400 cursor-pointer"
                       >
                         Clear All
                       </button>
@@ -567,21 +567,21 @@ export function InboxView() {
 
                   {/* Text Search */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Search</label>
+                    <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">Search</label>
                     <div className="relative">
                       <input
                         type="text"
                         placeholder="Search tasks..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full h-8 px-2.5 text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all"
+                        className="w-full h-8 px-2.5 text-xs font-semibold text-foreground bg-muted border border-border rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-card transition-all"
                       />
                     </div>
                   </div>
 
                   {/* Priority select */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Priority</label>
+                    <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">Priority</label>
                     <div className="flex items-center gap-3">
                       {(['high', 'medium', 'low'] as const).map((level) => (
                         <label key={level} className="flex items-center gap-1.5 cursor-pointer select-none">
@@ -589,7 +589,7 @@ export function InboxView() {
                             checked={priorityFilters.includes(level)}
                             onCheckedChange={() => handleTogglePriorityFilter(level)}
                           />
-                          <span className="text-xs font-bold text-slate-700 capitalize">{level}</span>
+                          <span className="text-xs font-bold text-foreground capitalize">{level}</span>
                         </label>
                       ))}
                     </div>
@@ -597,7 +597,7 @@ export function InboxView() {
 
                   {/* Date Filter */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Date Due</label>
+                    <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">Date Due</label>
                     <div className="flex flex-wrap gap-1.5">
                       {([
                         { id: 'all', label: 'All Time' },
@@ -615,8 +615,8 @@ export function InboxView() {
                           className={cn(
                             "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border",
                             dateFilter === opt.id
-                              ? "bg-blue-600 blue-slate-900 text-white shadow-xs"
-                              : "bg-white border-slate-200 text-slate-500 hover:text-blue-500 hover:border-slate-300"
+                              ? "bg-blue-600 blue-slate-900 text-white shadow-xs dark:shadow-none"
+                              : "bg-card border-border text-muted-foreground hover:text-blue-500 hover:border-border"
                           )}
                         >
                           {opt.label}
@@ -626,23 +626,23 @@ export function InboxView() {
 
                     {/* Expandable Custom Date Inputs inside the filter */}
                     {dateFilter === 'custom' && (
-                      <div className="mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-2 animate-in fade-in slide-in-from-top-1">
+                      <div className="mt-1 p-3 bg-muted border border-border rounded-xl flex flex-col gap-2 animate-in fade-in slide-in-from-top-1">
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Start Date</span>
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Start Date</span>
                           <input
                             type="date"
                             value={filterCustomStart}
                             onChange={(e) => setFilterCustomStart(e.target.value)}
-                            className="w-full h-8 px-2 py-0.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
+                            className="w-full h-8 px-2 py-0.5 text-xs font-semibold text-foreground bg-card border border-border rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
                           />
                         </div>
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">End Date</span>
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">End Date</span>
                           <input
                             type="date"
                             value={filterCustomEnd}
                             onChange={(e) => setFilterCustomEnd(e.target.value)}
-                            className="w-full h-8 px-2 py-0.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
+                            className="w-full h-8 px-2 py-0.5 text-xs font-semibold text-foreground bg-card border border-border rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
                           />
                         </div>
                       </div>
@@ -653,12 +653,12 @@ export function InboxView() {
                   {!tagId && (listId === 'inbox' || listId === 'today' || listId === 'upcoming') && (
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Tags</label>
+                        <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">Tags</label>
                         {selectedTagNames.length > 0 && (
                           <button
                             onClick={() => setSelectedTagNames([])}
                             type="button"
-                            className="text-[9px] font-bold text-slate-400 hover:text-red-500"
+                            className="text-[9px] font-bold text-muted-foreground hover:text-red-500"
                           >
                             Clear
                           </button>
@@ -670,7 +670,7 @@ export function InboxView() {
                             checked={selectedTagNames.includes('none')}
                             onCheckedChange={() => handleToggleTagFilter('none')}
                           />
-                          <span className="text-xs font-bold text-slate-700">No Tag</span>
+                          <span className="text-xs font-bold text-foreground">No Tag</span>
                         </label>
                         {tags.map((tag) => (
                           <label key={tag.id} className="flex items-center gap-2 cursor-pointer py-0.5 select-none">
@@ -678,7 +678,7 @@ export function InboxView() {
                               checked={selectedTagNames.includes(tag.name)}
                               onCheckedChange={() => handleToggleTagFilter(tag.name)}
                             />
-                            <span className="text-xs font-bold text-slate-700 truncate">#{tag.name}</span>
+                            <span className="text-xs font-bold text-foreground truncate">#{tag.name}</span>
                           </label>
                         ))}
                       </div>
@@ -686,8 +686,8 @@ export function InboxView() {
                   )}
 
                   {/* Reset & Summary info */}
-                  <div className="flex flex-col gap-2 pt-3 border-t border-slate-100 mt-1">
-                    <div className="text-[10px] font-semibold text-slate-400 mb-1">
+                  <div className="flex flex-col gap-2 pt-3 border-t border-border mt-1">
+                    <div className="text-[10px] font-semibold text-muted-foreground mb-1">
                       Showing {processedTasks.length} of {baseTasks.length} tasks
                     </div>
                     <button
@@ -697,8 +697,8 @@ export function InboxView() {
                       className={cn(
                         "w-full py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
                         isAnyFilterActive
-                          ? "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200/50"
-                          : "bg-slate-50 text-slate-400 border border-slate-100 cursor-not-allowed"
+                          ? "bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 border border-red-200 dark:border-red-500/30/50"
+                          : "bg-muted text-muted-foreground border border-border cursor-not-allowed"
                       )}
                     >
                       Reset all filters
@@ -717,23 +717,23 @@ export function InboxView() {
                     className={cn(
                       "h-8 w-8 rounded-lg cursor-pointer transition-colors relative",
                       sortBy !== 'none'
-                        ? "text-blue-600 bg-blue-50 hover:bg-blue-100"
-                        : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                        ? "text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     )}
                     title="Sorting"
                   >
                     <ListFilter className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-64 p-4 border border-slate-200 bg-white shadow-xl rounded-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-top-1">
+                <PopoverContent className="w-64 p-4 border border-border bg-card shadow-xl dark:shadow-none rounded-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-top-1">
                   
-                  <div className="flex flex-col border-b border-slate-100 pb-2">
-                    <h4 className="font-extrabold text-sm text-slate-800">Sorting</h4>
-                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Arrange task order</p>
+                  <div className="flex flex-col border-b border-border pb-2">
+                    <h4 className="font-extrabold text-sm text-foreground">Sorting</h4>
+                    <p className="text-[10px] font-semibold text-muted-foreground mt-0.5">Arrange task order</p>
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5">Sort Field</label>
+                    <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider mb-0.5">Sort Field</label>
                     
                     {(['none', 'dueDate', 'priority', 'alphabetical'] as const).map((field) => (
                       <button
@@ -743,8 +743,8 @@ export function InboxView() {
                         className={cn(
                           "w-full text-left px-2.5 py-1.5 text-xs font-bold rounded-lg border transition-colors cursor-pointer capitalize flex items-center justify-between",
                           sortBy === field
-                            ? "border-blue-500 bg-blue-50 text-blue-700"
-                            : "border-slate-100 hover:bg-slate-50 text-slate-600"
+                            ? "border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-400"
+                            : "border-border hover:bg-muted text-muted-foreground"
                         )}
                       >
                         <span>
@@ -756,17 +756,17 @@ export function InboxView() {
                   </div>
 
                   {sortBy !== 'none' && (
-                    <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
-                      <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5">Order</label>
-                      <div className="grid grid-cols-2 gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                    <div className="flex flex-col gap-2 pt-2 border-t border-border">
+                      <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider mb-0.5">Order</label>
+                      <div className="grid grid-cols-2 gap-1 bg-muted p-0.5 rounded-xl border border-border">
                         <button
                           type="button"
                           onClick={() => setSortOrder('asc')}
                           className={cn(
                             "py-1 rounded-lg text-xs font-black capitalize transition-all cursor-pointer",
                             sortOrder === 'asc'
-                              ? "bg-white text-slate-800 shadow-sm"
-                              : "text-slate-500 hover:text-slate-800"
+                              ? "bg-card text-foreground shadow-sm dark:shadow-none"
+                              : "text-muted-foreground hover:text-foreground"
                           )}
                         >
                           Ascending
@@ -777,8 +777,8 @@ export function InboxView() {
                           className={cn(
                             "py-1 rounded-lg text-xs font-black capitalize transition-all cursor-pointer",
                             sortOrder === 'desc'
-                              ? "bg-white text-slate-800 shadow-sm"
-                              : "text-slate-500 hover:text-slate-800"
+                              ? "bg-card text-foreground shadow-sm dark:shadow-none"
+                              : "text-muted-foreground hover:text-foreground"
                           )}
                         >
                           Descending
