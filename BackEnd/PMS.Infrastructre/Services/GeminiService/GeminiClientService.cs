@@ -104,6 +104,264 @@ namespace PMS.Infrastructre.Services.GeminiService
         }
 
 
+        public async Task<SchedulingEngineResult> GenerateMissingSchedulesAsyncs(List<TaskItem> tasks,string workDayStart, string workDayEnd)
+        {
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/{_model}:generateContent?key={_apiKey}";
+            string currentTimeString = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+
+            // ── Step 1: Build System Instructions ────────────────────────────────────
+            string systemInstructions =
+                $"You are an expert AI scheduling consultant — calm, experienced, and human-centered.\n\n" +
+
+                $"════════════════════════════════════════\n" +
+                $"GUARANTEED INPUT CONTRACT\n" +
+                $"════════════════════════════════════════\n" +
+                $"- Current time: {currentTimeString}\n" +
+                $"- Work day window: {workDayStart} → {workDayEnd} every day\n" +
+                $"- Every task is active, has a valid future 'deadline', and is ready to be scheduled.\n" +
+                $"- No filtering, no triage, and no deadline validation is needed.\n\n" +
+
+                $"════════════════════════════════════════\n" +
+                $"STEP 1 — CLASSIFY EACH TASK\n" +
+                $"════════════════════════════════════════\n" +
+                $"Evaluate every task using these rules in order:\n\n" +
+
+                $"RULE A — FIXED BLOCK:\n" +
+                $"Condition: 'EarliestStart' and 'LatestEnd' are BOTH in the future.\n" +
+                $"Action: Treat as an unmovable wall. Do not alter. Do not let anything overlap it.\n\n" +
+
+                $"RULE B — STALE BLOCK (missed slot):\n" +
+                $"Condition: 'EarliestStart' AND LatestEnd are BOTH in the past. Deadline is future.\n" +
+                $"Action: The old slot was missed. Reset it completely.\n" +
+                $"Treat this task as fully unscheduled and find a fresh slot from {currentTimeString} within the work window.\n\n" +
+
+                $"RULE C — UNSCHEDULED TASK:\n" +
+                $"Condition: 'EarliestStart' and 'LatestEnd' are BOTH null.\n" +
+                $"Action: Compute a fresh slot starting from {currentTimeString} within the work window.\n\n" +
+
+                $"════════════════════════════════════════\n" +
+                $"STEP 2 — INTERNAL SCHEDULING BEHAVIOR\n" +
+                $"════════════════════════════════════════\n" +
+                $"Use these rules internally to calculate and space task slots.\n" +
+                $"These rules affect placement only — they never appear in the output.\n\n" +
+
+                $"PRIORITY ORDER:\n" +
+                $"Schedule by Priority descending (10 = highest).\n" +
+                $"Among equal priority, schedule tighter deadlines first.\n\n" +
+
+                $"NO RUSHING:\n" +
+                $"If a task deadline is more than 3 days from {currentTimeString}, " +
+                $"do not force it into today.\n" +
+                $"Place it on the most natural future day within the work window.\n\n" +
+
+                $"WORK WINDOW BOUNDARY:\n" +
+                $"Every task start and end must fall strictly between {workDayStart} and {workDayEnd}.\n" +
+                $"Never schedule a task that starts before {workDayStart} or ends after {workDayEnd}.\n" +
+                $"Never split a task session across the day boundary.\n\n" +
+
+                $"DAY LOAD LIMIT:\n" +
+                $"Do not schedule more than 70% of the daily work window on any single day.\n" +
+                $"If a day reaches 70% capacity, move remaining tasks to the next working day.\n\n" +
+
+                $"INTERNAL REST GAPS:\n" +
+                $"After computing each task end time, add an invisible gap before the next task " +
+                $"based on the completed task EffortLevel:\n" +
+                $"  - Low effort      → 10 minutes gap\n" +
+                $"  - Medium effort   → 15 minutes gap\n" +
+                $"  - High effort     → 30 minutes gap\n" +
+                $"  - VeryHigh effort → 45 minutes gap\n" +
+                $"These gaps are internal spacers only.\n" +
+                $"They must NEVER appear as entries in scheduledTasks.\n\n" +
+
+                $"════════════════════════════════════════\n" +
+                $"STEP 3 — CONFLICT DETECTION\n" +
+                $"════════════════════════════════════════\n" +
+                $"Set isSuccessful = false ONLY in these exact situations:\n" +
+                $"1. Not enough time remains before a task deadline given existing fixed blocks.\n" +
+                $"2. An in-flight task adjusted end exceeds its Deadline or {workDayEnd}.\n" +
+                $"3. Two fixed blocks overlap each other in time.\n" +
+                $"In all other situations isSuccessful = true.\n\n" +
+
+                $"════════════════════════════════════════\n" +
+                $"STEP 4 — OUTPUT RULES\n" +
+                $"════════════════════════════════════════\n" +
+                $"- Output raw JSON only. No markdown fences. No extra text.\n" +
+                $"- scheduledTasks contains ONLY real task work blocks.\n" +
+                $"- NO rest entries. NO gap entries. NO null taskId entries ever.\n" +
+                $"- Every entry must have a valid non-null integer taskId.\n" +
+                $"- start and end reflect the ACTUAL task work window " +
+                $"already accounting for internal rest gaps.\n" +
+                $"- scheduledTasks must be null if nothing was scheduled.\n" +
+                $"- conflictMessage must be null if there is no conflict.\n\n" +
+
+                $"OUTPUT SCHEMA:\n" +
+                "{\n" +
+                "  \"isSuccessful\": true | false,\n" +
+                "  \"scheduledTasks\": [\n" +
+                "    {\n" +
+                "      \"taskId\": 1,\n" +
+                "      \"start\": \"yyyy-MM-dd HH:mm\",\n" +
+                "      \"end\": \"yyyy-MM-dd HH:mm\"\n" +
+                "    }\n" +
+                "  ],\n" +
+                "  \"conflictMessage\": null\n" +
+                "}";
+
+            // ── Step 2: Build Tasks Payload ───────────────────────────────────────────
+            var tasksPayload = tasks.Select(t => new
+            {
+                t.Id,
+                t.Title,
+                DurationMinutes = t.Duration.TotalMinutes,
+                Deadline = t.Deadline.ToString("yyyy-MM-dd HH:mm"),
+                EarliestStart = t.EarliestStart?.ToString("yyyy-MM-dd HH:mm"),
+                LatestEnd = t.LatestEnd?.ToString("yyyy-MM-dd HH:mm"),
+                t.Priority,
+                EffortLevel = t.EffortLevel.ToString(),
+                Status = t.Status.ToString()
+            }).ToList();
+
+            var userPrompt =
+                $"WorkDayStart : {workDayStart}\n" +
+                $"WorkDayEnd   : {workDayEnd}\n" +
+                $"CurrentTime  : {currentTimeString}\n\n" +
+                $"Tasks Dataset:\n" +
+                JsonSerializer.Serialize(
+                    tasksPayload,
+                    new JsonSerializerOptions { WriteIndented = true });
+
+            // ── Step 3: Build Request Payload With Response Schema ────────────────────
+            var requestPayload = new
+            {
+                contents = new[]
+                {
+            new
+            {
+                parts = new[]
+                {
+                    new { text = $"{systemInstructions}\n\nDataset:\n{userPrompt}" }
+                }
+            }
+        },
+                generationConfig = new
+                {
+                    responseMimeType = "application/json",
+                    responseSchema = new
+                    {
+                        type = "OBJECT",
+                        required = new[] { "isSuccessful" },
+                        properties = new
+                        {
+                            isSuccessful = new
+                            {
+                                type = "BOOLEAN",
+                                description = "True if scheduling succeeded. " +
+                                              "False only on a true physical conflict."
+                            },
+                            scheduledTasks = new
+                            {
+                                type = "ARRAY",
+                                description = "Only real task work blocks. No rest entries. No null taskIds.",
+                                items = new
+                                {
+                                    type = "OBJECT",
+                                    required = new[] { "taskId", "start", "end" },
+                                    properties = new
+                                    {
+                                        taskId = new
+                                        {
+                                            type = "INTEGER",
+                                            description = "The task Id. Never null."
+                                        },
+                                        start = new
+                                        {
+                                            type = "STRING",
+                                            description = "yyyy-MM-dd HH:mm"
+                                        },
+                                        end = new
+                                        {
+                                            type = "STRING",
+                                            description = "yyyy-MM-dd HH:mm"
+                                        }
+                                    }
+                                }
+                            },
+                            conflictMessage = new
+                            {
+                                type = "STRING",
+                                description = "Null if no conflict. " +
+                                              "Detailed explanation if isSuccessful = false."
+                            }
+                        }
+                    }
+                }
+            };
+
+            // ── Step 4: Serialize and Send ────────────────────────────────────────────
+            var jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+
+            var httpContent = new StringContent(
+                JsonSerializer.Serialize(requestPayload, jsonOptions),
+                Encoding.UTF8,
+                "application/json");
+
+            var response = await _httpClient.PostAsync(url, httpContent);
+            response.EnsureSuccessStatusCode();
+
+            // ── Step 5: Extract Raw AI Text ───────────────────────────────────────────
+            var jsonResponse = await response.Content.ReadAsStringAsync();
+
+            using var doc = JsonDocument.Parse(jsonResponse);
+            var rawAiText = doc.RootElement
+                .GetProperty("candidates")[0]
+                .GetProperty("content")
+                .GetProperty("parts")[0]
+                .GetProperty("text")
+                .GetString();
+
+            // ── Step 6: Handle Empty Response ─────────────────────────────────────────
+            if (string.IsNullOrWhiteSpace(rawAiText))
+            {
+                return new SchedulingEngineResult
+                {
+                    IsSuccessful = false,
+                    ConflictMessage = "Gemini returned an empty response. Please try again."
+                };
+            }
+
+            // ── Step 7: Strip Markdown Fences (defensive) ─────────────────────────────
+            rawAiText = rawAiText.Trim();
+            if (rawAiText.StartsWith("```json")) rawAiText = rawAiText[7..];
+            if (rawAiText.StartsWith("```")) rawAiText = rawAiText[3..];
+            if (rawAiText.EndsWith("```")) rawAiText = rawAiText[..^3];
+            rawAiText = rawAiText.Trim();
+
+            // ── Step 8: Deserialize ───────────────────────────────────────────────────
+            var deserializeOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                AllowTrailingCommas = true
+            };
+
+            var finalResult = JsonSerializer.Deserialize<SchedulingEngineResult>(
+                rawAiText,
+                deserializeOptions);
+
+            // ── Step 9: Fallback if Deserialization Fails ─────────────────────────────
+            return finalResult ?? new SchedulingEngineResult
+            {
+                IsSuccessful = false,
+                ConflictMessage = "Failed to parse the scheduling response. Please try again."
+            };
+        }
+
+
+
+
+
         public async Task<GeminiReportResponse> GenerateDailyReportAsync(List<TaskItem> tasks, List<TimeTracking> trackings)
         {
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/{_model}:generateContent?key={_apiKey}";
@@ -147,7 +405,7 @@ namespace PMS.Infrastructre.Services.GeminiService
                 {
                     g.TaskId,
                     TaskTitle = g.Task?.Title,
-                    ActualTrackedMinutes = TimeSpan.FromSeconds(g.CurrentDuration).TotalMinutes,
+                    ActualTrackedMinutes = TimeSpan.FromSeconds(g.AccumulatedSeconds).TotalMinutes,
                     g.IsPaused
                 }).ToList()
             };
