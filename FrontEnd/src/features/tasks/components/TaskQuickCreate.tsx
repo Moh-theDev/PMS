@@ -30,10 +30,10 @@ export function TaskQuickCreate({ onAddTask }: TaskQuickCreateProps) {
 
   const getPriorityInfo = (p: number) => {
     switch (p) {
-      case 10: return { label: 'High', bg: 'bg-red-500/10 hover:bg-red-500/20 border-red-100 text-red-600 dark:text-red-400' };
-      case 6:return { label: 'Mid', bg: 'bg-amber-50 hover:bg-amber-100/80 border-amber-100 text-amber-600 dark:text-amber-400' };
+      case 10: return { label: 'High', bg: 'bg-red-500/10 hover:bg-red-500/20 border-red-100 text-red-600 dark:bg-red-500/10 dark:hover:bg-red-500/20 dark:border-red-500/50 dark:text-red-600 dark:text-red-500' };
+      case 6:return { label: 'Mid', bg: 'bg-amber-50 hover:bg-amber-100/80 border-amber-100 text-amber-600 dark:bg-background dark:hover:bg-amber-500/20 dark:border-amber-500/50 dark:text-amber-400' };
       case 3: 
-      default: return { label: 'Low', bg: 'bg-muted hover:bg-muted/80 border-border text-muted-foreground' };
+      default: return { label: 'Low', bg: 'bg-muted hover:bg-muted/80 border-border text-muted-foreground dark:bg-background dark:hover:bg-gray-500/20 dark:border-gray-500/50 text-muted-foreground' };
     }
   };
 
@@ -160,7 +160,7 @@ export function TaskQuickCreate({ onAddTask }: TaskQuickCreateProps) {
             {title.trim() && (
               <button
                 type="submit"
-                className="h-8 px-3 text-xs font-black text-white bg-foreground hover:bg-foreground rounded-xl transition-colors cursor-pointer shrink-0 shadow-sm dark:shadow-none"
+                className="h-8 px-3 text-xs font-black text-white bg-foreground hover:bg-foreground rounded-xl transition-colors cursor-pointer shrink-0 shadow-sm dark:shadow-none dark:text-white dark:bg-background dark:border-blue-600/50 dark:border dark:hover:bg-blue-600"
               >
                 Add
               </button>

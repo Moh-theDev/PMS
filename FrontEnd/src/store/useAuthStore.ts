@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as authService from '../features/auth/services/authService';
 import { type LoginInput, type SignupInput } from '../features/auth/types';
+import { useAiAssistantStore } from './useAiAssistantStore';
 
 export interface User {
   id: string;
@@ -92,6 +93,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
         // Even if request fails, clear local credentials
       } finally {
         set({ user: null, isAuthenticated: false, isLoading: false, error: null });
+        useAiAssistantStore.getState().resetChat();
       }
     },
 

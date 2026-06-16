@@ -18,6 +18,7 @@ import {
   Info, 
   CalendarRange
 } from 'lucide-react';
+import { DatePicker } from '@/components/shared/DatePicker';
 import { type Task, type Category, TaskStatus } from '@/types/index';
 import { cn } from '@/lib/utils';
 
@@ -88,10 +89,7 @@ export function TimelineViewMode({
 
   // Today handler
   const handleToday = () => {
-    const today = new Date();
-    setCurrentDate(today);
-    setCustomStart(format(today, 'yyyy-MM-01'));
-    setCustomEnd(format(endOfMonth(today), 'yyyy-MM-dd'));
+    setCurrentDate(new Date());
   };
 
   // Navigations
@@ -246,10 +244,7 @@ export function TimelineViewMode({
     scrollToToday('smooth');
   }, [boundaries, timeframe, scrollToToday]);
 
-  // Compute Gantt pixel coordinates for a scheduled task.
-  // Uses the same COL_WIDTH as the header columns so bars always align perfectly.
-  const COL_WIDTH = 140; // px — must match min-w-[140px] on header cells
-
+  // Compute Gantt coordinates for a scheduled task dynamically using percentages
   const calculateBarPosition = (task: Task) => {
     const tStart = parseISO(task.earliestStart!);
     const tEnd   = parseISO(task.latestEnd!);
@@ -271,10 +266,11 @@ export function TimelineViewMode({
     const daysFromStart = differenceInDays(normClippedStart, normBoundaryStart);
     const taskSpanDays  = Math.max(1, differenceInDays(normClippedEnd, normClippedStart) + 1);
 
-    const leftPx  = daysFromStart * COL_WIDTH;
-    const widthPx = taskSpanDays  * COL_WIDTH;
+    const totalDays = columns.length || 7;
+    const leftPercent = (daysFromStart / totalDays) * 100;
+    const widthPercent = (taskSpanDays / totalDays) * 100;
 
-    return { leftPx, widthPx, taskSpanDays };
+    return { leftPercent, widthPercent, taskSpanDays };
   };
 
   return (
@@ -333,18 +329,18 @@ export function TimelineViewMode({
           <div className="flex items-center gap-2">
             {timeframe === 'custom' && (
               <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 shadow-sm dark:shadow-none mr-2 animate-in fade-in slide-in-from-right-1">
-                <input
-                  type="date"
-                  value={customStart}
-                  onChange={(e) => handleCustomStartChange(e.target.value)}
-                  className="text-xs font-semibold px-2 py-0.5 outline-none text-muted-foreground bg-transparent border-0 focus:ring-0 cursor-pointer"
+                <DatePicker
+                  date={customStart}
+                  onDateChange={handleCustomStartChange}
+                  placeholder="Start"
+                  className="h-6"
                 />
                 <span className="text-[10px] text-muted-foreground font-bold px-0.5 select-none">to</span>
-                <input
-                  type="date"
-                  value={customEnd}
-                  onChange={(e) => handleCustomEndChange(e.target.value)}
-                  className="text-xs font-semibold px-2 py-0.5 outline-none text-muted-foreground bg-transparent border-0 focus:ring-0 cursor-pointer"
+                <DatePicker
+                  date={customEnd}
+                  onDateChange={handleCustomEndChange}
+                  placeholder="End"
+                  className="h-6"
                 />
               </div>
             )}
@@ -405,7 +401,7 @@ export function TimelineViewMode({
             {/* Timeline Lanes Rows */}
             <div className="flex-1 divide-y divide-slate-150/45 w-full relative">
               {visibleScheduledTasks.map((task) => {
-                const { leftPx, widthPx, taskSpanDays } = calculateBarPosition(task);
+                const { leftPercent, widthPercent, taskSpanDays } = calculateBarPosition(task);
                 const isClosed = task.status === TaskStatus.Done || task.status === TaskStatus.Cancelled;
 
                 const category = categories.find((c) => c.id === task.categoryId);
@@ -434,8 +430,8 @@ export function TimelineViewMode({
                         isClosed ? "opacity-45 line-through" : "opacity-90 hover:opacity-100"
                       )}
                       style={{
-                        left: leftPx,
-                        width: widthPx,
+                        left: `${leftPercent}%`,
+                        width: `${widthPercent}%`,
                         backgroundColor: categoryColor,
                         borderColor: `${categoryColor}40`,
                         minWidth: 28,
@@ -454,14 +450,14 @@ export function TimelineViewMode({
                     </div>
 
                     {/* Span badge shown outside very narrow bars (< 28px wide) — tooltip fallback */}
-                    {taskSpanDays === 1 && widthPx < 40 && (
+                    {taskSpanDays === 1 && widthPercent < 5 && (
                       <div
                         onClick={() => onSelectTask(task.id)}
                         className={cn(
                           "absolute top-1/2 -translate-y-1/2 text-xs font-extrabold text-foreground hover:text-blue-600 dark:text-blue-400 cursor-pointer select-none transition-colors whitespace-nowrap z-10",
                           isClosed && "line-through text-muted-foreground"
                         )}
-                        style={{ left: leftPx + widthPx + 6 }}
+                        style={{ left: `calc(${leftPercent + widthPercent}% + 6px)` }}
                       >
                         {task.title}
                       </div>

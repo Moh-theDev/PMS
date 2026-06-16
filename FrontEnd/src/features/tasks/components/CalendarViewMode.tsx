@@ -19,6 +19,7 @@ import {
   CalendarRange,
   AlertCircle
 } from 'lucide-react';
+import { DatePicker } from '@/components/shared/DatePicker';
 import { type Task, type Category, TaskStatus } from '@/types/index';
 import { cn } from '@/lib/utils';
 
@@ -93,10 +94,7 @@ export function CalendarViewMode({
 
   // Today handler — resets dates AND triggers scroll-to-today
   const handleToday = () => {
-    const today = new Date();
-    setCurrentDate(today);
-    setCustomStart(format(today, 'yyyy-MM-01'));
-    setCustomEnd(format(endOfMonth(today), 'yyyy-MM-dd'));
+    setCurrentDate(new Date());
     setScrollTrigger(t => t + 1);
   };
 
@@ -287,18 +285,18 @@ export function CalendarViewMode({
         <div className="flex items-center gap-2">
           {timeframe === 'custom' && (
             <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 shadow-sm dark:shadow-none mr-2 animate-in fade-in slide-in-from-right-1">
-              <input
-                type="date"
-                value={customStart}
-                onChange={(e) => handleCustomStartChange(e.target.value)}
-                className="text-xs font-semibold px-2 py-0.5 outline-none text-muted-foreground bg-transparent border-0 focus:ring-0 cursor-pointer"
+              <DatePicker
+                date={customStart}
+                onDateChange={handleCustomStartChange}
+                placeholder="Start"
+                className="h-6"
               />
               <span className="text-[10px] text-muted-foreground font-bold px-0.5 select-none">to</span>
-              <input
-                type="date"
-                value={customEnd}
-                onChange={(e) => handleCustomEndChange(e.target.value)}
-                className="text-xs font-semibold px-2 py-0.5 outline-none text-muted-foreground bg-transparent border-0 focus:ring-0 cursor-pointer"
+              <DatePicker
+                date={customEnd}
+                onDateChange={handleCustomEndChange}
+                placeholder="End"
+                className="h-6"
               />
             </div>
           )}

@@ -16,6 +16,7 @@ import { CalendarViewMode } from './CalendarViewMode';
 import { TimelineViewMode } from './TimelineViewMode';
 import { TaskContextMenu } from './TaskContextMenu';
 import { cn } from '@/lib/utils';
+import { DatePicker } from '@/components/shared/DatePicker';
 
 export function InboxView() {
   const { listId = 'inbox', tagId } = useParams();
@@ -38,6 +39,7 @@ export function InboxView() {
     assignTags,
     removeTag,
     getTasksByList,
+    taskOrder,
   } = useTaskStore();
 
   const [selectedTaskId, setSelectedTaskId] = React.useState<number | null>(null);
@@ -47,15 +49,28 @@ export function InboxView() {
   const outletCtx = useOutletContext<any>();
   const sidebarOpen = outletCtx?.sidebarOpen ?? true;
 
+  // Helper to safely read from local storage
+  const getStorageItem = <T,>(key: string, defaultVal: T): T => {
+    try {
+      const item = localStorage.getItem(`pms_${key}`);
+      return item ? JSON.parse(item) : defaultVal;
+    } catch {
+      return defaultVal;
+    }
+  };
+
   // View settings toggles
-  const [showOverdue, setShowOverdue] = React.useState(true);
-  const [showCompleted, setShowCompleted] = React.useState(true);
-  const [showCancelled, setShowCancelled] = React.useState(true);
+  const [showOverdue, setShowOverdue] = React.useState<boolean>(() => getStorageItem('showOverdue', true));
+  const [showCompleted, setShowCompleted] = React.useState<boolean>(() => getStorageItem('showCompleted', true));
+  const [showCancelled, setShowCancelled] = React.useState<boolean>(() => getStorageItem('showCancelled', true));
 
   // Upcoming views switch state (persisted in localStorage)
   const [upcomingViewMode, setUpcomingViewMode] = React.useState<'list' | 'calendar' | 'timeline'>(() => {
     const saved = localStorage.getItem('upcomingViewMode');
-    return (saved as 'list' | 'calendar' | 'timeline') || 'list';
+    if (saved && ['list', 'calendar', 'timeline'].includes(saved)) {
+      return saved as 'list' | 'calendar' | 'timeline';
+    }
+    return getStorageItem('upcomingViewMode', 'list');
   });
 
   const handleUpcomingViewModeChange = (mode: 'list' | 'calendar' | 'timeline') => {
@@ -65,16 +80,35 @@ export function InboxView() {
 
   // Client-side Filter settings
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [priorityFilters, setPriorityFilters] = React.useState<('high' | 'medium' | 'low')[]>(['high', 'medium', 'low']);
-  const [selectedListIds, setSelectedListIds] = React.useState<string[]>([]);
-  const [selectedTagNames, setSelectedTagNames] = React.useState<string[]>([]);
-  const [dateFilter, setDateFilter] = React.useState<'all' | 'today' | 'tomorrow' | 'week' | 'month' | 'no-deadline' | 'custom'>('all');
-  const [filterCustomStart, setFilterCustomStart] = React.useState<string>('');
-  const [filterCustomEnd, setFilterCustomEnd] = React.useState<string>('');
+  const [priorityFilters, setPriorityFilters] = React.useState<('high' | 'medium' | 'low')[]>(() => getStorageItem('priorityFilters', ['high', 'medium', 'low']));
+  const [selectedListIds, setSelectedListIds] = React.useState<string[]>(() => getStorageItem('selectedListIds', []));
+  const [selectedTagNames, setSelectedTagNames] = React.useState<string[]>(() => getStorageItem('selectedTagNames', []));
+  const [dateFilter, setDateFilter] = React.useState<'all' | 'today' | 'tomorrow' | 'week' | 'month' | 'no-deadline' | 'custom'>(() => getStorageItem('dateFilter', 'all'));
+  const [filterCustomStart, setFilterCustomStart] = React.useState<string>(() => getStorageItem('filterCustomStart', ''));
+  const [filterCustomEnd, setFilterCustomEnd] = React.useState<string>(() => getStorageItem('filterCustomEnd', ''));
 
   // Client-side Sorting settings
-  const [sortBy, setSortBy] = React.useState<'none' | 'dueDate' | 'priority' | 'alphabetical'>('none');
-  const [sortOrder, setSortOrder] = React.useState<'asc' | 'desc'>('asc');
+  const [sortBy, setSortBy] = React.useState<'none' | 'dueDate' | 'priority' | 'alphabetical'>(() => getStorageItem('sortBy', 'none'));
+  const [sortOrder, setSortOrder] = React.useState<'asc' | 'desc'>(() => getStorageItem('sortOrder', 'asc'));
+
+  // Save state to local storage when it changes
+  React.useEffect(() => {
+    localStorage.setItem('pms_showOverdue', JSON.stringify(showOverdue));
+    localStorage.setItem('pms_showCompleted', JSON.stringify(showCompleted));
+    localStorage.setItem('pms_showCancelled', JSON.stringify(showCancelled));
+    localStorage.setItem('pms_priorityFilters', JSON.stringify(priorityFilters));
+    localStorage.setItem('pms_selectedListIds', JSON.stringify(selectedListIds));
+    localStorage.setItem('pms_selectedTagNames', JSON.stringify(selectedTagNames));
+    localStorage.setItem('pms_dateFilter', JSON.stringify(dateFilter));
+    localStorage.setItem('pms_filterCustomStart', JSON.stringify(filterCustomStart));
+    localStorage.setItem('pms_filterCustomEnd', JSON.stringify(filterCustomEnd));
+    localStorage.setItem('pms_sortBy', JSON.stringify(sortBy));
+    localStorage.setItem('pms_sortOrder', JSON.stringify(sortOrder));
+  }, [
+    showOverdue, showCompleted, showCancelled, priorityFilters, 
+    selectedListIds, selectedTagNames, dateFilter, filterCustomStart, 
+    filterCustomEnd, sortBy, sortOrder
+  ]);
 
   // Synchronise selection state with URL taskId parameter if provided (e.g. from Search Modal)
   React.useEffect(() => {
@@ -251,10 +285,23 @@ export function InboxView() {
         const comparison = valA < valB ? -1 : 1;
         return sortOrder === 'asc' ? comparison : -comparison;
       });
+    } else {
+      // Apply custom drag-and-drop order if sortBy === 'none'
+      result.sort((a, b) => {
+        const indexA = taskOrder.indexOf(a.id);
+        const indexB = taskOrder.indexOf(b.id);
+        
+        // If neither have a saved order, maintain relative position (or push to end)
+        if (indexA === -1 && indexB === -1) return 0;
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        
+        return indexA - indexB;
+      });
     }
 
     return result;
-  }, [baseTasks, searchQuery, priorityFilters, selectedListIds, selectedTagNames, showCompleted, showCancelled, showOverdue, sortBy, sortOrder, todayStr]);
+  }, [baseTasks, searchQuery, priorityFilters, selectedListIds, selectedTagNames, showCompleted, showCancelled, showOverdue, sortBy, sortOrder, todayStr, dateFilter, filterCustomStart, filterCustomEnd, taskOrder]);
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null;
 
@@ -280,9 +327,11 @@ export function InboxView() {
   }, [processedTasks, todayStr]);
 
   const completedTasks = React.useMemo(() => {
-    return processedTasks.filter(
-      (t) => t.status === TaskStatus.Done || t.status === TaskStatus.Cancelled
-    );
+    return processedTasks.filter((t) => t.status === TaskStatus.Done);
+  }, [processedTasks]);
+
+  const cancelledTasks = React.useMemo(() => {
+    return processedTasks.filter((t) => t.status === TaskStatus.Cancelled);
   }, [processedTasks]);
 
   // View title
@@ -415,6 +464,7 @@ export function InboxView() {
               overdueTasks={overdueTasks}
               activeTasks={activeTasks}
               completedTasks={completedTasks}
+              cancelledTasks={cancelledTasks}
               categories={categories}
               tags={tags}
               onRemoveTag={removeTag}
@@ -431,6 +481,7 @@ export function InboxView() {
                   task
                 });
               }}
+              isSortable={sortBy === 'none'}
             />
           </div>
         </ScrollArea>
@@ -629,20 +680,20 @@ export function InboxView() {
                       <div className="mt-1 p-3 bg-muted border border-border rounded-xl flex flex-col gap-2 animate-in fade-in slide-in-from-top-1">
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Start Date</span>
-                          <input
-                            type="date"
-                            value={filterCustomStart}
-                            onChange={(e) => setFilterCustomStart(e.target.value)}
-                            className="w-full h-8 px-2 py-0.5 text-xs font-semibold text-foreground bg-card border border-border rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
+                          <DatePicker
+                            date={filterCustomStart}
+                            onDateChange={setFilterCustomStart}
+                            placeholder="Start"
+                            className="w-full h-8 bg-card border border-border rounded-lg"
                           />
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">End Date</span>
-                          <input
-                            type="date"
-                            value={filterCustomEnd}
-                            onChange={(e) => setFilterCustomEnd(e.target.value)}
-                            className="w-full h-8 px-2 py-0.5 text-xs font-semibold text-foreground bg-card border border-border rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
+                          <DatePicker
+                            date={filterCustomEnd}
+                            onDateChange={setFilterCustomEnd}
+                            placeholder="End"
+                            className="w-full h-8 bg-card border border-border rounded-lg"
                           />
                         </div>
                       </div>

@@ -1,13 +1,30 @@
 import { type ReactNode, useState } from 'react';
-import { Clock, Calendar, Inbox as InboxIcon, ChevronRight } from 'lucide-react';
+import { Clock, Calendar, Inbox as InboxIcon, ChevronRight, X } from 'lucide-react';
 import { type Task, type Category, type Tag } from '@/types/index';
 import { cn } from '@/lib/utils';
 import { TaskItem } from './TaskItem';
+import { useTaskStore } from '@/store/useTaskStore';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 interface TaskListProps {
   overdueTasks: Task[];
   activeTasks: Task[];
   completedTasks: Task[];
+  cancelledTasks: Task[];
   categories: Category[];
   tags: Tag[];
   onRemoveTag?: (taskId: number, tagId: number) => void;
@@ -16,6 +33,7 @@ interface TaskListProps {
   onSelectTask: (id: number) => void;
   onToggleStatus: (task: Task, checked: boolean) => void;
   onContextMenu?: (e: React.MouseEvent, task: Task) => void;
+  isSortable?: boolean;
 }
 
 interface SectionHeaderProps {
@@ -57,6 +75,7 @@ export function TaskList({
   overdueTasks,
   activeTasks,
   completedTasks,
+  cancelledTasks,
   categories,
   tags,
   onRemoveTag,
@@ -65,12 +84,45 @@ export function TaskList({
   onSelectTask,
   onToggleStatus,
   onContextMenu,
+  isSortable,
 }: TaskListProps) {
-  const totalTasks = overdueTasks.length + activeTasks.length + completedTasks.length;
+  const totalTasks = overdueTasks.length + activeTasks.length + completedTasks.length + cancelledTasks.length;
 
   const [isOverdueCollapsed, setIsOverdueCollapsed] = useState(false);
   const [isActiveCollapsed, setIsActiveCollapsed] = useState(false);
   const [isCompletedCollapsed, setIsCompletedCollapsed] = useState(false);
+  const [isCancelledCollapsed, setIsCancelledCollapsed] = useState(false);
+
+  const { taskOrder, setTaskOrder } = useTaskStore();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      let newGlobalOrder = [...taskOrder];
+      
+      // Ensure all active items are tracked in taskOrder
+      activeTasks.forEach(t => {
+        if (!newGlobalOrder.includes(t.id)) {
+          newGlobalOrder.push(t.id);
+        }
+      });
+      
+      const activeIdx = newGlobalOrder.indexOf(Number(active.id));
+      const overIdx = newGlobalOrder.indexOf(Number(over.id));
+      
+      if (activeIdx !== -1 && overIdx !== -1) {
+        newGlobalOrder = arrayMove(newGlobalOrder, activeIdx, overIdx);
+        setTaskOrder(newGlobalOrder);
+      }
+    }
+  };
 
   if (isLoading && totalTasks === 0) {
     return (
@@ -139,8 +191,48 @@ export function TaskList({
             onToggle={() => setIsActiveCollapsed(!isActiveCollapsed)}
           />
           {!isActiveCollapsed && (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={activeTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-1.5">
+                  {activeTasks.map((task) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      categories={categories}
+                      tags={tags}
+                      onRemoveTag={onRemoveTag}
+                      isSelected={selectedTaskId === task.id}
+                      onClick={() => onSelectTask(task.id)}
+                      onToggle={(checked) => onToggleStatus(task, checked)}
+                      onContextMenu={onContextMenu}
+                      isSortable={isSortable}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+        </section>
+      )}
+
+      {/* Completed */}
+      {completedTasks.length > 0 && (
+        <section>
+          <SectionHeader
+            icon={
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            }
+            label="Completed"
+            count={completedTasks.length}
+            color="green"
+            isCollapsed={isCompletedCollapsed}
+            onToggle={() => setIsCompletedCollapsed(!isCompletedCollapsed)}
+          />
+          {!isCompletedCollapsed && (
             <div className="space-y-1.5">
-              {activeTasks.map((task) => (
+              {completedTasks.map((task) => (
                 <TaskItem
                   key={task.id}
                   task={task}
@@ -158,24 +250,20 @@ export function TaskList({
         </section>
       )}
 
-      {/* Completed & Cancelled */}
-      {completedTasks.length > 0 && (
+      {/* Cancelled */}
+      {cancelledTasks.length > 0 && (
         <section>
           <SectionHeader
-            icon={
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            }
-            label="Completed & Cancelled"
-            count={completedTasks.length}
-            color="green"
-            isCollapsed={isCompletedCollapsed}
-            onToggle={() => setIsCompletedCollapsed(!isCompletedCollapsed)}
+            icon={<X className="h-3.5 w-3.5" />}
+            label="Cancelled"
+            count={cancelledTasks.length}
+            color="red"
+            isCollapsed={isCancelledCollapsed}
+            onToggle={() => setIsCancelledCollapsed(!isCancelledCollapsed)}
           />
-          {!isCompletedCollapsed && (
+          {!isCancelledCollapsed && (
             <div className="space-y-1.5">
-              {completedTasks.map((task) => (
+              {cancelledTasks.map((task) => (
                 <TaskItem
                   key={task.id}
                   task={task}

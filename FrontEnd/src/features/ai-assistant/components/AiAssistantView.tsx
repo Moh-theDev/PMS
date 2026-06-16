@@ -321,8 +321,9 @@ export function AiAssistantView() {
         </div>
         <button
           onClick={resetChat}
+          disabled={isProcessing}
           title="Clear chat"
-          className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer px-2.5 py-1.5 rounded-lg hover:bg-muted"
+          className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors cursor-pointer px-2.5 py-1.5 rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <RotateCcw className="h-3.5 w-3.5" />
           Clear
@@ -379,7 +380,7 @@ export function AiAssistantView() {
                           className="flex flex-col text-left p-3.5 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-indigo-500/5 hover:from-blue-500/20 hover:to-indigo-500/10 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 group"
                         >
                           <div className="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 mb-1.5">
-                            <div className="w-6 h-6 rounded-lg bg-blue-500/20 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                            <div className="w-6 h-6 rounded-lg bg-blue-500/20 flex items-center justify-center transition-colors">
                               <Calendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                             </div>
                             Schedule Tasks
@@ -398,7 +399,7 @@ export function AiAssistantView() {
                           className="flex flex-col text-left p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 hover:from-emerald-500/20 hover:to-teal-500/10 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 group"
                         >
                           <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1.5">
-                            <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                            <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center transition-colors">
                               <BarChart3 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                             </div>
                             Report
@@ -651,18 +652,18 @@ function ReportPresenter({ score, content }: { score: number; content: string })
   const sections = React.useMemo(() => parseReportContent(content), [content]);
 
   const scoreColors = (() => {
-    if (score >= 80) return { text: 'text-emerald-600 dark:text-emerald-400', ring: 'stroke-emerald-500', bg: 'bg-emerald-500/10', label: 'Great day! 🎉' };
-    if (score >= 50) return { text: 'text-amber-600 dark:text-amber-400', ring: 'stroke-amber-500', bg: 'bg-amber-50', label: 'Decent progress 👍' };
-    return { text: 'text-rose-600 dark:text-rose-400', ring: 'stroke-rose-500', bg: 'bg-rose-500/10', label: 'Tough day — keep going 💪' };
+    if (score >= 80) return { text: 'text-emerald-600 dark:text-emerald-400', ring: 'stroke-emerald-500', bg: 'bg-emerald-500/10', label: 'Great day! 🎉', border: 'border-emerald-100 dark:border-emerald-500/20' };
+    if (score >= 50) return { text: 'text-amber-600 dark:text-amber-400', ring: 'stroke-amber-500', bg: 'bg-amber-500/10', label: 'Decent progress 👍', border: 'border-amber-100 dark:border-amber-500/20' };
+    return { text: 'text-rose-600 dark:text-rose-400', ring: 'stroke-rose-500', bg: 'bg-rose-500/10', label: 'Tough day — keep going 💪', border: 'border-rose-100 dark:border-rose-500/20' };
   })();
 
   const getSectionStyles = (color: string) => {
     switch (color) {
-      case 'emerald': return { bg: 'bg-emerald-500/10 border-emerald-100', title: 'text-emerald-700 dark:text-emerald-400', icon: <Trophy className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />, iconBg: 'bg-emerald-500/20' };
-      case 'blue': return { bg: 'bg-blue-500/10 border-blue-100', title: 'text-blue-700 dark:text-blue-400', icon: <TrendingUp className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />, iconBg: 'bg-blue-500/20' };
-      case 'amber': return { bg: 'bg-amber-50/60 border-amber-100', title: 'text-amber-700 dark:text-amber-400', icon: <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />, iconBg: 'bg-amber-100' };
-      case 'purple': return { bg: 'bg-purple-500/10 border-purple-100', title: 'text-purple-700 dark:text-purple-400', icon: <Lightbulb className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />, iconBg: 'bg-purple-500/20' };
-      default: return { bg: 'bg-indigo-500/10 border-indigo-100', title: 'text-indigo-700 dark:text-indigo-400', icon: <Quote className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />, iconBg: 'bg-indigo-500/20' };
+      case 'emerald': return { bg: 'bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20', title: 'text-emerald-700 dark:text-emerald-400', icon: <Trophy className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />, iconBg: 'bg-emerald-500/20 dark:bg-emerald-500/30' };
+      case 'blue': return { bg: 'bg-blue-500/10 border-blue-100 dark:border-blue-500/20', title: 'text-blue-700 dark:text-blue-400', icon: <TrendingUp className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />, iconBg: 'bg-blue-500/20 dark:bg-blue-500/30' };
+      case 'amber': return { bg: 'bg-amber-500/10 border-amber-100 dark:border-amber-500/20', title: 'text-amber-700 dark:text-amber-400', icon: <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />, iconBg: 'bg-amber-500/20 dark:bg-amber-500/30' };
+      case 'purple': return { bg: 'bg-purple-500/10 border-purple-100 dark:border-purple-500/20', title: 'text-purple-700 dark:text-purple-400', icon: <Lightbulb className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />, iconBg: 'bg-purple-500/20 dark:bg-purple-500/30' };
+      default: return { bg: 'bg-indigo-500/10 border-indigo-100 dark:border-indigo-500/20', title: 'text-indigo-700 dark:text-indigo-400', icon: <Quote className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />, iconBg: 'bg-indigo-500/20 dark:bg-indigo-500/30' };
     }
   };
 
@@ -673,7 +674,7 @@ function ReportPresenter({ score, content }: { score: number; content: string })
   return (
     <div className="mt-3 space-y-3 animate-in zoom-in-95 duration-300">
       {/* Score card */}
-      <div className={cn("p-4 rounded-xl border flex items-center gap-4 bg-card", `border-${scoreColors.ring.split('-')[1]}-100`)}>
+      <div className={cn("p-4 rounded-xl border flex items-center gap-4 bg-card", scoreColors.border)}>
         <div className="relative h-14 w-14 shrink-0 flex items-center justify-center">
           <svg className="h-full w-full rotate-[-90deg]">
             <circle cx="28" cy="28" r={radius} className="stroke-slate-100 fill-none" strokeWidth="4" />
@@ -696,7 +697,7 @@ function ReportPresenter({ score, content }: { score: number; content: string })
           return (
             <div key={sect.title} className={cn("p-3.5 rounded-xl border", s.bg, isQuote && "relative overflow-hidden")}>
               {isQuote && (
-                <div className="absolute right-1 bottom-[-16px] text-indigo-200 font-serif text-7xl pointer-events-none select-none">"</div>
+                <div className="absolute right-1 bottom-[-16px] text-indigo-200 dark:text-indigo-900/50 font-serif text-7xl pointer-events-none select-none">"</div>
               )}
               <div className="flex items-center gap-2 mb-2">
                 <div className={cn("w-5 h-5 rounded-md flex items-center justify-center shrink-0", s.iconBg)}>
@@ -706,7 +707,7 @@ function ReportPresenter({ score, content }: { score: number; content: string })
               </div>
               <div className={cn(
                 "text-xs leading-relaxed whitespace-pre-wrap",
-                isQuote ? "text-indigo-900/80 italic font-medium" : "text-muted-foreground font-medium"
+                isQuote ? "text-indigo-900/80 dark:text-indigo-200/80 italic font-medium" : "text-muted-foreground font-medium"
               )}>
                 {sect.body}
               </div>

@@ -279,15 +279,15 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
                 {/* Divider Line */}
                 <div className="border-t border-border pt-5 flex flex-col gap-4">
-                  <div className="flex justify-between items-center bg-destructive/10 border border-destructive/20 p-4 rounded-xl">
+                  <div className="flex justify-between items-center bg-destructive/40 border border-destructive/20 p-4 rounded-xl">
                     <div className="flex flex-col gap-0.5 text-left">
-                      <span className="text-sm font-bold text-destructive">Danger Zone</span>
+                      <span className="text-sm font-bold text-red-600">Danger Zone</span>
                       <span className="text-[11px] text-muted-foreground">Permanently delete your profile and task data.</span>
                     </div>
                     <Button
                       type="button"
                       onClick={() => setShowDeleteConfirm(true)}
-                      className="bg-destructive/10 hover:bg-destructive/20 text-destructive text-xs font-semibold px-4 py-2 h-9 rounded-xl border border-destructive/20 hover:border-destructive/30 transition-all cursor-pointer shadow-sm dark:shadow-none"
+                      className="bg-destructive/10 hover:bg-destructive/50 text-red-500 text-xs font-semibold px-4 py-2 h-9 rounded-xl border border-red-500/50 hover:border-destructive/30 transition-all cursor-pointer shadow-sm dark:shadow-none"
                     >
                       Delete Account
                     </Button>
@@ -322,10 +322,10 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             ) : (
               <div className="space-y-5">
                 {/* Warning Alert Container */}
-                <div className="flex items-start gap-4 bg-destructive/10 border border-destructive/20 p-4 rounded-xl text-left">
-                  <AlertTriangle className="h-6 w-6 text-destructive shrink-0 mt-0.5 animate-pulse" />
+                <div className="flex items-start gap-4 bg-destructive/30 border border-destructive/20 p-4 rounded-xl text-left">
+                  <AlertTriangle className="h-6 w-6 text-red-800 shrink-0 mt-0.5 animate-pulse" />
                   <div className="space-y-1">
-                    <h4 className="text-sm font-bold text-destructive">Permanently Delete Account?</h4>
+                    <h4 className="text-sm font-bold text-red-600">Permanently Delete Account?</h4>
                     <p className="text-xs leading-relaxed text-muted-foreground">
                       This action cannot be undone. All your lists, active tasks, streaks, and labels will be deleted permanently.
                     </p>
@@ -335,14 +335,14 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 {/* Confirm Text Input */}
                 <div className="flex flex-col gap-2">
                   <p className="text-xs font-semibold text-muted-foreground text-left">
-                    Type <span className="text-destructive font-bold select-all">"delete my account"</span> to confirm deletion
+                    Type <span className="text-red-500 font-bold select-all">"delete my account"</span> to confirm deletion
                   </p>
                   <Input
                     type="text"
                     placeholder="delete my account"
                     value={deleteConfirmText}
                     onChange={(e) => setDeleteConfirmText(e.target.value)}
-                    className="w-full px-4 py-2.5 h-11 rounded-xl border-input focus:border-destructive focus:ring-4 focus:ring-destructive/10 transition-all text-sm bg-background text-foreground placeholder:text-muted-foreground"
+                    className="w-full px-4 py-2.5 h-11 rounded-xl border-input focus:border-destructive focus:ring-0 focus:ring-destructive/30 transition-all text-sm bg-destructive/40 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
 
@@ -359,7 +359,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     type="button"
                     disabled={isLoading || deleteConfirmText.toLowerCase() !== 'delete my account'}
                     onClick={handleDeleteAccount}
-                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground h-10 px-5 rounded-xl text-xs font-semibold shadow-lg dark:shadow-none shadow-destructive/10 flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:pointer-events-none transition-all"
+                    className={`bg-destructive hover:bg-destructive/90 text-destructive-foreground h-10 px-5 rounded-xl text-xs font-semibold shadow-lg dark:shadow-none shadow-destructive/10 flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:pointer-events-none transition-all`}
                   >
                     {isLoading ? (
                       <>
@@ -367,7 +367,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                         <span>Deleting...</span>
                       </>
                     ) : (
-                      <span>Confirm Delete</span>
+                      <span className="">Confirm Delete</span>
                     )}
                   </Button>
                 </div>

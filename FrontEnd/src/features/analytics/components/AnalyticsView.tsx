@@ -2,6 +2,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { useTaskStore } from '@/store/useTaskStore';
 import { getAllSessions, type TimeEntry } from '@/features/focus/services/timeTrackingService';
+import { useAuthStore } from '@/store/useAuthStore';
 import { type Task } from '@/types/index';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { 
@@ -40,6 +41,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DatePicker } from '@/components/shared/DatePicker';
 import { eachDayOfInterval } from 'date-fns/eachDayOfInterval';
 
 // Helper to format a local Date object into a yyyy-MM-dd string in the local time zone (timezone shift immune!)
@@ -438,20 +440,20 @@ function CardTimeframeSelector({
             <div className="flex flex-col gap-1.5 px-2.5">
               <div>
                 <label className="text-[8px] font-bold text-muted-foreground block mb-0.5">Start</label>
-                <input 
-                  type="date" 
-                  value={tempStart}
-                  onChange={(e) => setTempStart(e.target.value)}
-                  className="w-full text-xs font-bold border border-border rounded-lg p-1 px-2 focus:outline-none focus:border-blue-600 bg-card"
+                <DatePicker
+                  date={tempStart}
+                  onDateChange={setTempStart}
+                  placeholder="Start"
+                  className="w-full h-8 bg-card border border-border rounded-lg"
                 />
               </div>
               <div>
                 <label className="text-[8px] font-bold text-muted-foreground block mb-0.5">End</label>
-                <input 
-                  type="date" 
-                  value={tempEnd}
-                  onChange={(e) => setTempEnd(e.target.value)}
-                  className="w-full text-xs font-bold border border-border rounded-lg p-1 px-2 focus:outline-none focus:border-blue-600 bg-card"
+                <DatePicker
+                  date={tempEnd}
+                  onDateChange={setTempEnd}
+                  placeholder="End"
+                  className="w-full h-8 bg-card border border-border rounded-lg"
                 />
               </div>
               <Button 
@@ -935,10 +937,16 @@ export function AnalyticsView() {
       fetchTags(),
       getAllSessions()
     ]).then(([_, __, ___, sessionData]) => {
-      const discardedIds = JSON.parse(localStorage.getItem('pms_discarded_sessions') || '[]');
-      const manualSessions = JSON.parse(localStorage.getItem('pms_manual_sessions') || '[]');
+      const userId = useAuthStore.getState().user?.id || 'default';
       
-      const activeDbSessions = (sessionData || []).filter((s) => !discardedIds.includes(s.id));
+      let manualStr = localStorage.getItem(`pms_manual_sessions_${userId}`);
+      if (!manualStr && localStorage.getItem('pms_manual_sessions')) {
+        manualStr = localStorage.getItem('pms_manual_sessions');
+        localStorage.setItem(`pms_manual_sessions_${userId}`, manualStr || '[]');
+      }
+      const manualSessions = JSON.parse(manualStr || '[]');
+      
+      const activeDbSessions = sessionData || [];
       
       setSessions([...activeDbSessions, ...manualSessions]);
       setIsLoading(false);

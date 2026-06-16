@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { Clock, FolderOpen, X, Check } from 'lucide-react';
+import { Clock, FolderOpen, X, Check, GripVertical } from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +17,7 @@ interface TaskItemProps {
   tags?: Tag[];
   onRemoveTag?: (taskId: number, tagId: number) => void;
   onContextMenu?: (e: React.MouseEvent, task: Task) => void;
+  isSortable?: boolean;
 }
 
 const CATEGORY_COLORS = [
@@ -22,7 +25,7 @@ const CATEGORY_COLORS = [
   '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899',
 ];
 
-export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categories, tags, onRemoveTag, onContextMenu }: TaskItemProps) {
+export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categories, tags, onRemoveTag, onContextMenu, isSortable }: TaskItemProps) {
   const navigate = useNavigate();
   const isCompleted = task.status === TaskStatus.Done;
   const isCancelled = task.status === TaskStatus.Cancelled;
@@ -40,14 +43,33 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
     return null;
   })();
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id, disabled: !isSortable });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       className={cn(
         'group flex items-center gap-3 px-3.5 py-2.5 rounded-lg cursor-pointer bg-card border transition-all',
         isSelected
           ? 'border-blue-500 ring-2 ring-blue-500/10 shadow-sm dark:shadow-none'
           : 'border-border hover:border-border hover:shadow-sm dark:shadow-none',
-        isClosed && 'opacity-55'
+        isClosed && 'opacity-55',
+        isDragging && 'shadow-lg border-blue-500 ring-2 ring-blue-500/20'
       )}
       onClick={onClick}
       onContextMenu={(e) => {
@@ -57,6 +79,18 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
         }
       }}
     >
+      {/* Drag Handle */}
+      {isSortable && (
+        <div 
+          className="w-4 shrink-0 flex justify-center items-center cursor-grab active:cursor-grabbing text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical className="h-4 w-4" />
+        </div>
+      )}
+
       {/* Checkbox */}
       <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
         <Checkbox
@@ -153,7 +187,7 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
             className={cn(
               'h-5 px-2 text-[10px] font-semibold rounded-md gap-1',
               isCompleted && 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20',
-              isCancelled && 'bg-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20',
+              isCancelled && 'bg-rose-500/20 text-rose-600 dark:text-rose-600 hover:bg-rose-500/20',
               !isOverdue && !isClosed && 'bg-muted text-muted-foreground'
             )}
           >

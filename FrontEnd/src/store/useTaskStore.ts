@@ -12,6 +12,9 @@ interface TaskState {
   isLoading: boolean;
   error: string | null;
   dummyCategoryId: number | null;
+  taskOrder: number[];
+
+  setTaskOrder: (newOrder: number[]) => void;
 
   fetchTasks: () => Promise<void>;
   fetchCategories: () => Promise<void>;
@@ -52,6 +55,19 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   isLoading: false,
   error: null,
   dummyCategoryId: null,
+  taskOrder: (() => {
+    try {
+      const saved = localStorage.getItem('pms_taskOrder');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  })(),
+
+  setTaskOrder: (newOrder) => {
+    set({ taskOrder: newOrder });
+    localStorage.setItem('pms_taskOrder', JSON.stringify(newOrder));
+  },
 
   fetchTasks: async () => {
     set({ isLoading: true, error: null });

@@ -255,7 +255,7 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
             <Separator className="my-0.5" />
             <button
               onClick={() => { logout(); setIsDropdownOpen(false); }}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors w-full text-left"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-red-500 hover:bg-destructive/50 transition-colors w-full text-left"
             >
               <LogOut className="h-3.5 w-3.5" />
               Log Out

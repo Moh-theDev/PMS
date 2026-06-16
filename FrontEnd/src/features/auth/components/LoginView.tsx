@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowRight, Loader2, AlertCircle, X } from 'lucide-react';
+import { ArrowRight, Loader2, AlertCircle, X, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ export function LoginView() {
   const navigate = useNavigate();
   const { login, error, isLoading, clearError } = useAuthStore();
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+  const [showPassword, setShowPassword] = React.useState(false);
 
   const {
     register,
@@ -95,9 +96,9 @@ export function LoginView() {
           <div className="flex flex-col gap-1">
             <label className="text-sm font-semibold text-foreground" htmlFor="email">Email</label>
             <Input 
-              type="email" 
+              type="text" 
               id="email" 
-              placeholder="name@company.com" 
+              placeholder="name@gmail.com" 
               className="w-full px-4 py-2.5 h-11 rounded-lg border-border focus:ring-blue-600/10 focus:border-blue-600 transition-all text-sm bg-muted/50" 
               {...register('email')}
             />
@@ -110,13 +111,26 @@ export function LoginView() {
             <div className="flex justify-between">
               <label className="text-sm font-semibold text-foreground" htmlFor="password">Password</label>
             </div>
-            <Input 
-              type="password" 
-              id="password" 
-              placeholder="••••••••" 
-              className="w-full px-4 py-2.5 h-11 rounded-lg border-border focus:ring-blue-600/10 focus:border-blue-600 transition-all text-sm bg-muted/50" 
-              {...register('password')}
-            />
+            <div className="relative">
+              <Input 
+                type={showPassword ? "text" : "password"} 
+                id="password" 
+                placeholder="••••••••" 
+                className="w-full px-4 py-2.5 pr-10 h-11 rounded-lg border-border focus:ring-blue-600/10 focus:border-blue-600 transition-all text-sm bg-muted/50" 
+                {...register('password')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
+              </button>
+            </div>
             {errors.password && (
               <span className="text-xs font-semibold text-red-500 mt-1 pl-1">{errors.password.message}</span>
             )}

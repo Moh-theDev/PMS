@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Circle, Flag, Clock, Calendar, Tag as TagIcon, FolderOpen, X, ChevronDown, Plus, Minus, Check, Trash2, Dumbbell, AlertCircle, ClockCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTaskStore } from '@/store/useTaskStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -639,11 +640,16 @@ export function TaskDetailFields({
     async function loadFocusedTime() {
       try {
         const dbSessions = await getTaskSessions(task.id);
-        const discardedIds = JSON.parse(localStorage.getItem('pms_discarded_sessions') || '[]');
-        const manualSessions = JSON.parse(localStorage.getItem('pms_manual_sessions') || '[]');
+        const userId = useAuthStore.getState().user?.id || 'default';
+        
+        let manualStr = localStorage.getItem(`pms_manual_sessions_${userId}`);
+        if (!manualStr && localStorage.getItem('pms_manual_sessions')) {
+          manualStr = localStorage.getItem('pms_manual_sessions');
+          localStorage.setItem(`pms_manual_sessions_${userId}`, manualStr || '[]');
+        }
+        const manualSessions = JSON.parse(manualStr || '[]');
         
         const activeDbSeconds = dbSessions
-          .filter((s) => !discardedIds.includes(s.id))
           .reduce((sum, s) => sum + (s.accumulatedSeconds || 0), 0);
           
         const manualSeconds = manualSessions
@@ -661,6 +667,7 @@ export function TaskDetailFields({
 
   const formatFocusedTime = (totalSeconds: number) => {
     if (totalSeconds <= 0) return '0m';
+    if (totalSeconds < 60) return `${Math.floor(totalSeconds)}s`;
     const hrs = Math.floor(totalSeconds / 3600);
     const mins = Math.floor((totalSeconds % 3600) / 60);
     
@@ -798,8 +805,9 @@ export function TaskDetailFields({
             <div className="flex items-center justify-between bg-card border border-border hover:border-border rounded-xl px-3 py-1 shadow-sm dark:shadow-none w-full min-h-[38px] transition-colors">
               <button
                 type="button"
+                disabled={durationVal <= 5}
                 onClick={() => handleDurationChange(durationVal - 5)}
-                className="w-6 h-6 rounded-full bg-muted hover:bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shadow-sm dark:shadow-none cursor-pointer select-none active:scale-95 shrink-0"
+                className="w-6 h-6 rounded-full bg-muted hover:bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shadow-sm dark:shadow-none cursor-pointer select-none active:scale-95 shrink-0 disabled:opacity-50 disabled:pointer-events-none"
                 title="Decrease duration"
               >
                 <Minus className="h-3 w-3" />
@@ -809,7 +817,7 @@ export function TaskDetailFields({
                   <input
                     type="number"
                     min={0}
-                    value={Math.floor(durationVal / 60) || ''}
+                    value={Math.floor(durationVal / 60).toString()}
                     placeholder="0"
                     onChange={(e) => {
                       const hours = e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10));
@@ -826,7 +834,7 @@ export function TaskDetailFields({
                     type="number"
                     min={0}
                     max={59}
-                    value={durationVal % 60 === 0 && durationVal === 0 ? '' : durationVal % 60}
+                    value={(durationVal % 60).toString()}
                     placeholder="00"
                     onChange={(e) => {
                       const mins = e.target.value === '' ? 0 : Math.max(0, Math.min(59, parseInt(e.target.value, 10)));
@@ -847,6 +855,22 @@ export function TaskDetailFields({
                 <Plus className="h-3 w-3" />
               </button>
             </div>
+            
+            <AnimatePresence>
+              {durationVal > 0 && durationVal < 5 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                  animate={{ opacity: 1, height: 'auto', marginTop: 4 }}
+                  exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex items-start gap-1.5 text-[10px] text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-500/10 p-2 rounded-lg border border-amber-200 dark:border-amber-500/20 leading-tight">
+                    <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
+                    <span>Tasks usually take at least 5 minutes. Consider increasing the estimate or breaking down a larger task.</span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </DetailRow>
 

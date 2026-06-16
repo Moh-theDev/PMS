@@ -38,8 +38,6 @@ export function FocusView() {
   const [selectedTaskId, setSelectedTaskId] = React.useState<number | null>(null);
   const [seconds, setSeconds] = React.useState(0);
   const [isRunning, setIsRunning] = React.useState(false);
-  const [showMinSessionWarning, setShowMinSessionWarning] = React.useState(false);
-  const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false);
   const [isManualLogOpen, setIsManualLogOpen] = React.useState(false);
   const [manualHours, setManualHours] = React.useState(0);
   const [manualMinutes, setManualMinutes] = React.useState(25);
@@ -211,17 +209,30 @@ export function FocusView() {
   // 2. Real-time timer ticker interval
   React.useEffect(() => {
     let interval: any = null;
-    if (isRunning && !showMinSessionWarning && !showDiscardConfirm) {
+    if (isRunning) {
       interval = setInterval(() => {
         setSeconds((prev) => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isRunning, showMinSessionWarning, showDiscardConfirm]);
+  }, [isRunning]);
+
+  // Add beforeunload listener to warn user if they try to close tab while active
+  React.useEffect(() => {
+    if (isRunning) {
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = '';
+      };
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }
+  }, [isRunning]);
 
   // Helper to format focused seconds (e.g. 1h 25m)
   const formatFocusedTime = (totalSeconds: number) => {
     if (totalSeconds <= 0) return '0m';
+    if (totalSeconds < 60) return `${Math.floor(totalSeconds)}s`;
     const hrs = Math.floor(totalSeconds / 3600);
     const mins = Math.floor((totalSeconds % 3600) / 60);
     
@@ -239,11 +250,16 @@ export function FocusView() {
     }
     try {
       const dbSessions = await getTaskSessions(selectedTaskId);
-      const discardedIds = JSON.parse(localStorage.getItem('pms_discarded_sessions') || '[]');
-      const manualSessions = JSON.parse(localStorage.getItem('pms_manual_sessions') || '[]');
+      const userId = useAuthStore.getState().user?.id || 'default';
+      
+      let manualStr = localStorage.getItem(`pms_manual_sessions_${userId}`);
+      if (!manualStr && localStorage.getItem('pms_manual_sessions')) {
+        manualStr = localStorage.getItem('pms_manual_sessions');
+        localStorage.setItem(`pms_manual_sessions_${userId}`, manualStr || '[]');
+      }
+      const manualSessions = JSON.parse(manualStr || '[]');
       
       const activeDbSeconds = dbSessions
-        .filter((s) => !discardedIds.includes(s.id))
         .reduce((sum, s) => sum + (s.accumulatedSeconds || 0), 0);
         
       const manualSeconds = manualSessions
@@ -409,15 +425,6 @@ export function FocusView() {
 
   const handleStop = async () => {
     if (!activeEntry) return;
-    if (seconds < 300) {
-      setShowMinSessionWarning(true);
-    } else {
-      await executeStop();
-    }
-  };
-
-  const executeStop = async () => {
-    if (!activeEntry) return;
     try {
       setIsApiLoading(true);
       setErrorMsg(null);
@@ -427,8 +434,6 @@ export function FocusView() {
       setSelectedTaskId(null);
       setSeconds(0);
       setIsRunning(false);
-      setShowMinSessionWarning(false);
-      setShowDiscardConfirm(false);
       
       await fetchTasks();
     } catch (err: any) {
@@ -438,35 +443,6 @@ export function FocusView() {
     }
   };
 
-  const handleDiscard = async () => {
-    if (!activeEntry) return;
-    try {
-      setIsApiLoading(true);
-      setErrorMsg(null);
-      await stopTimer(activeEntry.id);
-      
-      // Save to discarded list in localStorage
-      const discardedIds = JSON.parse(localStorage.getItem('pms_discarded_sessions') || '[]');
-      discardedIds.push(activeEntry.id);
-      localStorage.setItem('pms_discarded_sessions', JSON.stringify(discardedIds));
-      
-      setActiveEntry(null);
-      setSelectedTaskId(null);
-      setSeconds(0);
-      setIsRunning(false);
-      setShowMinSessionWarning(false);
-      setShowDiscardConfirm(false);
-      
-      await fetchTasks();
-      
-      setToastMessage("Focus session discarded.");
-      setTimeout(() => setToastMessage(null), 4000);
-    } catch (err: any) {
-      setErrorMsg(err.response?.data?.errors?.[0] || err.message || 'Failed to discard session.');
-    } finally {
-      setIsApiLoading(false);
-    }
-  };
 
   const handleSaveManualLog = () => {
     if (!selectedTaskId) return;
@@ -477,7 +453,8 @@ export function FocusView() {
     }
     
     try {
-      const manualSessions = JSON.parse(localStorage.getItem('pms_manual_sessions') || '[]');
+      const userId = useAuthStore.getState().user?.id || 'default';
+      const manualSessions = JSON.parse(localStorage.getItem(`pms_manual_sessions_${userId}`) || '[]');
       const newManualSession = {
         id: `manual_${Date.now()}`,
         taskId: selectedTaskId,
@@ -487,7 +464,7 @@ export function FocusView() {
         endedAt: new Date(manualDate).toISOString()
       };
       manualSessions.push(newManualSession);
-      localStorage.setItem('pms_manual_sessions', JSON.stringify(manualSessions));
+      localStorage.setItem(`pms_manual_sessions_${userId}`, JSON.stringify(manualSessions));
       
       setIsManualLogOpen(false);
       loadTaskFocusedTime();
@@ -523,7 +500,7 @@ export function FocusView() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/50 relative overflow-x-hidden overflow-y-auto flex flex-col pb-10">
+    <div className="min-h-screen bg-muted/50 relative overflow-x-hidden overflow-y-auto scroll flex flex-col pb-10">
       {/* Decorative Gradient Background Blur Elements */}
       <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-600/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/5 rounded-full blur-[120px] pointer-events-none" />
@@ -540,8 +517,8 @@ export function FocusView() {
       </div>
 
       {/* ── Main Scrollable Content ───────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 gap-5 py-4">
-        <div className="max-w-lg w-full flex flex-col items-center gap-10">
+      <div className="flex flex-col items-center justify-center px-4 gap-5 py-4">
+        <div className="max-w-lg w-full flex flex-col items-center gap-8">
 
           {/* Error Banner */}
           {errorMsg && (
@@ -553,12 +530,12 @@ export function FocusView() {
 
           {/* ── Task Selector Dropdown ─────────────────────────────────────── */}
           {activeEntry === null && (
-            <div ref={dropdownRef} className="w-full max-w-md relative">
+            <div ref={dropdownRef} className="w-full max-w-md relative flex items-center justify-center flex-col">
               <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest pl-1 mb-1 block text-center select-none">
                 Select task to track
               </label>
               
-              <div className="relative w-full">
+              <div className="relative w-full flex justify-center">
                 {/* Trigger Button — compact */}
                 <button
                   type="button"
@@ -567,7 +544,7 @@ export function FocusView() {
                     setDropdownView('tasks');
                   }}
                   disabled={isApiLoading}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-card border border-border hover:border-border hover:bg-muted/50 rounded-xl shadow-xs dark:shadow-none text-xs font-semibold text-foreground transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-muted disabled:cursor-not-allowed"
+                  className="w-60 flex items-center justify-between px-3 py-2 bg-card border border-border hover:border-border hover:bg-muted/50 rounded-xl shadow-xs dark:shadow-none text-xs font-semibold text-foreground transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-muted disabled:cursor-not-allowed"
                 >
                   <span className="truncate flex items-center gap-2 min-w-0">
                     {selectedTask ? (
@@ -602,7 +579,7 @@ export function FocusView() {
                     
                     {/* Tasks List View */}
                     {dropdownView === 'tasks' ? (
-                      <div className="flex flex-col" style={{ maxHeight: '260px' }}>
+                      <div className="flex flex-col" style={{ maxHeight: '300px' }}>
                         
                         {/* Search + Filter row */}
                         <div className="p-2 pb-1.5 border-b border-border shrink-0 space-y-1.5">
@@ -917,71 +894,6 @@ export function FocusView() {
             </div>
           )}
 
-          {/* 🚨 Session Warning */}
-          {showMinSessionWarning && (
-            <div className="bg-amber-50 border border-amber-200 dark:border-amber-500/30 rounded-2xl p-4 shadow-sm dark:shadow-none max-w-xs w-full text-left animate-in fade-in zoom-in duration-200">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 animate-pulse" />
-                <div className="space-y-2">
-                  <h4 className="text-xs font-black text-amber-800 uppercase tracking-wider">Keep focusing?</h4>
-                  <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-relaxed font-semibold">
-                    You've been focusing for less than 5 minutes. To keep your history clean and accurate, sessions this short won't be saved. Would you like to keep focusing or discard this session?
-                  </p>
-                  <div className="flex items-center gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      onClick={() => setShowMinSessionWarning(false)}
-                      className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl shadow-xs dark:shadow-none cursor-pointer active:scale-95"
-                    >
-                      Keep Focusing
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleDiscard}
-                      disabled={isApiLoading}
-                      className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-100 text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl cursor-pointer active:scale-95"
-                    >
-                      Discard Session
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 🚨 Discard Session Confirmation */}
-          {showDiscardConfirm && (
-            <div className="bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-2xl p-4 shadow-sm dark:shadow-none max-w-xs w-full text-left animate-in fade-in zoom-in duration-200">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5 animate-pulse" />
-                <div className="space-y-2">
-                  <h4 className="text-xs font-black text-rose-800 uppercase tracking-wider">Discard Session?</h4>
-                  <p className="text-[11px] text-rose-700 dark:text-rose-400 leading-relaxed font-semibold">
-                    Are you sure you want to discard this focus session? All tracked time from this session will be lost and not saved.
-                  </p>
-                  <div className="flex items-center gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      onClick={handleDiscard}
-                      disabled={isApiLoading}
-                      className="bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl shadow-xs dark:shadow-none cursor-pointer active:scale-95"
-                    >
-                      Yes, Discard
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setShowDiscardConfirm(false)}
-                      className="text-rose-800 hover:bg-rose-500/20 text-[10px] font-bold px-3 py-1.5 h-7 rounded-xl cursor-pointer active:scale-95"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* ── Timer Circle ───────────────────────────────────────────────── */}
           <div className="relative flex items-center justify-center shrink-0 select-none">
             <div className="absolute inset-0 flex items-center justify-center">
@@ -1059,11 +971,11 @@ export function FocusView() {
                     ? handlePause 
                     : handleResume
               }
-              disabled={isApiLoading || selectedTaskId === null || showMinSessionWarning || showDiscardConfirm}
+              disabled={isApiLoading || selectedTaskId === null}
               className={cn(
                 "h-11 rounded-xl font-bold text-xs shadow-md dark:shadow-none transition-all active:scale-98",
                 activeEntry === null
-                  ? "bg-foreground hover:bg-foreground/90 text-background shadow-slate-900/10 disabled:bg-muted disabled:text-muted-foreground"
+                  ? "bg-black hover:bg-foreground/90 text-background shadow-slate-900/10 disabled:bg-gray-900/50 disabled:text-white"
                   : isRunning
                     ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/10"
                     : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/10"
@@ -1084,7 +996,7 @@ export function FocusView() {
             {activeEntry !== null && (
               <Button
                 onClick={handleStop}
-                disabled={isApiLoading || showMinSessionWarning || showDiscardConfirm}
+                disabled={isApiLoading}
                 className="h-11 rounded-xl font-bold text-xs bg-blue-600 hover:bg-blue-500 text-white shadow-md dark:shadow-none shadow-blue-600/10 transition-all active:scale-98"
               >
                 {isApiLoading ? (
@@ -1095,16 +1007,6 @@ export function FocusView() {
               </Button>
             )}
 
-            {/* Discard Session */}
-            {activeEntry !== null && (
-              <Button
-                onClick={() => setShowDiscardConfirm(true)}
-                disabled={isApiLoading || showMinSessionWarning || showDiscardConfirm}
-                className="h-11 rounded-xl font-bold text-xs bg-red-950 hover:bg-red-900 text-red-50 border border-red-900 shadow-sm dark:shadow-none transition-all active:scale-98 px-4 cursor-pointer"
-              >
-                Discard
-              </Button>
-            )}
           </div>
 
         </div>
