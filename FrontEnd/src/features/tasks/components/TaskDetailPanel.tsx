@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Inbox, Trash2, X } from 'lucide-react';
+import { Inbox, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { type Task, type TaskStatus } from '@/types/index';
@@ -49,14 +49,6 @@ export function TaskDetailPanel({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
-            onClick={() => onDelete(task.id)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-foreground"
             onClick={onClose}
           >
@@ -77,6 +69,7 @@ export function TaskDetailPanel({
             onUpdateStatus={onUpdateStatus}
             onAssignTags={onAssignTags}
             onRemoveTag={onRemoveTag}
+            onDelete={() => onDelete(task.id)}
           />
         </div>
       </ScrollArea>

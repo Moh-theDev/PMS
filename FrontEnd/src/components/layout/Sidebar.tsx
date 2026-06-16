@@ -11,12 +11,11 @@ import {
   LogOut,
   ChevronDown,
   User as UserIcon,
-  Pencil,
   Trash2,
-  Check,
   X,
-  FolderOpen,
   Sparkles,
+  MoreHorizontal,
+  Edit2
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '../../lib/utils';
@@ -26,6 +25,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Separator } from '../ui/separator';
 import { ProfileModal } from '@/features/profile/components/ProfileModal';
 import { SearchModal } from '@/features/search/components/SearchModal';
+import { CategoryTagModal } from '@/components/shared/CategoryTagModal';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useTheme } from '../theme-provider';
 import { Sun, Moon } from 'lucide-react';
 
@@ -35,81 +36,6 @@ const COLORS = [
   '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899',
 ];
 
-/* ── Inline editor for category or tag name ──────────────────────────── */
-function InlineNameEditor({
-  initial,
-  onSave,
-  onCancel,
-}: {
-  initial: string;
-  onSave: (val: string) => void;
-  onCancel: () => void;
-}) {
-  const [value, setValue] = useState(initial);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { inputRef.current?.focus(); inputRef.current?.select(); }, []);
-
-  const commit = () => { if (value.trim() && value.trim() !== initial) onSave(value.trim()); else onCancel(); };
-
-  return (
-    <form
-      className="flex items-center gap-1 flex-1"
-      onSubmit={(e) => { e.preventDefault(); commit(); }}
-    >
-      <input
-        ref={inputRef}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-        className="flex-1 h-6 px-1.5 text-xs font-semibold text-foreground bg-card border border-blue-400 rounded-md outline-none focus:ring-2 focus:ring-blue-500/20 min-w-0"
-      />
-      <button type="submit" className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:text-emerald-400 shrink-0">
-        <Check className="h-3.5 w-3.5" />
-      </button>
-      <button type="button" onClick={onCancel} className="text-muted-foreground hover:text-muted-foreground shrink-0">
-        <X className="h-3.5 w-3.5" />
-      </button>
-    </form>
-  );
-}
-
-/* ── Inline new category / tag input ─────────────────────────────────── */
-function InlineCreate({
-  placeholder,
-  onSave,
-  onCancel,
-}: {
-  placeholder: string;
-  onSave: (val: string) => void;
-  onCancel: () => void;
-}) {
-  const [value, setValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { inputRef.current?.focus(); }, []);
-
-  return (
-    <form
-      className="flex items-center gap-1 px-2 py-1.5"
-      onSubmit={(e) => { e.preventDefault(); if (value.trim()) onSave(value.trim()); }}
-    >
-      <input
-        ref={inputRef}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-        placeholder={placeholder}
-        className="flex-1 h-6 px-2 text-xs font-semibold text-foreground bg-card border border-blue-400 rounded-md outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-muted-foreground min-w-0"
-      />
-      <button type="submit" disabled={!value.trim()} className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:text-emerald-400 disabled:opacity-30 shrink-0">
-        <Check className="h-3.5 w-3.5" />
-      </button>
-      <button type="button" onClick={onCancel} className="text-muted-foreground hover:text-muted-foreground shrink-0">
-        <X className="h-3.5 w-3.5" />
-      </button>
-    </form>
-  );
-}
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -124,11 +50,7 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
     categories,
     tags,
     getTasksByList,
-    addCategory,
-    updateCategory,
     deleteCategory,
-    addTag,
-    updateTag,
     deleteTag,
   } = useTaskStore();
   const location = useLocation();
@@ -153,17 +75,15 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  /* inline creation state */
-  const [creatingCategory, setCreatingCategory] = useState(false);
-  const [creatingTag, setCreatingTag] = useState(false);
+  /* Modal state */
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    mode: 'create' | 'edit';
+    type: 'tag' | 'category';
+    initialData?: { id: number; name: string; color?: string };
+  }>({ isOpen: false, mode: 'create', type: 'category' });
 
-  /* editing state */
-  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
-  const [editingTagId, setEditingTagId] = useState<number | null>(null);
-
-  /* hover state for actions */
-  const [hoveredCatId, setHoveredCatId] = useState<number | null>(null);
-  const [hoveredTagId, setHoveredTagId] = useState<number | null>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
   /* close dropdown on outside click */
   useEffect(() => {
@@ -332,7 +252,7 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
             <button
               onClick={() => {
                 setIsListsCollapsed(false);
-                setCreatingCategory(true);
+                setModalState({ isOpen: true, mode: 'create', type: 'category' });
               }}
               className="h-5 w-5 flex items-center justify-center rounded-md bg-card border border-border text-muted-foreground hover:text-primary hover:border-primary/50 opacity-0 group-hover:opacity-100 transition-all"
             >
@@ -342,83 +262,70 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
 
           {!isListsCollapsed && (
             <>
-              {/* Inline create */}
-              {creatingCategory && (
-                <InlineCreate
-                  placeholder="Category name..."
-                  onSave={(name) => { addCategory(name); setCreatingCategory(false); }}
-                  onCancel={() => setCreatingCategory(false)}
-                />
-              )}
 
               <nav className="space-y-0.5">
                 {categoryLists.map((list) => {
                   const cat = categories.find((c) => String(c.id) === list.id);
                   const catId = cat?.id ?? -1;
                   const taskCount = tasks.filter((t) => t.categoryId === catId && t.status !== 2 && t.status !== 3).length;
-                  const isEditing = editingCategoryId === catId;
 
                   return (
                     <div
                       key={list.id}
-                      className="relative"
-                      onMouseEnter={() => setHoveredCatId(catId)}
-                      onMouseLeave={() => setHoveredCatId(null)}
+                      className="relative group/cat"
                     >
-                      {isEditing ? (
-                        <div className="flex items-center gap-2 px-2 py-1.5">
-                          <FolderOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <InlineNameEditor
-                            initial={list.name}
-                            onSave={(val) => { updateCategory(catId, val); setEditingCategoryId(null); }}
-                            onCancel={() => setEditingCategoryId(null)}
-                          />
+                      <NavLink
+                        to={`/tasks/list/${list.id}`}
+                        className={({ isActive }) =>
+                          cn(
+                            'sidebar-item text-muted-foreground hover:text-foreground hover:bg-accent group/cat pr-8',
+                            isActive && 'sidebar-item-active text-primary-foreground bg-primary'
+                          )
+                        }
+                      >
+                        <div
+                          className="h-2 w-2 rounded-full ring-1 ring-white/60 shrink-0"
+                          style={{ backgroundColor: list.color || COLORS[catId % COLORS.length] }}
+                        />
+                        <span className="flex-1 truncate">{list.name}</span>
+                      </NavLink>
+                        
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-end shrink-0 z-10 opacity-0 group-hover/cat:opacity-100 focus-within:opacity-100 transition-opacity">
+                        <DropdownMenu onOpenChange={(open) => setOpenDropdownId(open ? `cat-${catId}` : null)}>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors bg-background/50 backdrop-blur-sm"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-32 bg-popover border-border">
+                            <DropdownMenuItem onClick={() => setModalState({ isOpen: true, mode: 'edit', type: 'category', initialData: { id: catId, name: list.name, color: cat?.color } })}>
+                              <Edit2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => deleteCategory(catId)} className="text-destructive focus:text-destructive">
+                              <Trash2 className="mr-2 h-3.5 w-3.5" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      {/* Task Count (Hidden when menu is open or hovered) */}
+                      {taskCount > 0 && openDropdownId !== `cat-${catId}` && (
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-end shrink-0 z-0 pointer-events-none group-hover/cat:opacity-0 transition-opacity">
+                          <span className={cn(
+                            'text-[10px] font-bold px-1.5 py-0.5 rounded-md',
+                            location.pathname.includes(list.id)
+                              ? 'bg-primary-foreground/20 text-primary-foreground'
+                              : 'bg-muted text-muted-foreground'
+                          )}>
+                            {taskCount}
+                          </span>
                         </div>
-                      ) : (
-                        <NavLink
-                          to={`/tasks/list/${list.id}`}
-                          className={({ isActive }) =>
-                            cn(
-                              'sidebar-item text-muted-foreground hover:text-foreground hover:bg-accent group/cat',
-                              isActive && 'sidebar-item-active text-primary-foreground bg-primary'
-                            )
-                          }
-                        >
-                          <div
-                            className="h-2 w-2 rounded-full ring-1 ring-white/60 shrink-0"
-                            style={{ backgroundColor: list.color || COLORS[catId % COLORS.length] }}
-                          />
-                          <span className="flex-1 truncate">{list.name}</span>
-                          {taskCount > 0 && (
-                            <span className={cn(
-                              'text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0',
-                              location.pathname.includes(list.id)
-                                ? 'bg-primary-foreground/20 text-primary-foreground'
-                                : 'bg-muted text-muted-foreground'
-                            )}>
-                              {taskCount}
-                            </span>
-                          )}
-                          {/* Action buttons — show on row hover */}
-                          {hoveredCatId === catId && (
-                            <div className="flex items-center gap-0.5 ml-1 shrink-0">
-                              <button
-                                type="button"
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingCategoryId(catId); }}
-                                className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteCategory(catId); }}
-                                className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          )}
-                        </NavLink>
                       )}
                     </div>
                   );
@@ -441,7 +348,7 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
             <button
               onClick={() => {
                 setIsTagsCollapsed(false);
-                setCreatingTag(true);
+                setModalState({ isOpen: true, mode: 'create', type: 'tag' });
               }}
               className="h-5 w-5 flex items-center justify-center rounded-md bg-card border border-border text-muted-foreground hover:text-primary hover:border-primary/50 opacity-0 group-hover:opacity-100 transition-all"
             >
@@ -450,78 +357,66 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
           </div>
           {!isTagsCollapsed && (
             <>
-              {creatingTag && (
-                <InlineCreate
-                  placeholder="Label name..."
-                  onSave={(name) => { addTag(name); setCreatingTag(false); }}
-                  onCancel={() => setCreatingTag(false)}
-                />
-              )}
 
               <nav className="space-y-0.5">
                 {tags.map((tag) => {
                   const tagTaskCount = tasks.filter(
                     (t) => t.tags?.includes(tag.name) && t.status !== 2 && t.status !== 3
                   ).length;
-                  const isEditing = editingTagId === tag.id;
 
                   return (
                     <div
                       key={tag.id}
-                      className="relative"
-                      onMouseEnter={() => setHoveredTagId(tag.id)}
-                      onMouseLeave={() => setHoveredTagId(null)}
+                      className="relative group/tag"
                     >
-                      {isEditing ? (
-                        <div className="flex items-center gap-2 px-2 py-1.5">
-                          <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <InlineNameEditor
-                            initial={tag.name}
-                            onSave={(val) => { updateTag(tag.id, val); setEditingTagId(null); }}
-                            onCancel={() => setEditingTagId(null)}
-                          />
+                      <NavLink
+                        to={`/tasks/tag/${tag.id}`}
+                        className={({ isActive }) =>
+                          cn(
+                            'sidebar-item text-muted-foreground hover:text-foreground hover:bg-accent pr-8',
+                            isActive && 'sidebar-item-active text-primary-foreground bg-primary'
+                          )
+                        }
+                      >
+                        <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" style={{ color: tag.color }} />
+                        <span className="flex-1 truncate capitalize">{tag.name}</span>
+                      </NavLink>
+                        
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-end shrink-0 z-10 opacity-0 group-hover/tag:opacity-100 focus-within:opacity-100 transition-opacity">
+                        <DropdownMenu onOpenChange={(open) => setOpenDropdownId(open ? `tag-${tag.id}` : null)}>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors bg-background/50 backdrop-blur-sm"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-32 bg-popover border-border">
+                            <DropdownMenuItem onClick={() => setModalState({ isOpen: true, mode: 'edit', type: 'tag', initialData: { id: tag.id, name: tag.name, color: tag.color } })}>
+                              <Edit2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => deleteTag(tag.id)} className="text-destructive focus:text-destructive">
+                              <Trash2 className="mr-2 h-3.5 w-3.5" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      {tagTaskCount > 0 && openDropdownId !== `tag-${tag.id}` && (
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-end shrink-0 z-0 pointer-events-none group-hover/tag:opacity-0 transition-opacity">
+                          <span className={cn(
+                            'text-[10px] font-bold px-1.5 py-0.5 rounded-md',
+                            location.pathname.includes(String(tag.id))
+                              ? 'bg-primary-foreground/20 text-primary-foreground'
+                              : 'bg-muted text-muted-foreground'
+                          )}>
+                            {tagTaskCount}
+                          </span>
                         </div>
-                      ) : (
-                        <NavLink
-                          to={`/tasks/tag/${tag.id}`}
-                          className={({ isActive }) =>
-                            cn(
-                              'sidebar-item text-muted-foreground hover:text-foreground hover:bg-accent',
-                              isActive && 'sidebar-item-active text-primary-foreground bg-primary'
-                            )
-                          }
-                        >
-                          <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="flex-1 truncate capitalize">{tag.name}</span>
-                          {tagTaskCount > 0 && (
-                            <span className={cn(
-                              'text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0',
-                              location.pathname.includes(String(tag.id))
-                                ? 'bg-primary-foreground/20 text-primary-foreground'
-                                : 'bg-muted text-muted-foreground'
-                            )}>
-                              {tagTaskCount}
-                            </span>
-                          )}
-                          {hoveredTagId === tag.id && (
-                            <div className="flex items-center gap-0.5 ml-1 shrink-0">
-                              <button
-                                type="button"
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingTagId(tag.id); }}
-                                className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteTag(tag.id); }}
-                                className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          )}
-                        </NavLink>
                       )}
                     </div>
                   );
@@ -532,6 +427,13 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
         </section>
       </div>
 
+      <CategoryTagModal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState({ ...modalState, isOpen: false })}
+        mode={modalState.mode}
+        type={modalState.type}
+        initialData={modalState.initialData}
+      />
       <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
       <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </aside>

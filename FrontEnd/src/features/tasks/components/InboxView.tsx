@@ -61,9 +61,10 @@ export function InboxView() {
   };
 
   // View settings toggles
-  const [showOverdue, setShowOverdue] = React.useState<boolean>(() => getStorageItem('showOverdue', true));
-  const [showCompleted, setShowCompleted] = React.useState<boolean>(() => getStorageItem('showCompleted', true));
-  const [showCancelled, setShowCancelled] = React.useState<boolean>(() => getStorageItem('showCancelled', true));
+  const [showOverdue, setShowOverdue] = React.useState(getStorageItem('showOverdue', true));
+  const [showCompleted, setShowCompleted] = React.useState(getStorageItem('showCompleted', true));
+  const [showCancelled, setShowCancelled] = React.useState(getStorageItem('showCancelled', false));
+  const [showTaskDetails, setShowTaskDetails] = React.useState(getStorageItem('showTaskDetails', true));
 
   // Upcoming views switch state (persisted in localStorage)
   const [upcomingViewMode, setUpcomingViewMode] = React.useState<'list' | 'calendar' | 'timeline'>(() => {
@@ -97,6 +98,7 @@ export function InboxView() {
     localStorage.setItem('pms_showOverdue', JSON.stringify(showOverdue));
     localStorage.setItem('pms_showCompleted', JSON.stringify(showCompleted));
     localStorage.setItem('pms_showCancelled', JSON.stringify(showCancelled));
+    localStorage.setItem('pms_showTaskDetails', JSON.stringify(showTaskDetails));
     localStorage.setItem('pms_priorityFilters', JSON.stringify(priorityFilters));
     localStorage.setItem('pms_selectedListIds', JSON.stringify(selectedListIds));
     localStorage.setItem('pms_selectedTagNames', JSON.stringify(selectedTagNames));
@@ -513,6 +515,7 @@ export function InboxView() {
                 });
               }}
               isSortable={sortBy === 'none'}
+              showTaskDetails={showTaskDetails}
             />
           </div>
         </ScrollArea>
@@ -572,6 +575,13 @@ export function InboxView() {
                     >
                       <Checkbox checked={showCancelled} onCheckedChange={undefined} />
                       <span className="text-xs font-bold text-foreground">Show Cancelled Tasks</span>
+                    </div>
+                    <div 
+                      onClick={() => setShowTaskDetails(!showTaskDetails)} 
+                      className="flex items-center gap-3 cursor-pointer select-none py-1 hover:opacity-80 transition-opacity"
+                    >
+                      <Checkbox checked={showTaskDetails} onCheckedChange={undefined} />
+                      <span className="text-xs font-bold text-foreground">Show Tasks Details</span>
                     </div>
                   </div>
 

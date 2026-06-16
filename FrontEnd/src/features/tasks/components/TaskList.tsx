@@ -34,6 +34,7 @@ interface TaskListProps {
   onToggleStatus: (task: Task, checked: boolean) => void;
   onContextMenu?: (e: React.MouseEvent, task: Task) => void;
   isSortable?: boolean;
+  showTaskDetails?: boolean;
 }
 
 interface SectionHeaderProps {
@@ -85,6 +86,7 @@ export function TaskList({
   onToggleStatus,
   onContextMenu,
   isSortable,
+  showTaskDetails = true,
 }: TaskListProps) {
   const totalTasks = overdueTasks.length + activeTasks.length + completedTasks.length + cancelledTasks.length;
 
@@ -172,6 +174,7 @@ export function TaskList({
                   onToggle={(checked) => onToggleStatus(task, checked)}
                   onContextMenu={onContextMenu}
                   isOverdue
+                  showTaskDetails={showTaskDetails}
                 />
               ))}
             </div>
@@ -206,6 +209,7 @@ export function TaskList({
                       onToggle={(checked) => onToggleStatus(task, checked)}
                       onContextMenu={onContextMenu}
                       isSortable={isSortable}
+                      showTaskDetails={showTaskDetails}
                     />
                   ))}
                 </div>
@@ -243,6 +247,7 @@ export function TaskList({
                   onClick={() => onSelectTask(task.id)}
                   onToggle={(checked) => onToggleStatus(task, checked)}
                   onContextMenu={onContextMenu}
+                  showTaskDetails={showTaskDetails}
                 />
               ))}
             </div>
@@ -274,6 +279,7 @@ export function TaskList({
                   onClick={() => onSelectTask(task.id)}
                   onToggle={(checked) => onToggleStatus(task, checked)}
                   onContextMenu={onContextMenu}
+                  showTaskDetails={showTaskDetails}
                 />
               ))}
             </div>

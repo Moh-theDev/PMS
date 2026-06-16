@@ -724,7 +724,7 @@ function FocusHeatmap({ timeframe, customStart, customEnd, sessions, refDate }: 
       <HeatTooltip tip={tooltip} />
       <div
         ref={scrollRef}
-        className="flex items-start gap-1 overflow-x-auto pt-6 pb-2 scrollbar-thin select-none max-w-full"
+        className="flex items-start gap-1 overflow-x-auto pt-6 pb-2 scroll select-none max-w-full"
       >
         {/* Row labels */}
         <div className="grid grid-rows-7 gap-1 h-[108px] text-[8px] font-bold text-muted-foreground pr-1.5 pt-0.5 leading-none shrink-0">
@@ -757,7 +757,7 @@ function FocusHeatmap({ timeframe, customStart, customEnd, sessions, refDate }: 
                   return (
                     <div
                       key={dayObj.dStr}
-                      className={cn('w-3 h-3 rounded-sm border transition-colors duration-150 cursor-pointer hover:scale-125', getHeatColor(sec))}
+                      className={cn('w-3 h-3 border transition-colors duration-150 cursor-pointer hover:scale-125', getHeatColor(sec))}
                       onMouseEnter={e => showTip(e, `${dayObj.formattedDate}: ${formatSecondsFriendly(sec)}`)}
                       onMouseMove={e  => showTip(e, `${dayObj.formattedDate}: ${formatSecondsFriendly(sec)}`)}
                       onMouseLeave={hideTip}
@@ -2507,7 +2507,7 @@ export function AnalyticsView() {
                   
                   {/* Heatmap Activity Grid (Card 1) */}
                   <Card 
-                    className="bg-card border-border shadow-xl dark:shadow-none shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl dark:shadow-none hover:border-border cursor-pointer flex flex-col justify-between"
+                    className="bg-card border-border shadow-xl dark:shadow-none shadow-slate-900/5 rounded-3xl overflow-hidden transition-[shadow,border-color] duration-300 hover:shadow-2xl hover:border-border cursor-pointer flex flex-col justify-between"
                   >
                     <CardHeader className="p-6 md:p-8 pb-4 flex flex-row items-start justify-between gap-4">
                       <div className="flex flex-col gap-0.5">

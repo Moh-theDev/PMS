@@ -16,9 +16,10 @@ import {
 } from 'lucide-react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { Button } from '@/components/ui/button';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/store/useAuthStore';
 import { 
   getActiveTimer, 
   startTimer, 
@@ -38,10 +39,6 @@ export function FocusView() {
   const [selectedTaskId, setSelectedTaskId] = React.useState<number | null>(null);
   const [seconds, setSeconds] = React.useState(0);
   const [isRunning, setIsRunning] = React.useState(false);
-  
-  const [manualHours, setManualHours] = React.useState(0);
-  const [manualMinutes, setManualMinutes] = React.useState(25);
-  const [manualDate, setManualDate] = React.useState(() => new Date().toISOString().split('T')[0]);
   const [taskFocusedSeconds, setTaskFocusedSeconds] = React.useState(0);
   
   const [isApiLoading, setIsApiLoading] = React.useState(false);
@@ -444,37 +441,6 @@ export function FocusView() {
   };
 
 
-  const handleSaveManualLog = () => {
-    if (!selectedTaskId) return;
-    const totalSeconds = (manualHours * 3600) + (manualMinutes * 60);
-    if (totalSeconds <= 0) {
-      setErrorMsg("Please enter a focus duration greater than 0 minutes.");
-      return;
-    }
-    
-    try {
-      const userId = useAuthStore.getState().user?.id || 'default';
-      const manualSessions = JSON.parse(localStorage.getItem(`pms_manual_sessions_${userId}`) || '[]');
-      const newManualSession = {
-        id: `manual_${Date.now()}`,
-        taskId: selectedTaskId,
-        accumulatedSeconds: totalSeconds,
-        startedAt: new Date(manualDate).toISOString(),
-        createdAt: new Date().toISOString(),
-        endedAt: new Date(manualDate).toISOString()
-      };
-      manualSessions.push(newManualSession);
-      localStorage.setItem(`pms_manual_sessions_${userId}`, JSON.stringify(manualSessions));
-      
-      setIsManualLogOpen(false);
-      loadTaskFocusedTime();
-      
-      setToastMessage("Focus time logged successfully!");
-      setTimeout(() => setToastMessage(null), 4000);
-    } catch (err: any) {
-      setErrorMsg("Failed to save manually logged focus session.");
-    }
-  };
 
   // Active filter label for the switcher button
   const activeFilterLabel = () => {
@@ -825,7 +791,7 @@ export function FocusView() {
                     ? '#ef4444'
                     : selectedTask.priority > 4 
                       ? '#d97706'
-                      : '#3b82f6'
+                      : '#64748b'
                 }} 
               />
               
@@ -837,7 +803,7 @@ export function FocusView() {
                       ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-100"
                       : selectedTask.priority > 4
                         ? "bg-amber-50 text-amber-600 dark:text-amber-400 border border-amber-100"
-                        : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-100"
+                        : "bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-100"
                   )}>
                     {selectedTask.priority >= 8 ? 'High' : selectedTask.priority > 4 ? 'Medium' : 'Low'}
                   </span>

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { format, parseISO } from 'date-fns';
+
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -19,11 +19,14 @@ interface DatePickerProps {
 
 export function DatePicker({ date, onDateChange, placeholder = "Pick a date", className }: DatePickerProps) {
   const [isOpen, setIsOpen] = React.useState(false);
-  const parsedDate = date ? parseISO(date) : undefined;
+  const parsedDate = date ? new Date(date) : undefined;
 
   const handleSelect = (selectedDate: Date | undefined) => {
     if (selectedDate) {
-      onDateChange(format(selectedDate, 'yyyy-MM-dd'));
+      // Need local date string yyyy-mm-dd
+      const tzOffset = selectedDate.getTimezoneOffset() * 60000;
+      const localISOTime = (new Date(selectedDate.getTime() - tzOffset)).toISOString().split('T')[0];
+      onDateChange(localISOTime);
       setIsOpen(false);
     }
   };
@@ -40,7 +43,7 @@ export function DatePicker({ date, onDateChange, placeholder = "Pick a date", cl
           )}
         >
           <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
-          {date ? format(parsedDate!, "MMM d, yyyy") : <span>{placeholder}</span>}
+          {date && parsedDate ? parsedDate.toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' }) : <span>{placeholder}</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0 z-50" align="start">
@@ -48,7 +51,6 @@ export function DatePicker({ date, onDateChange, placeholder = "Pick a date", cl
           mode="single"
           selected={parsedDate}
           onSelect={handleSelect}
-          initialFocus
           className="bg-card dark:bg-card border-border dark:border-border text-foreground dark:text-foreground shadow-lg dark:shadow-none"
         />
       </PopoverContent>

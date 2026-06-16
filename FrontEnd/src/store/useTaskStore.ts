@@ -3,6 +3,7 @@ import { type Task, type Category, type Tag, type List, type CreateTaskDto, type
 import * as taskService from '../features/tasks/services/taskService';
 import * as categoryService from '../features/categories/services/categoryService';
 import * as tagService from '../features/tags/services/tagService';
+import { useAuthStore } from './useAuthStore';
 
 interface TaskState {
   tasks: Task[];
@@ -27,12 +28,12 @@ interface TaskState {
   resolveDelete: (id: number, option: string, newTaskId?: number) => Promise<void>;
   clearStartEnd: (id: number) => Promise<void>;
 
-  addCategory: (name: string) => Promise<void>;
-  updateCategory: (id: number, name: string) => Promise<void>;
+  addCategory: (name: string, color?: string) => Promise<void>;
+  updateCategory: (id: number, name: string, color?: string) => Promise<void>;
   deleteCategory: (id: number) => Promise<void>;
 
-  addTag: (name: string) => Promise<Tag>;
-  updateTag: (id: number, name: string) => Promise<void>;
+  addTag: (name: string, color?: string) => Promise<Tag>;
+  updateTag: (id: number, name: string, color?: string) => Promise<void>;
   deleteTag: (id: number) => Promise<void>;
 
   assignTags: (taskId: number, tagIds: number[]) => Promise<void>;
@@ -168,17 +169,24 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
       // Filter out the dummy category so the user never sees it in general lists or sidebars!
       const visibleCategories = categories.filter((c) => c.name !== '_no_category_');
+      const userId = useAuthStore.getState().user?.id || 'default';
+      const colorMap = JSON.parse(localStorage.getItem(`pms_category_colors_${userId}`) || '{}');
+
+      const categoriesWithColors = visibleCategories.map(c => ({
+        ...c,
+        color: colorMap[c.id] || c.color || '#64748b'
+      }));
 
       const mappedLists = [
         ...staticLists,
-        ...visibleCategories.map((c) => ({
+        ...categoriesWithColors.map((c) => ({
           id: String(c.id),
           name: c.name,
-          color: c.color || '#64748b',
+          color: c.color,
         })),
       ];
       set({ 
-        categories: visibleCategories, 
+        categories: categoriesWithColors, 
         lists: mappedLists, 
         isLoading: false, 
         dummyCategoryId: dummyId 
@@ -192,7 +200,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const tags = await tagService.getAllTags();
-      set({ tags, isLoading: false });
+      const userId = useAuthStore.getState().user?.id || 'default';
+      const colorMap = JSON.parse(localStorage.getItem(`pms_tag_colors_${userId}`) || '{}');
+      const tagsWithColors = tags.map(t => ({ ...t, color: colorMap[t.id] || t.color || '#64748b' }));
+      set({ tags: tagsWithColors, isLoading: false });
     } catch (err: any) {
       set({ error: 'Failed to fetch tags', isLoading: false });
     }
@@ -497,11 +508,17 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
-  addCategory: async (name) => {
+  addCategory: async (name, color) => {
     set({ isLoading: true, error: null });
     try {
       const id = await categoryService.createCategory(name);
       if (id !== -1) {
+        if (color) {
+          const userId = useAuthStore.getState().user?.id || 'default';
+          const colorMap = JSON.parse(localStorage.getItem(`pms_category_colors_${userId}`) || '{}');
+          colorMap[id] = color;
+          localStorage.setItem(`pms_category_colors_${userId}`, JSON.stringify(colorMap));
+        }
         await get().fetchCategories();
       } else {
         set({ error: 'Category already exists', isLoading: false });
@@ -511,13 +528,19 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
-  updateCategory: async (id, name) => {
+  updateCategory: async (id, name, color) => {
     set({ isLoading: true, error: null });
     try {
       await categoryService.updateCategory(id, name);
+      if (color) {
+        const userId = useAuthStore.getState().user?.id || 'default';
+        const colorMap = JSON.parse(localStorage.getItem(`pms_category_colors_${userId}`) || '{}');
+        colorMap[id] = color;
+        localStorage.setItem(`pms_category_colors_${userId}`, JSON.stringify(colorMap));
+      }
       set((state) => ({
-        categories: state.categories.map((c) => (c.id === id ? { ...c, name } : c)),
-        lists: state.lists.map((l) => (l.id === String(id) ? { ...l, name } : l)),
+        categories: state.categories.map((c) => (c.id === id ? { ...c, name, color: color || c.color } : c)),
+        lists: state.lists.map((l) => (l.id === String(id) ? { ...l, name, color: color || l.color } : l)),
         isLoading: false,
       }));
     } catch (err: any) {
@@ -535,11 +558,21 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
-  addTag: async (name) => {
+  addTag: async (name, color) => {
     set({ isLoading: true, error: null });
     try {
       const newTag = await tagService.createTag(name);
-      await get().fetchTags();
+      if (color) {
+        const userId = useAuthStore.getState().user?.id || 'default';
+        const colorMap = JSON.parse(localStorage.getItem(`pms_tag_colors_${userId}`) || '{}');
+        colorMap[newTag.id] = color;
+        localStorage.setItem(`pms_tag_colors_${userId}`, JSON.stringify(colorMap));
+        newTag.color = color;
+      }
+      set((state) => ({
+        tags: [...state.tags, newTag],
+        isLoading: false,
+      }));
       return newTag;
     } catch (err: any) {
       set({ error: 'Failed to create tag', isLoading: false });
@@ -557,12 +590,18 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
-  updateTag: async (id, name) => {
+  updateTag: async (id, name, color) => {
     set({ isLoading: true, error: null });
     try {
       await tagService.updateTag(id, name);
+      if (color) {
+        const userId = useAuthStore.getState().user?.id || 'default';
+        const colorMap = JSON.parse(localStorage.getItem(`pms_tag_colors_${userId}`) || '{}');
+        colorMap[id] = color;
+        localStorage.setItem(`pms_tag_colors_${userId}`, JSON.stringify(colorMap));
+      }
       set((state) => ({
-        tags: state.tags.map((t) => (t.id === id ? { ...t, name } : t)),
+        tags: state.tags.map((t) => (t.id === id ? { ...t, name, color: color || t.color } : t)),
         isLoading: false,
       }));
       await get().fetchTasks();

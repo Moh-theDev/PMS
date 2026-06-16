@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { type Task, type Category, type Tag, type UpdateTaskDto, TaskStatus } from '@/types/index';
+import { Button } from '@/components/ui/button';
 import { DetailRow } from './DetailRow';
 import { Calendar as DayPickerCalendar } from '@/components/ui/calendar';
 import { getTaskSessions } from '@/features/focus/services/timeTrackingService';
@@ -616,6 +617,7 @@ interface TaskDetailFieldsProps {
   onUpdateStatus: (id: number, status: TaskStatus) => void;
   onAssignTags: (taskId: number, tagIds: number[]) => void;
   onRemoveTag: (taskId: number, tagId: number) => void;
+  onDelete?: () => void;
 }
 
 export function TaskDetailFields({
@@ -627,6 +629,7 @@ export function TaskDetailFields({
   onUpdateStatus,
   onAssignTags,
   onRemoveTag,
+  onDelete,
 }: TaskDetailFieldsProps) {
   const clearStartEnd = useTaskStore((state) => state.clearStartEnd);
   // Duration controlled state
@@ -1092,6 +1095,20 @@ export function TaskDetailFields({
           />
         </div>
       </div>
+
+      {/* Danger Zone */}
+      {onDelete && (
+        <div className="pt-4 mt-6 border-t border-border flex justify-end">
+          <Button
+            variant="ghost"
+            className="text-red-500 hover:bg-red-500/10 hover:text-red-600 transition-colors w-full sm:w-auto h-9 text-xs font-bold gap-2"
+            onClick={onDelete}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Task
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
