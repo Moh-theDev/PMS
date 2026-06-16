@@ -38,12 +38,12 @@ export function FocusView() {
   const [selectedTaskId, setSelectedTaskId] = React.useState<number | null>(null);
   const [seconds, setSeconds] = React.useState(0);
   const [isRunning, setIsRunning] = React.useState(false);
-  const [isManualLogOpen, setIsManualLogOpen] = React.useState(false);
+  
   const [manualHours, setManualHours] = React.useState(0);
   const [manualMinutes, setManualMinutes] = React.useState(25);
   const [manualDate, setManualDate] = React.useState(() => new Date().toISOString().split('T')[0]);
   const [taskFocusedSeconds, setTaskFocusedSeconds] = React.useState(0);
-  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+  
   const [isApiLoading, setIsApiLoading] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
@@ -832,7 +832,7 @@ export function FocusView() {
               <div className="pl-2 space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className={cn(
-                    "text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider",
+                    "text-xs font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider",
                     selectedTask.priority >= 8 
                       ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-100"
                       : selectedTask.priority > 4
@@ -852,7 +852,7 @@ export function FocusView() {
                   )}
                 </div>
                 
-                <h3 className="text-sm font-black text-foreground leading-snug line-clamp-2">
+                <h3 className="text-lg font-black text-foreground leading-snug line-clamp-2">
                   {selectedTask.title}
                 </h3>
                 
@@ -870,17 +870,7 @@ export function FocusView() {
                   </div>
                   {activeEntry === null && (
                     <div className="flex items-center gap-2.5">
-                      <button
-                        onClick={() => {
-                          setManualHours(0);
-                          setManualMinutes(25);
-                          setManualDate(new Date().toISOString().split('T')[0]);
-                          setIsManualLogOpen(true);
-                        }}
-                        className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:text-emerald-400 transition-colors cursor-pointer"
-                      >
-                        Log Time
-                      </button>
+                      
                       <button
                         onClick={() => setSelectedTaskId(null)}
                         className="text-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer"
@@ -897,7 +887,7 @@ export function FocusView() {
           {/* ── Timer Circle ───────────────────────────────────────────────── */}
           <div className="relative flex items-center justify-center shrink-0 select-none">
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-[260px] h-[260px] rounded-full border border-border shadow-inner bg-card/20 backdrop-blur-[2px]" />
+              <div className="w-[260px] h-[250px] rounded-full border border-border shadow-inner bg-card/20 backdrop-blur-[2px] dark:bg-background/90" />
             </div>
             
             <svg className="w-[240px] h-[240px] -rotate-90 relative">
@@ -908,8 +898,8 @@ export function FocusView() {
                 r="108"
                 fill="none"
                 stroke="#e2e8f0"
-                strokeWidth="4"
-                strokeDasharray="4 8"
+                strokeWidth="3"
+                strokeDasharray="7 8"
               />
               {/* Progress track */}
               <motion.circle
@@ -975,7 +965,7 @@ export function FocusView() {
               className={cn(
                 "h-11 rounded-xl font-bold text-xs shadow-md dark:shadow-none transition-all active:scale-98",
                 activeEntry === null
-                  ? "bg-black hover:bg-foreground/90 text-background shadow-slate-900/10 disabled:bg-gray-900/50 disabled:text-white"
+                  ? "bg-black hover:bg-foreground/90 text-background shadow-slate-900/10 disabled:bg-gray-900/50 disabled:text-white dark:disabled:bg-gray-500/50 dark:bg-white dark:hover:bg-gray-300"
                   : isRunning
                     ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/10"
                     : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/10"
@@ -1011,123 +1001,6 @@ export function FocusView() {
 
         </div>
       </div>
-
-      {/* ── Manual Time Logging Modal ────────────────────────────────────── */}
-      <AnimatePresence>
-        {isManualLogOpen && selectedTask && (
-          <div className="fixed inset-0 bg-foreground/40 backdrop-blur-xs z-[99999] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-card border border-border shadow-2xl dark:shadow-none rounded-2xl p-6 max-w-sm w-full relative flex flex-col gap-4 text-left"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Close Button */}
-              <button
-                type="button"
-                onClick={() => setIsManualLogOpen(false)}
-                className="absolute top-4 right-4 p-1.5 rounded-full text-muted-foreground hover:text-muted-foreground hover:bg-muted transition-all cursor-pointer active:scale-95"
-              >
-                <X className="h-4 w-4" />
-              </button>
-
-              <div>
-                <h3 className="text-sm font-black text-foreground uppercase tracking-wider">Log Focus Time</h3>
-                <p className="text-[10px] text-muted-foreground font-semibold mt-0.5 leading-relaxed">
-                  Add manual focus time for:
-                </p>
-                <div className="mt-2 inline-flex items-center gap-1.5 bg-blue-500/10 border border-blue-100 text-blue-700 dark:text-blue-400 text-[10px] font-bold px-2.5 py-1 rounded-lg">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                  {selectedTask.title}
-                </div>
-              </div>
-
-              {/* Inputs grid */}
-              <div className="space-y-4 pt-2">
-                <div className="flex items-center gap-3">
-                  {/* Hours Input */}
-                  <div className="flex flex-col gap-1 flex-1">
-                    <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest pl-0.5">Hours</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="24"
-                      value={manualHours}
-                      onChange={(e) => setManualHours(Math.max(0, Math.min(24, parseInt(e.target.value) || 0)))}
-                      className="w-full text-center font-bold text-sm bg-muted border border-border rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500 focus:bg-card transition-all"
-                    />
-                  </div>
-
-                  {/* Minutes Input */}
-                  <div className="flex flex-col gap-1 flex-1">
-                    <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest pl-0.5">Minutes</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="59"
-                      value={manualMinutes}
-                      onChange={(e) => setManualMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
-                      className="w-full text-center font-bold text-sm bg-muted border border-border rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500 focus:bg-card transition-all"
-                    />
-                  </div>
-                </div>
-
-                {/* Date Input */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest pl-0.5">Date Focused</label>
-                  <input
-                    type="date"
-                    value={manualDate}
-                    max={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => setManualDate(e.target.value)}
-                    className="w-full font-bold text-xs bg-muted border border-border rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:bg-card transition-all text-foreground"
-                  />
-                </div>
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex items-center gap-2 pt-2">
-                <Button
-                  onClick={handleSaveManualLog}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex-1 h-10 shadow-sm dark:shadow-none cursor-pointer active:scale-98"
-                >
-                  Log Session
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => setIsManualLogOpen(false)}
-                  className="text-muted-foreground hover:bg-muted font-bold text-xs rounded-xl h-10 px-4 cursor-pointer"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Toast Notification */}
-      <AnimatePresence>
-        {toastMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="fixed bottom-6 right-6 z-[99999] flex items-center gap-3 bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 px-4 py-3.5 rounded-xl shadow-lg dark:shadow-none shadow-emerald-900/10 text-emerald-800 text-xs font-bold max-w-xs sm:max-w-sm"
-          >
-            <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span className="flex-1 leading-relaxed">{toastMessage}</span>
-            <button 
-              type="button"
-              onClick={() => setToastMessage(null)} 
-              className="ml-2 p-0.5 text-emerald-500 hover:text-emerald-700 dark:text-emerald-400 rounded-md hover:bg-emerald-500/20 transition-colors cursor-pointer"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

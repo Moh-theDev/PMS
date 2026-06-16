@@ -98,12 +98,12 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
           onCheckedChange={(val) => onToggle(val === true)}
           icon={isCancelled ? <X className="h-3 w-3 stroke-3" /> : <Check className="h-3.5 w-3.5" />}
           className={cn(
-            'h-4 w-4 rounded transition-all',
+            'h-4 w-4 rounded-sm transition-all',
             task.priority >= 8 
               ? 'border-red-500 hover:border-red-600 focus-visible:ring-red-500/20 data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500'
               : task.priority > 4 
                 ? 'border-amber-500 hover:border-amber-600 focus-visible:ring-amber-500/20 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500'
-                : 'border-border hover:border-border focus-visible:ring-slate-500/20 data-[state=checked]:bg-slate-500 data-[state=checked]:border-slate-500'
+                : ' focus-visible:ring-slate-500/20 data-[state=checked]:bg-slate-500 data-[state=checked]:border-slate-500 border-gray-500'
           )}
         />
       </div>
