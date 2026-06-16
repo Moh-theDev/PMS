@@ -31,7 +31,7 @@ interface TaskState {
   updateCategory: (id: number, name: string) => Promise<void>;
   deleteCategory: (id: number) => Promise<void>;
 
-  addTag: (name: string) => Promise<void>;
+  addTag: (name: string) => Promise<Tag>;
   updateTag: (id: number, name: string) => Promise<void>;
   deleteTag: (id: number) => Promise<void>;
 
@@ -538,10 +538,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   addTag: async (name) => {
     set({ isLoading: true, error: null });
     try {
-      await tagService.createTag(name);
+      const newTag = await tagService.createTag(name);
       await get().fetchTags();
+      return newTag;
     } catch (err: any) {
       set({ error: 'Failed to create tag', isLoading: false });
+      throw err;
     }
   },
 

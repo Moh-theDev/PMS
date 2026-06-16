@@ -40,6 +40,7 @@ export function InboxView() {
     removeTag,
     getTasksByList,
     taskOrder,
+    addTag,
   } = useTaskStore();
 
   const [selectedTaskId, setSelectedTaskId] = React.useState<number | null>(null);
@@ -352,7 +353,7 @@ export function InboxView() {
   })();
 
   // Handlers
-  const handleAddTask = async (title: string, priority: number, deadline: string | null) => {
+  const handleAddTask = async (title: string, priority: number, deadline: string | null, customTags?: string[]) => {
     const categoryIdNum = !['inbox', 'today', 'upcoming'].includes(listId) ? Number(listId) : undefined;
     try {
       const createdTask = await addTask(
@@ -365,11 +366,41 @@ export function InboxView() {
         },
         categoryIdNum
       );
+
+      const tagIdsToAssign: number[] = [];
+
+      // Add the tag from the URL if we're in a tag view
       if (tagId) {
         const activeTag = tags.find((t) => String(t.id) === tagId || t.name === tagId);
         if (activeTag) {
-          await assignTags(createdTask.id, [activeTag.id]);
+          tagIdsToAssign.push(activeTag.id);
         }
+      }
+
+      // Add custom tags from Quick Capture
+      if (customTags && customTags.length > 0) {
+        for (const tagName of customTags) {
+          // Check if it already exists
+          const existing = tags.find((t) => t.name.toLowerCase() === tagName.toLowerCase());
+          if (existing) {
+            tagIdsToAssign.push(existing.id);
+          } else {
+            // Create the new tag
+            try {
+              const newTag = await addTag(tagName);
+              tagIdsToAssign.push(newTag.id);
+            } catch (err) {
+              console.error(`Failed to create tag ${tagName}`, err);
+            }
+          }
+        }
+      }
+
+      // Assign all tags
+      if (tagIdsToAssign.length > 0) {
+        // Deduplicate
+        const uniqueTagIds = Array.from(new Set(tagIdsToAssign));
+        await assignTags(createdTask.id, uniqueTagIds);
       }
     } catch { /* handled in store */ }
   };
