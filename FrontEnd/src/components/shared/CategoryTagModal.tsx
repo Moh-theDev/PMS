@@ -156,7 +156,7 @@ export function CategoryTagModal({ isOpen, onClose, mode, type, initialData }: C
                 </button>
               ))}
 
-              <Popover open={isCustomColorOpen} onOpenChange={setIsCustomColorOpen}>
+              <Popover modal={true} open={isCustomColorOpen} onOpenChange={setIsCustomColorOpen}>
                 <PopoverTrigger asChild>
                   <button
                     type="button"
@@ -193,7 +193,7 @@ export function CategoryTagModal({ isOpen, onClose, mode, type, initialData }: C
                       onChange={(e) => {
                         const val = e.target.value;
                         setHexInput(val);
-                        if (/^#[0-9A-F]{6}$/i.test(val)) {
+                        if (/^#([0-9A-F]{3}){1,2}$/i.test(val)) {
                           setColor(val.toUpperCase());
                         }
                       }}
@@ -203,7 +203,7 @@ export function CategoryTagModal({ isOpen, onClose, mode, type, initialData }: C
                     />
                     <div 
                       className="h-6 w-6 rounded-md border border-border shrink-0 shadow-sm transition-colors" 
-                      style={{ backgroundColor: /^#[0-9A-F]{6}$/i.test(hexInput) ? hexInput : color || 'transparent' }} 
+                      style={{ backgroundColor: /^#([0-9A-F]{3}){1,2}$/i.test(hexInput) ? hexInput : color || 'transparent' }} 
                     />
                   </div>
                 </PopoverContent>

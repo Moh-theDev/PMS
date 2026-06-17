@@ -30,11 +30,6 @@ interface CalendarViewModeProps {
   onSelectTask: (id: number) => void;
 }
 
-const CATEGORY_COLORS = [
-  '#6366f1', '#3b82f6', '#06b6d4', '#10b981',
-  '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899',
-];
-
 export function CalendarViewMode({
   tasks,
   categories,
@@ -204,7 +199,7 @@ export function CalendarViewMode({
   const renderTaskPill = (task: Task) => {
     const isClosed = task.status === TaskStatus.Done || task.status === TaskStatus.Cancelled;
     const category = categories.find((c) => c.id === task.categoryId);
-    const categoryColor = category ? CATEGORY_COLORS[category.id % CATEGORY_COLORS.length] : '#94a3b8';
+    const categoryColor = category ? (category.color || '#94a3b8') : '#94a3b8';
     const isSelected = selectedTaskId === task.id;
 
     return (

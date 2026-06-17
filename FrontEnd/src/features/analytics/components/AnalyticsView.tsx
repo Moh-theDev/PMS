@@ -1354,7 +1354,8 @@ export function AnalyticsView() {
               if (focusPieTags.includes(tag)) {
                 const name = `#${tag}`;
                 if (!groupAccumulations[name]) {
-                  groupAccumulations[name] = { seconds: 0, color: '#a855f7' }; // Violet color for tags
+                  const tagObj = tags.find(t => t.name === tag);
+                  groupAccumulations[name] = { seconds: 0, color: tagObj?.color || '#a855f7' }; 
                 }
                 groupAccumulations[name].seconds += s.accumulatedSeconds;
                 totalSeconds += s.accumulatedSeconds;

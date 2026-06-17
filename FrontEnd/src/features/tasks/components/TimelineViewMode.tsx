@@ -29,11 +29,6 @@ interface TimelineViewModeProps {
   onSelectTask: (id: number) => void;
 }
 
-const CATEGORY_COLORS = [
-  '#6366f1', '#3b82f6', '#06b6d4', '#10b981',
-  '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899',
-];
-
 export function TimelineViewMode({
   tasks,
   categories,
@@ -401,11 +396,11 @@ export function TimelineViewMode({
             {/* Timeline Lanes Rows */}
             <div className="flex-1 divide-y divide-slate-150/45 w-full relative">
               {visibleScheduledTasks.map((task) => {
-                const { leftPercent, widthPercent, taskSpanDays } = calculateBarPosition(task);
+                const { leftPercent, widthPercent } = calculateBarPosition(task);
                 const isClosed = task.status === TaskStatus.Done || task.status === TaskStatus.Cancelled;
 
                 const category = categories.find((c) => c.id === task.categoryId);
-                const categoryColor = category ? CATEGORY_COLORS[category.id % CATEGORY_COLORS.length] : '#94a3b8';
+                const categoryColor = category ? (category.color || '#94a3b8') : '#94a3b8';
 
                 return (
                   <div 
@@ -449,19 +444,6 @@ export function TimelineViewMode({
                       )}
                     </div>
 
-                    {/* Span badge shown outside very narrow bars (< 28px wide) — tooltip fallback */}
-                    {taskSpanDays === 1 && widthPercent < 5 && (
-                      <div
-                        onClick={() => onSelectTask(task.id)}
-                        className={cn(
-                          "absolute top-1/2 -translate-y-1/2 text-xs font-extrabold text-foreground hover:text-blue-600 dark:text-blue-400 cursor-pointer select-none transition-colors whitespace-nowrap z-10",
-                          isClosed && "line-through text-muted-foreground"
-                        )}
-                        style={{ left: `calc(${leftPercent + widthPercent}% + 6px)` }}
-                      >
-                        {task.title}
-                      </div>
-                    )}
                   </div>
                 );
               })}
