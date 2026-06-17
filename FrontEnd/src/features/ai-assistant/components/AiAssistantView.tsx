@@ -6,6 +6,8 @@ import { api } from '@/api/axios';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as DayPickerCalendar } from '@/components/ui/calendar';
 import { 
   Sparkles, 
   Calendar, 
@@ -19,7 +21,10 @@ import {
   Lightbulb,
   Quote,
   Send,
-  RotateCcw
+  RotateCcw,
+  Trash2,
+  XCircle,
+  Clock
 } from 'lucide-react';
 
 interface DeadlineWizardTask {
@@ -27,6 +32,39 @@ interface DeadlineWizardTask {
   title: string;
   deadline: string;
 }
+
+interface OverdueWizardTask {
+  id: number;
+  title: string;
+  deadline: string;
+  action: 'change' | 'cancel' | 'delete';
+}
+
+const formatSchedulingError = (msg: string) => {
+  let formatted = msg;
+  // Remove task ID e.g., "Task 153 (Long Hours)" -> "Task (Long Hours)"
+  formatted = formatted.replace(/Task \d+ \((.*?)\)/g, "Task '$1'");
+  
+  // Format minutes to xhxm e.g., "540 minutes" -> "9h 0m"
+  formatted = formatted.replace(/\b(\d+)\s*minutes\b/g, (match, p1) => {
+    const mins = parseInt(p1, 10);
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+  });
+
+  // Convert 24h times to AM/PM (e.g. 17:00 to 05:00 PM), optional if backend sends it.
+  formatted = formatted.replace(/\b([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?\b/g, (match, hStr, mStr) => {
+    let h = parseInt(hStr, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h.toString().padStart(2, '0')}:${mStr} ${ampm}`;
+  });
+
+  return formatted;
+};
 
 const getErrorMessage = (err: any): string => {
   if (!err) return 'Something went wrong.';
@@ -75,8 +113,8 @@ function RichText({ text }: { text: string }) {
 
 export function AiAssistantView() {
   const { 
-    tasks, tags,
-    fetchTasks, addTask, deleteTask, assignTags, updateTaskStatus
+    tasks, tags, categories, dummyCategoryId,
+    fetchTasks, updateTask, deleteTask, assignTags, updateTaskStatus
   } = useTaskStore();
 
   const {
@@ -93,18 +131,8 @@ export function AiAssistantView() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // ── Schedule flow ────────────────────────────────────────────────────────
-  const handleScheduleClickDirectly = async (addUserMessage = false) => {
-    if (isProcessing) return;
-    setIsProcessing(true);
-
-    if (addUserMessage) {
-      setMessages(prev => [...prev, {
-        id: 'usr-sched-' + Date.now(), sender: 'user',
-        text: 'Schedule my tasks', timestamp: new Date(), type: 'text'
-      }]);
-    }
-
+  // ── Scheduling Pipeline ──────────────────────────────────────────────────
+  const checkMissingDeadlines = () => {
     const missingDeadlines = tasks.filter(
       t => t.status !== TaskStatus.Done &&
            t.status !== TaskStatus.Cancelled &&
@@ -117,13 +145,67 @@ export function AiAssistantView() {
           id: 'assistant-wizard-' + Date.now(), sender: 'assistant',
           text: `I found **${missingDeadlines.length}** task${missingDeadlines.length > 1 ? 's' : ''} without a deadline. I need those before I can schedule everything properly — could you quickly assign dates below?`,
           timestamp: new Date(), type: 'deadline-wizard',
-          payload: { tasks: missingDeadlines.map(t => ({ id: t.id, title: t.title, deadline: '' })) }
+          payload: { tasks: missingDeadlines.map(t => ({ id: t.id, title: t.title, deadline: '' })) },
+          completed: false
         }]);
         setIsProcessing(false);
       }, 600);
-    } else {
-      await runSchedulingEngine();
+      return true;
     }
+    return false;
+  };
+
+  const checkOverdueTasks = () => {
+    const now = new Date();
+    const overdueTasks = tasks.filter(
+      t => t.status !== TaskStatus.Done &&
+           t.status !== TaskStatus.Cancelled &&
+           t.deadline && !t.deadline.startsWith('0001-01-01') &&
+           new Date(t.deadline) < now
+    );
+
+    if (overdueTasks.length > 0) {
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: 'assistant-overdue-' + Date.now(), sender: 'assistant',
+          text: `You have **${overdueTasks.length}** overdue task${overdueTasks.length > 1 ? 's' : ''}. We can't schedule them in the past! Please choose how to handle them:`,
+          timestamp: new Date(), type: 'overdue-wizard',
+          payload: { tasks: overdueTasks.map(t => ({ id: t.id, title: t.title, deadline: (t.deadline || '').split('T')[0], action: 'change' })) },
+          completed: false
+        }]);
+        setIsProcessing(false);
+      }, 600);
+      return true;
+    }
+    return false;
+  };
+
+  const promptWorkHours = () => {
+    setTimeout(() => {
+      setMessages(prev => [...prev, {
+        id: 'assistant-work-hours-' + Date.now(), sender: 'assistant',
+        text: `Almost ready! What are your working hours for the scheduled tasks?`,
+        timestamp: new Date(), type: 'work-hours-wizard',
+        completed: false
+      }]);
+      setIsProcessing(false);
+    }, 600);
+  };
+
+  const handleScheduleClickDirectly = async (addUserMessage = false) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+
+    if (addUserMessage) {
+      setMessages(prev => [...prev, {
+        id: 'usr-sched-' + Date.now(), sender: 'user',
+        text: 'Schedule my tasks', timestamp: new Date(), type: 'text'
+      }]);
+    }
+
+    if (checkMissingDeadlines()) return;
+    if (checkOverdueTasks()) return;
+    promptWorkHours();
   };
 
   // ── Report flow ──────────────────────────────────────────────────────────
@@ -166,8 +248,9 @@ export function AiAssistantView() {
   };
 
   // ── Wizard submit ────────────────────────────────────────────────────────
-  const handleWizardSubmit = async (wizardTasks: DeadlineWizardTask[]) => {
+  const handleWizardSubmit = async (messageId: string, wizardTasks: DeadlineWizardTask[]) => {
     setIsProcessing(true);
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, completed: true } : m));
     setMessages(prev => [...prev, {
       id: 'usr-wiz-save-' + Date.now(), sender: 'user',
       text: "Got it, deadlines set — let's schedule!", timestamp: new Date(), type: 'text'
@@ -185,25 +268,8 @@ export function AiAssistantView() {
         if (wt.deadline) {
           const original = tasks.find(t => t.id === wt.id);
           if (original) {
-            await deleteTask(original.id);
             const dateStr = wt.deadline.includes('T') ? wt.deadline : `${wt.deadline}T23:59:59`;
-            const created = await addTask({
-              title: original.title,
-              description: original.description || undefined,
-              durationInMinutes: original.durationInMinutes || 30,
-              priority: original.priority || 5,
-              effortLevel: original.effortLevel || 3,
-              deadline: dateStr,
-            }, original.categoryId);
-
-            if (original.status !== 0) await updateTaskStatus(created.id, original.status);
-
-            if (original.tags && original.tags.length > 0) {
-              const tagIdsToAssign = original.tags
-                .map(tagName => tags.find(tag => tag.name === tagName)?.id)
-                .filter((id): id is number => id !== undefined);
-              if (tagIdsToAssign.length > 0) await assignTags(created.id, tagIdsToAssign);
-            }
+            await updateTask(original.id, { deadline: dateStr });
           }
         }
       }
@@ -211,7 +277,28 @@ export function AiAssistantView() {
       await fetchTasks();
       await new Promise(resolve => setTimeout(resolve, 850));
       setMessages(prev => prev.filter(m => m.id !== loadingId));
-      await runSchedulingEngine();
+      
+      const stateTasks = useTaskStore.getState().tasks;
+      const now = new Date();
+      const overdueTasks = stateTasks.filter(
+        t => t.status !== TaskStatus.Done &&
+             t.status !== TaskStatus.Cancelled &&
+             t.deadline && !t.deadline.startsWith('0001-01-01') &&
+             new Date(t.deadline) < now
+      );
+
+      if (overdueTasks.length > 0) {
+        setMessages(prev => [...prev, {
+          id: 'assistant-overdue-' + Date.now(), sender: 'assistant',
+          text: `You have **${overdueTasks.length}** overdue task${overdueTasks.length > 1 ? 's' : ''}. We can't schedule them in the past! Please choose how to handle them:`,
+          timestamp: new Date(), type: 'overdue-wizard',
+          payload: { tasks: overdueTasks.map(t => ({ id: t.id, title: t.title, deadline: (t.deadline || '').split('T')[0], action: 'change' })) },
+          completed: false
+        }]);
+        setIsProcessing(false);
+      } else {
+        promptWorkHours();
+      }
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m.id !== loadingId));
       setMessages(prev => [...prev, {
@@ -223,8 +310,63 @@ export function AiAssistantView() {
     }
   };
 
+  const handleOverdueWizardSubmit = async (messageId: string, wizardTasks: OverdueWizardTask[]) => {
+    setIsProcessing(true);
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, completed: true } : m));
+    setMessages(prev => [...prev, {
+      id: 'usr-wiz-overdue-save-' + Date.now(), sender: 'user',
+      text: "Actions applied to overdue tasks — let's move on!", timestamp: new Date(), type: 'text'
+    }]);
+
+    const loadingId = 'assistant-loading-' + Date.now();
+    setMessages(prev => [...prev, {
+      id: loadingId, sender: 'assistant',
+      text: 'Applying actions to your overdue tasks…',
+      timestamp: new Date(), type: 'loading'
+    }]);
+
+    try {
+      for (const wt of wizardTasks) {
+        const original = tasks.find(t => t.id === wt.id);
+        if (!original) continue;
+
+        if (wt.action === 'delete') {
+          await deleteTask(original.id);
+        } else if (wt.action === 'cancel') {
+          await updateTaskStatus(original.id, TaskStatus.Cancelled);
+        } else if (wt.action === 'change' && wt.deadline) {
+          const dateStr = wt.deadline.includes('T') ? wt.deadline : `${wt.deadline}T23:59:59`;
+          await updateTask(original.id, { deadline: dateStr });
+        }
+      }
+
+      await fetchTasks();
+      await new Promise(resolve => setTimeout(resolve, 850));
+      setMessages(prev => prev.filter(m => m.id !== loadingId));
+      promptWorkHours();
+    } catch (err: any) {
+      setMessages(prev => prev.filter(m => m.id !== loadingId));
+      setMessages(prev => [...prev, {
+        id: 'error-' + Date.now(), sender: 'assistant',
+        text: `Something went wrong while saving: ${getErrorMessage(err)}`,
+        timestamp: new Date(), type: 'text'
+      }]);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleWorkHoursWizardSubmit = async (messageId: string, start: string, end: string) => {
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, completed: true } : m));
+    setMessages(prev => [...prev, {
+      id: 'usr-wiz-hours-' + Date.now(), sender: 'user',
+      text: `Working hours set: ${start} to ${end}.`, timestamp: new Date(), type: 'text'
+    }]);
+    await runSchedulingEngine(start, end);
+  };
+
   // ── Scheduling engine ────────────────────────────────────────────────────
-  const runSchedulingEngine = async () => {
+  const runSchedulingEngine = async (start: string, end: string) => {
+    setIsProcessing(true);
     const loadingId = 'assistant-loading-' + Date.now();
     setMessages(prev => [...prev, {
       id: loadingId, sender: 'assistant',
@@ -233,7 +375,11 @@ export function AiAssistantView() {
     }]);
 
     try {
-      const response = await api.post('/SmartSchedule/auto-fill-blank-times');
+      // Append seconds since TimeSpan expects HH:mm:ss
+      const startParam = `${start}:00`;
+      const endParam = `${end}:00`;
+      const response = await api.post(`/SmartSchedule/update-auto-fill-blank-time?workDayStart=${startParam}&workDayEnd=${endParam}`);
+      
       await fetchTasks();
       setMessages(prev => prev.filter(m => m.id !== loadingId));
 
@@ -253,7 +399,8 @@ export function AiAssistantView() {
       }
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m.id !== loadingId));
-      const errMsg = getErrorMessage(err);
+      let errMsg = getErrorMessage(err);
+      errMsg = formatSchedulingError(errMsg);
       const isConflict = err.response?.status === 422 || errMsg.toLowerCase().includes('conflict');
       setMessages(prev => [...prev, {
         id: 'assistant-resp-' + Date.now(), sender: 'assistant',
@@ -428,8 +575,28 @@ export function AiAssistantView() {
                     {message.type === 'deadline-wizard' && message.payload && (
                       <DeadlineWizard
                         initialTasks={message.payload.tasks}
-                        onSubmit={handleWizardSubmit}
+                        onSubmit={(tasks) => handleWizardSubmit(message.id, tasks)}
                         isProcessing={isProcessing}
+                        isCompleted={message.completed}
+                      />
+                    )}
+
+                    {/* Overdue Wizard */}
+                    {message.type === 'overdue-wizard' && message.payload && (
+                      <OverdueWizard
+                        initialTasks={message.payload.tasks}
+                        onSubmit={(tasks) => handleOverdueWizardSubmit(message.id, tasks)}
+                        isProcessing={isProcessing}
+                        isCompleted={message.completed}
+                      />
+                    )}
+
+                    {/* Work Hours Wizard */}
+                    {message.type === 'work-hours-wizard' && (
+                      <WorkHoursWizard
+                        onSubmit={(start, end) => handleWorkHoursWizardSubmit(message.id, start, end)}
+                        isProcessing={isProcessing}
+                        isCompleted={message.completed}
                       />
                     )}
 
@@ -521,65 +688,144 @@ export function AiAssistantView() {
       </div>
     </div>
   );
+/* ─────────────────────────────────────────────────────────────────────────────
+   Wizard Date Picker Helper
+   ───────────────────────────────────────────────────────────────────────────── */
+function WizardDatePicker({ value, onChange, disabled, title }: { value: string; onChange: (v: string) => void; disabled?: boolean; title?: string }) {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  const dateObj = value ? new Date(value + 'T12:00:00') : undefined;
+
+  const handleSelect = (d: Date | undefined) => {
+    if (d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      onChange(`${y}-${m}-${day}`);
+    } else {
+      onChange('');
+    }
+    setIsOpen(false);
+  };
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          className={cn(
+            "flex items-center justify-between w-full h-8 text-xs font-semibold bg-card border border-border focus:border-blue-400 rounded-lg px-2.5 outline-none cursor-pointer text-left transition-colors",
+            disabled && "opacity-50 cursor-not-allowed",
+            !value && "text-muted-foreground"
+          )}
+        >
+          <span>{value ? new Date(value + 'T12:00:00').toLocaleDateString() : 'mm/dd/yyyy'}</span>
+          <Calendar className="h-3.5 w-3.5 opacity-50 dark:text-white" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-3 bg-card border border-border rounded-2xl shadow-xl dark:shadow-none" align="start">
+        {title && (
+          <div className="flex items-center justify-between border-b border-border pb-2 px-1 select-none mb-2">
+            <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">
+              {title}
+            </span>
+          </div>
+        )}
+        <DayPickerCalendar
+          mode="single"
+          selected={dateObj}
+          onSelect={handleSelect}
+          className="rounded-xl border border-transparent p-0"
+        />
+        <div className="flex gap-2 border-t border-border pt-2 shrink-0 mt-2">
+          <button
+            type="button"
+            onClick={() => handleSelect(new Date())}
+            className="flex-1 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg cursor-pointer transition-all border border-blue-100/50 shadow-sm dark:shadow-none text-center"
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSelect(undefined)}
+            className="px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-red-600 dark:text-red-400 bg-muted hover:bg-red-500/10 rounded-lg cursor-pointer transition-all border border-border"
+          >
+            Clear
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Deadline Wizard
    ───────────────────────────────────────────────────────────────────────────── */
 function DeadlineWizard({
-  initialTasks, onSubmit, isProcessing
+  initialTasks, onSubmit, isProcessing, isCompleted
 }: {
   initialTasks: DeadlineWizardTask[];
   onSubmit: (tasks: DeadlineWizardTask[]) => void;
   isProcessing: boolean;
+  isCompleted?: boolean;
 }) {
   const [wizardTasks, setWizardTasks] = React.useState<DeadlineWizardTask[]>(initialTasks);
   const [selectedIds, setSelectedIds] = React.useState<number[]>(initialTasks.map(t => t.id));
   const [bulkDate, setBulkDate] = React.useState('');
 
-  const toggleSelect = (id: number) =>
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const disabled = isProcessing || isCompleted;
 
-  const toggleSelectAll = () =>
+  const toggleSelect = (id: number) => {
+    if (disabled) return;
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAll = () => {
+    if (disabled) return;
     setSelectedIds(selectedIds.length === wizardTasks.length ? [] : wizardTasks.map(t => t.id));
+  };
 
   const handleApplyBulkDate = () => {
-    if (!bulkDate) return;
+    if (!bulkDate || disabled) return;
     setWizardTasks(prev => prev.map(t => selectedIds.includes(t.id) ? { ...t, deadline: bulkDate } : t));
   };
 
-  const handleDateChange = (id: number, dateVal: string) =>
+  const handleDateChange = (id: number, dateVal: string) => {
+    if (disabled) return;
     setWizardTasks(prev => prev.map(t => t.id === id ? { ...t, deadline: dateVal } : t));
+  };
 
   const isFormValid = wizardTasks.every(t => !!t.deadline);
 
   return (
     <div className="mt-3 space-y-3">
       {/* Bulk assign */}
-      <div className="p-3 rounded-xl border border-blue-100 bg-blue-500/10 space-y-2">
+      <div className={cn("p-3 rounded-xl border space-y-2", disabled ? "border-slate-200 bg-slate-50 opacity-50" : "border-blue-100 bg-blue-500/10")}>
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Assign to multiple</span>
           <button
             type="button"
             onClick={toggleSelectAll}
-            className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 transition-colors cursor-pointer"
+            disabled={disabled}
+            className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 transition-colors cursor-pointer disabled:opacity-50"
           >
             {selectedIds.length === wizardTasks.length ? 'Deselect all' : 'Select all'}
           </button>
         </div>
         <div className="flex gap-2">
-          <input
-            type="date"
-            value={bulkDate}
-            onChange={(e) => setBulkDate(e.target.value)}
-            disabled={isProcessing}
-            min={new Date().toISOString().split('T')[0]}
-            className="flex-1 text-xs font-semibold text-foreground bg-card border border-border focus:border-blue-400 rounded-lg px-2.5 py-1.5 outline-none cursor-pointer"
-          />
+          <div className="flex-1 min-w-[120px]">
+            <WizardDatePicker
+              value={bulkDate}
+              onChange={setBulkDate}
+              disabled={disabled}
+              title="Bulk Date"
+            />
+          </div>
           <Button
             type="button"
             onClick={handleApplyBulkDate}
-            disabled={!bulkDate || selectedIds.length === 0 || isProcessing}
+            disabled={!bulkDate || selectedIds.length === 0 || disabled}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] h-8 px-3 rounded-lg shrink-0"
           >
             Apply ({selectedIds.length})
@@ -596,12 +842,14 @@ function DeadlineWizard({
               key={t.id}
               className={cn(
                 "flex items-center gap-2.5 p-2.5 bg-card rounded-xl border transition-all",
-                isChecked ? "border-blue-200 dark:border-blue-500/30 shadow-xs dark:shadow-none" : "border-slate-150 opacity-70"
+                isChecked ? "border-blue-200 dark:border-blue-500/30 shadow-xs dark:shadow-none" : "border-slate-150 opacity-70",
+                disabled && "opacity-60"
               )}
             >
               <Checkbox
                 checked={isChecked}
                 onCheckedChange={() => toggleSelect(t.id)}
+                disabled={disabled}
                 className="h-4 w-4 shrink-0 cursor-pointer"
               />
               <span
@@ -610,14 +858,13 @@ function DeadlineWizard({
               >
                 {t.title}
               </span>
-              <input
-                type="date"
-                value={t.deadline}
-                onChange={(e) => handleDateChange(t.id, e.target.value)}
-                disabled={isProcessing}
-                min={new Date().toISOString().split('T')[0]}
-                className="text-xs font-semibold text-foreground bg-muted border border-border focus:border-blue-400 rounded-lg px-2 py-1 outline-none cursor-pointer shrink-0"
-              />
+              <div className="w-[120px] shrink-0">
+                <WizardDatePicker
+                  value={t.deadline}
+                  onChange={(val) => handleDateChange(t.id, val)}
+                  disabled={disabled}
+                />
+              </div>
             </div>
           );
         })}
@@ -631,13 +878,13 @@ function DeadlineWizard({
         </span>
         <Button
           onClick={() => onSubmit(wizardTasks)}
-          disabled={!isFormValid || isProcessing}
+          disabled={!isFormValid || disabled}
           className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-8 px-4 rounded-xl shadow-xs dark:shadow-none shrink-0"
         >
           {isProcessing ? (
             <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Scheduling…</>
           ) : (
-            'Schedule Now'
+            isCompleted ? 'Saved' : 'Schedule Now'
           )}
         </Button>
       </div>
@@ -766,4 +1013,205 @@ function parseReportContent(content: string): ParsedSection[] {
   }
 
   return result;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Wizard Time Picker Helper
+   ───────────────────────────────────────────────────────────────────────────── */
+function WizardTimePicker({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [h, m] = value.split(':');
+  let hh = parseInt(h, 10);
+  const mm = parseInt(m, 10);
+  const ampm = hh >= 12 ? 'PM' : 'AM';
+  hh = hh % 12 || 12;
+
+  const handleHour = (newH: number) => {
+    let military = newH;
+    if (ampm === 'PM' && newH < 12) military += 12;
+    if (ampm === 'AM' && newH === 12) military = 0;
+    onChange(`${military.toString().padStart(2, '0')}:${m}`);
+  };
+  const handleMin = (newM: number) => {
+    onChange(`${h}:${newM.toString().padStart(2, '0')}`);
+  };
+  const handleAmPm = (newAmPm: 'AM'|'PM') => {
+    let military = hh;
+    if (newAmPm === 'PM' && military < 12) military += 12;
+    if (newAmPm === 'AM' && military === 12) military = 0;
+    onChange(`${military.toString().padStart(2, '0')}:${m}`);
+  };
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          className={cn(
+            "flex items-center justify-between w-full h-9 text-sm font-semibold bg-muted/50 border border-border focus:border-blue-400 rounded-xl px-3 outline-none cursor-pointer text-left transition-colors",
+            disabled && "opacity-50 cursor-not-allowed"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 opacity-50 dark:text-white" />
+            <span>{hh.toString().padStart(2, '0')}:{m} {ampm}</span>
+          </div>
+          <Clock className="h-4 w-4 opacity-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-1.5 bg-card border border-border rounded-xl shadow-xl dark:shadow-none flex" align="start">
+         <style>{`.no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
+         <div className="flex flex-col h-48 w-14 overflow-y-auto no-scrollbar gap-1 px-1" ref={(el) => { if(el && isOpen) el.querySelector('[data-active=true]')?.scrollIntoView({block: 'center'}); }}>
+           {Array.from({length: 12}, (_, i) => i + 1).map(x => (
+             <button key={x} data-active={hh === x} onClick={() => handleHour(x)} className={cn("py-1.5 rounded-md text-xs font-bold transition-all shrink-0", hh === x ? "bg-blue-600 text-white" : "hover:bg-muted text-foreground")}>{x.toString().padStart(2, '0')}</button>
+           ))}
+         </div>
+         <div className="w-[1px] bg-border my-1 shrink-0" />
+         <div className="flex flex-col h-48 w-14 overflow-y-auto no-scrollbar gap-1 px-1" ref={(el) => { if(el && isOpen) el.querySelector('[data-active=true]')?.scrollIntoView({block: 'center'}); }}>
+           {Array.from({length: 60}, (_, i) => i).map(x => (
+             <button key={x} data-active={mm === x} onClick={() => handleMin(x)} className={cn("py-1.5 rounded-md text-xs font-bold transition-all shrink-0", mm === x ? "bg-blue-600 text-white" : "hover:bg-muted text-foreground")}>{x.toString().padStart(2, '0')}</button>
+           ))}
+         </div>
+         <div className="w-[1px] bg-border my-1 shrink-0" />
+         <div className="flex flex-col gap-1 px-1 justify-center shrink-0">
+           <button onClick={() => handleAmPm('AM')} className={cn("py-2 px-2 rounded-md text-xs font-black transition-all", ampm === 'AM' ? "bg-blue-600 text-white" : "hover:bg-muted text-foreground")}>AM</button>
+           <button onClick={() => handleAmPm('PM')} className={cn("py-2 px-2 rounded-md text-xs font-black transition-all", ampm === 'PM' ? "bg-blue-600 text-white" : "hover:bg-muted text-foreground")}>PM</button>
+         </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Overdue Wizard
+   ───────────────────────────────────────────────────────────────────────────── */
+function OverdueWizard({
+  initialTasks, onSubmit, isProcessing, isCompleted
+}: {
+  initialTasks: OverdueWizardTask[];
+  onSubmit: (tasks: OverdueWizardTask[]) => void;
+  isProcessing: boolean;
+  isCompleted?: boolean;
+}) {
+  const [tasks, setTasks] = React.useState<OverdueWizardTask[]>(initialTasks);
+
+  const disabled = isProcessing || isCompleted;
+
+  const updateAction = (id: number, action: 'change' | 'cancel' | 'delete') => {
+    if (disabled) return;
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, action } : t));
+  };
+
+  const updateDate = (id: number, dateVal: string) => {
+    if (disabled) return;
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, deadline: dateVal } : t));
+  };
+
+  const isValid = tasks.every(t => t.action !== 'change' || !!t.deadline);
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="space-y-3 max-h-64 overflow-y-auto pr-0.5">
+        {tasks.map(t => (
+          <div key={t.id} className={cn("p-3 bg-card rounded-xl border border-amber-100 dark:border-amber-500/20 shadow-xs dark:shadow-none space-y-3 transition-all", disabled && "opacity-60")}>
+            <span className="text-xs font-bold text-foreground block">{t.title}</span>
+            <div className="flex bg-muted rounded-lg p-1">
+              <button
+                disabled={disabled}
+                onClick={() => updateAction(t.id, 'change')}
+                className={cn("flex-1 text-xs font-bold py-1.5 rounded-md flex items-center justify-center gap-1.5 transition-all disabled:opacity-50", t.action === 'change' ? "bg-blue-600 text-white shadow-sm dark:shadow-none" : "text-muted-foreground hover:text-foreground")}
+              >
+                <Calendar className="h-3 w-3 dark:text-white" /> Change
+              </button>
+              <button
+                disabled={disabled}
+                onClick={() => updateAction(t.id, 'cancel')}
+                className={cn("flex-1 text-xs font-bold py-1.5 rounded-md flex items-center justify-center gap-1.5 transition-all disabled:opacity-50", t.action === 'cancel' ? "bg-slate-500 text-white shadow-sm dark:shadow-none" : "text-muted-foreground hover:text-foreground")}
+              >
+                <XCircle className="h-3 w-3" /> Cancel
+              </button>
+              <button
+                disabled={disabled}
+                onClick={() => updateAction(t.id, 'delete')}
+                className={cn("flex-1 text-xs font-bold py-1.5 rounded-md flex items-center justify-center gap-1.5 transition-all disabled:opacity-50", t.action === 'delete' ? "bg-red-500 text-white shadow-sm dark:shadow-none" : "text-muted-foreground hover:text-foreground")}
+              >
+                <Trash2 className="h-3 w-3" /> Delete
+              </button>
+            </div>
+            {t.action === 'change' && (
+              <div className="relative">
+                <WizardDatePicker
+                  value={t.deadline}
+                  onChange={(val) => updateDate(t.id, val)}
+                  disabled={disabled}
+                />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <Button
+        onClick={() => onSubmit(tasks)}
+        disabled={!isValid || disabled}
+        className="w-full bg-[#E57A00] hover:bg-[#CC6D00] text-white font-bold text-xs h-10 rounded-xl"
+      >
+        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+        {isCompleted ? "Actions Applied" : "Apply Actions"}
+      </Button>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Work Hours Wizard
+   ───────────────────────────────────────────────────────────────────────────── */
+function WorkHoursWizard({
+  onSubmit, isProcessing, isCompleted
+}: {
+  onSubmit: (start: string, end: string) => void;
+  isProcessing: boolean;
+  isCompleted?: boolean;
+}) {
+  const [start, setStart] = React.useState('09:00');
+  const [end, setEnd] = React.useState('17:00');
+
+  const disabled = isProcessing || isCompleted;
+
+  const isValid = (() => {
+    const s = parseInt(start.replace(':', ''), 10);
+    const e = parseInt(end.replace(':', ''), 10);
+    return s < e;
+  })();
+
+  return (
+    <div className={cn("mt-3 p-4 bg-card rounded-2xl border border-border space-y-4 shadow-sm dark:shadow-none transition-all", disabled && "opacity-60")}>
+      <p className="text-[11px] font-medium text-muted-foreground">
+        Set your preferred working hours to help me fit your tasks effectively.
+      </p>
+      
+      <div className="flex items-center gap-4">
+        <div className="flex-1 space-y-1.5">
+          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Start Time</label>
+          <WizardTimePicker value={start} onChange={setStart} disabled={disabled} />
+        </div>
+        <div className="flex-1 space-y-1.5">
+          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">End Time</label>
+          <WizardTimePicker value={end} onChange={setEnd} disabled={disabled} />
+        </div>
+      </div>
+
+      <div className="flex justify-end pt-2">
+        <Button
+          onClick={() => onSubmit(start, end)}
+          disabled={!isValid || disabled}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-9 px-5 rounded-full"
+        >
+          {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+          {isCompleted ? "Scheduled" : "Start Scheduling"}
+        </Button>
+      </div>
+    </div>
+  );
+}
 }

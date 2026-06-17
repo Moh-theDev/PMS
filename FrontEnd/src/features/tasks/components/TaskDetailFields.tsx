@@ -34,7 +34,7 @@ const formatDateFriendly = (dateStr?: string | null) => {
 };
 
 // Parse date-time ISO string into separate visual components
-const parseDateTime = (isoString?: string | null): { date: Date | undefined; hour: number; minute: number; ampm: 'AM' | 'PM' } => {
+export const parseDateTime = (isoString?: string | null): { date: Date | undefined; hour: number; minute: number; ampm: 'AM' | 'PM' } => {
   if (!isoString || isoString.startsWith('0001-01-01')) {
     const now = new Date();
     let hour = now.getHours();
@@ -73,7 +73,7 @@ const parseDateTime = (isoString?: string | null): { date: Date | undefined; hou
 };
 
 // Build date-time ISO string from components
-const buildDateTime = (date: Date, hour: number, minute: number, ampm: 'AM' | 'PM') => {
+export const buildDateTime = (date: Date, hour: number, minute: number, ampm: 'AM' | 'PM') => {
   const newDate = new Date(date);
   let militaryHour = hour;
   if (ampm === 'PM' && hour < 12) {
@@ -174,7 +174,7 @@ function CustomDropdown<T extends string | number>({
 
 // Clickable Date Picker with custom Popover calendar and scroll-bounded time columns
 // Clickable Date Picker with custom Popover calendar and scroll-bounded time columns
-function ClickableDatePicker({
+export function ClickableDatePicker({
   value,
   onChange,
   isOpen,

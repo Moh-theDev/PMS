@@ -5,8 +5,9 @@ export interface ChatMessage {
   sender: 'user' | 'assistant';
   text?: string;
   timestamp: Date;
-  type: 'text' | 'options' | 'deadline-wizard' | 'report-view' | 'loading';
+  type: 'text' | 'options' | 'deadline-wizard' | 'overdue-wizard' | 'work-hours-wizard' | 'report-view' | 'loading';
   payload?: any;
+  completed?: boolean;
 }
 
 interface AiAssistantState {

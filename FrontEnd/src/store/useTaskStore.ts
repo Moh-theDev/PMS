@@ -513,12 +513,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     try {
       const id = await categoryService.createCategory(name);
       if (id !== -1) {
+        const userId = useAuthStore.getState().user?.id || 'default';
+        const colorMap = JSON.parse(localStorage.getItem(`pms_category_colors_${userId}`) || '{}');
         if (color) {
-          const userId = useAuthStore.getState().user?.id || 'default';
-          const colorMap = JSON.parse(localStorage.getItem(`pms_category_colors_${userId}`) || '{}');
           colorMap[id] = color;
-          localStorage.setItem(`pms_category_colors_${userId}`, JSON.stringify(colorMap));
+        } else {
+          delete colorMap[id];
         }
+        localStorage.setItem(`pms_category_colors_${userId}`, JSON.stringify(colorMap));
         await get().fetchCategories();
       } else {
         set({ error: 'Category already exists', isLoading: false });
@@ -532,15 +534,18 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await categoryService.updateCategory(id, name);
+      const userId = useAuthStore.getState().user?.id || 'default';
+      const colorMap = JSON.parse(localStorage.getItem(`pms_category_colors_${userId}`) || '{}');
       if (color) {
-        const userId = useAuthStore.getState().user?.id || 'default';
-        const colorMap = JSON.parse(localStorage.getItem(`pms_category_colors_${userId}`) || '{}');
         colorMap[id] = color;
-        localStorage.setItem(`pms_category_colors_${userId}`, JSON.stringify(colorMap));
+      } else {
+        delete colorMap[id];
       }
+      localStorage.setItem(`pms_category_colors_${userId}`, JSON.stringify(colorMap));
+      
       set((state) => ({
-        categories: state.categories.map((c) => (c.id === id ? { ...c, name, color: color || c.color } : c)),
-        lists: state.lists.map((l) => (l.id === String(id) ? { ...l, name, color: color || l.color } : l)),
+        categories: state.categories.map((c) => (c.id === id ? { ...c, name, color } : c)),
+        lists: state.lists.map((l) => (l.id === String(id) ? { ...l, name, color } : l)),
         isLoading: false,
       }));
     } catch (err: any) {
@@ -562,13 +567,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const newTag = await tagService.createTag(name);
+      const userId = useAuthStore.getState().user?.id || 'default';
+      const colorMap = JSON.parse(localStorage.getItem(`pms_tag_colors_${userId}`) || '{}');
       if (color) {
-        const userId = useAuthStore.getState().user?.id || 'default';
-        const colorMap = JSON.parse(localStorage.getItem(`pms_tag_colors_${userId}`) || '{}');
         colorMap[newTag.id] = color;
-        localStorage.setItem(`pms_tag_colors_${userId}`, JSON.stringify(colorMap));
         newTag.color = color;
+      } else {
+        delete colorMap[newTag.id];
+        newTag.color = undefined;
       }
+      localStorage.setItem(`pms_tag_colors_${userId}`, JSON.stringify(colorMap));
       set((state) => ({
         tags: [...state.tags, newTag],
         isLoading: false,
@@ -594,16 +602,33 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await tagService.updateTag(id, name);
+      const userId = useAuthStore.getState().user?.id || 'default';
+      const colorMap = JSON.parse(localStorage.getItem(`pms_tag_colors_${userId}`) || '{}');
       if (color) {
-        const userId = useAuthStore.getState().user?.id || 'default';
-        const colorMap = JSON.parse(localStorage.getItem(`pms_tag_colors_${userId}`) || '{}');
         colorMap[id] = color;
-        localStorage.setItem(`pms_tag_colors_${userId}`, JSON.stringify(colorMap));
+      } else {
+        delete colorMap[id];
       }
-      set((state) => ({
-        tags: state.tags.map((t) => (t.id === id ? { ...t, name, color: color || t.color } : t)),
-        isLoading: false,
-      }));
+      localStorage.setItem(`pms_tag_colors_${userId}`, JSON.stringify(colorMap));
+      
+      const oldTag = get().tags.find(t => t.id === id);
+      const oldName = oldTag ? oldTag.name : null;
+
+      set((state) => {
+        let updatedTasks = state.tasks;
+        if (oldName && oldName !== name) {
+          updatedTasks = state.tasks.map(t => ({
+            ...t,
+            tags: t.tags.map(tn => tn === oldName ? name : tn)
+          }));
+        }
+        
+        return {
+          tags: state.tags.map((t) => (t.id === id ? { ...t, name, color } : t)),
+          tasks: updatedTasks,
+          isLoading: false,
+        };
+      });
       await get().fetchTasks();
     } catch (err: any) {
       set({ error: 'Failed to rename tag', isLoading: false });

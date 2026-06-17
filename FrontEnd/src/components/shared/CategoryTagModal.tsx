@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useTaskStore } from '@/store/useTaskStore';
 
 export interface CategoryTagModalProps {
@@ -156,58 +155,19 @@ export function CategoryTagModal({ isOpen, onClose, mode, type, initialData }: C
                 </button>
               ))}
 
-              <Popover modal={true} open={isCustomColorOpen} onOpenChange={setIsCustomColorOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "h-6 w-6 rounded-full flex items-center justify-center border-2 transition-all relative overflow-hidden",
-                      (color && !PRESET_COLORS.includes(color)) ? "border-primary bg-primary/10" : "border-transparent hover:scale-110 hover:bg-muted"
-                    )}
-                    title="Choose custom color"
-                  >
-                    <Palette className="h-3.5 w-3.5 text-muted-foreground z-10" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-4 bg-popover border-border shadow-xl rounded-xl space-y-4">
-                  <div className="grid grid-cols-6 gap-2">
-                    {EXTENDED_PALETTE.map(c => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => { setColor(c); setHexInput(c); setIsCustomColorOpen(false); }}
-                        className={cn(
-                          "h-6 w-6 rounded-md hover:scale-110 transition-transform shadow-sm border border-transparent",
-                          color === c ? "ring-2 ring-primary border-background" : ""
-                        )}
-                        style={{ backgroundColor: c }}
-                        title={c}
-                      />
-                    ))}
-                  </div>
-                  
-                  <div className="flex items-center gap-2 pt-3 border-t border-border">
-                    <div className="text-xs font-semibold text-muted-foreground w-8">HEX</div>
-                    <Input
-                      value={hexInput}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setHexInput(val);
-                        if (/^#([0-9A-F]{3}){1,2}$/i.test(val)) {
-                          setColor(val.toUpperCase());
-                        }
-                      }}
-                      placeholder="#FFFFFF"
-                      className="h-8 text-sm font-mono flex-1 uppercase px-2"
-                      maxLength={7}
-                    />
-                    <div 
-                      className="h-6 w-6 rounded-md border border-border shrink-0 shadow-sm transition-colors" 
-                      style={{ backgroundColor: /^#([0-9A-F]{3}){1,2}$/i.test(hexInput) ? hexInput : color || 'transparent' }} 
-                    />
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <div className="relative h-6 w-6 rounded-full flex items-center justify-center border-2 transition-all overflow-hidden border-transparent hover:scale-110 hover:bg-muted group">
+                <input
+                  type="color"
+                  value={color && !PRESET_COLORS.includes(color) ? color : '#ffffff'}
+                  onChange={(e) => setColor(e.target.value.toUpperCase())}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                  title="Choose custom color"
+                />
+                <Palette className="h-3.5 w-3.5 text-muted-foreground z-10 group-hover:text-primary transition-colors" />
+                {color && !PRESET_COLORS.includes(color) && (
+                  <div className="absolute inset-0 z-0 bg-primary/10" style={{ backgroundColor: color }} />
+                )}
+              </div>
             </div>
           </div>
         </div>
