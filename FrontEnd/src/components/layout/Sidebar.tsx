@@ -296,7 +296,7 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
                             <button
                               type="button"
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                              className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors bg-background/50 backdrop-blur-sm"
+                              className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-black hover:bg-muted/50 dark:hover:text-white dark:hover:bg-muted transition-colors bg-background/50 backdrop-blur-sm"
                             >
                               <MoreHorizontal className="h-4 w-4" />
                             </button>
@@ -388,7 +388,7 @@ export function Sidebar({ sidebarOpen: _sidebarOpen, toggleSidebar }: SidebarPro
                             <button
                               type="button"
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                              className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors bg-background/50 backdrop-blur-sm"
+                              className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-black hover:bg-muted/50 dark:hover:text-white dark:hover:bg-muted transition-colors bg-background/50 backdrop-blur-sm"
                             >
                               <MoreHorizontal className="h-4 w-4" />
                             </button>

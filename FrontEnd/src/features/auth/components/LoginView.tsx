@@ -163,7 +163,7 @@ export function LoginView() {
       <div className="flex gap-6 text-xs md:text-lg p-2 font-medium text-muted-foreground">
         <Link to="#" className="hover:text-muted-foreground transition-colors">Privacy Policy</Link>
         <Link to="#" className="hover:text-muted-foreground transition-colors">Terms of Service</Link>
-        <span>&copy; 2024 FocusFlow v2.0.4</span>
+        <span>&copy; 2026 PMS beta 1.0</span>
       </div>
     </div>
   );

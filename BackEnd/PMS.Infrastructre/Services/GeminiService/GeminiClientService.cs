@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Options;
 using PMS.Application.DTO.AIDto;
 using PMS.Domain.Entities;
 using PMS.Infrastructre.AiSetting;
@@ -109,103 +109,55 @@ namespace PMS.Infrastructre.Services.GeminiService
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/{_model}:generateContent?key={_apiKey}";
             string currentTimeString = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
 
-            // ── Step 1: Build System Instructions ────────────────────────────────────
             string systemInstructions =
-                $"You are an expert AI scheduling consultant — calm, experienced, and human-centered.\n\n" +
+                $"You are an expert AI scheduling consultant — calm, experienced, and highly logical. You are powered by Gemini 2.5 Flash, which means you excel at adhering strictly to XML-formatted rules.\n\n" +
 
-                $"════════════════════════════════════════\n" +
-                $"GUARANTEED INPUT CONTRACT\n" +
-                $"════════════════════════════════════════\n" +
+                $"<SYSTEM_CONTEXT>\n" +
                 $"- Current time: {currentTimeString}\n" +
-                $"- Work day window: {workDayStart} → {workDayEnd} every day\n" +
+                $"- Work day window: {workDayStart} → {workDayEnd}\n" +
+                $"- Working Days: Sunday to Thursday ONLY. Friday and Saturday are strictly weekends.\n" +
                 $"- Every task is active, has a valid future 'deadline', and is ready to be scheduled.\n" +
-                $"- No filtering, no triage, and no deadline validation is needed.\n\n" +
+                $"- No filtering, no triage, and no deadline validation is needed.\n" +
+                $"</SYSTEM_CONTEXT>\n\n" +
 
-                $"════════════════════════════════════════\n" +
-                $"STEP 1 — CLASSIFY EACH TASK\n" +
-                $"════════════════════════════════════════\n" +
-                $"Evaluate every task using these rules in order:\n\n" +
+                $"<TASK_CLASSIFICATION>\n" +
+                $"Evaluate every task using these rules in order:\n" +
+                $"1. FIXED BLOCK: If 'EarliestStart' and 'LatestEnd' are BOTH in the future, treat as an unmovable wall. Do not alter. Do not let anything overlap it.\n" +
+                $"2. STALE BLOCK: If 'EarliestStart' AND 'LatestEnd' are BOTH in the past but Deadline is future, the old slot was missed. Reset it completely and find a fresh slot.\n" +
+                $"3. UNSCHEDULED: If 'EarliestStart' and 'LatestEnd' are BOTH null, compute a fresh slot following the SCHEDULING_BEHAVIOR.\n" +
+                $"</TASK_CLASSIFICATION>\n\n" +
 
-                $"RULE A — FIXED BLOCK:\n" +
-                $"Condition: 'EarliestStart' and 'LatestEnd' are BOTH in the future.\n" +
-                $"Action: Treat as an unmovable wall. Do not alter. Do not let anything overlap it.\n\n" +
+                $"<SCHEDULING_BEHAVIOR>\n" +
+                $"Use these rules to space task slots. These affect placement only — they never appear in the output.\n" +
+                $"1. PRIORITY ORDER: Schedule by Priority descending (10 = highest). Among equal priority, schedule tighter deadlines first.\n" +
+                $"2. WEEKENDS OFF: NEVER schedule any task to start or end on a Friday or Saturday. Skip weekends entirely.\n" +
+                $"3. START DELAY: Any new task schedule MUST start AT LEAST 30 minutes after {currentTimeString}. Never schedule a task to start immediately.\n" +
+                $"4. WORK WINDOW STRICTNESS: You may ONLY schedule work hours between {workDayStart} and {workDayEnd}. If {currentTimeString} is past {workDayEnd}, start on the NEXT valid working day.\n" +
+                $"5. MULTI-DAY SCHEDULING ALGORITHM (CRITICAL): To calculate the correct 'end' timestamp, you MUST simulate consuming the task's 'DurationMinutes' only during valid work hours.\n" +
+                $"   - Step A: Start the task within the {workDayStart} → {workDayEnd} window.\n" +
+                $"   - Step B: If the task's remaining DurationMinutes exceeds the time left before {workDayEnd} today, consume what you can until {workDayEnd}.\n" +
+                $"   - Step C: Pause the task overnight (and over weekends).\n" +
+                $"   - Step D: Resume the task on the next valid working day at exactly {workDayStart}.\n" +
+                $"   - Step E: Repeat until all DurationMinutes are consumed. The exact moment the final minute is consumed is the 'end' timestamp.\n" +
+                $"   => Because of overnight pauses, the absolute clock difference between 'start' and 'end' for multi-day tasks will mathematically be MUCH LARGER than DurationMinutes. This is exactly what is expected!\n" +
+                $"</SCHEDULING_BEHAVIOR>\n\n" +
 
-                $"RULE B — STALE BLOCK (missed slot):\n" +
-                $"Condition: 'EarliestStart' AND LatestEnd are BOTH in the past. Deadline is future.\n" +
-                $"Action: The old slot was missed. Reset it completely.\n" +
-                $"Treat this task as fully unscheduled and find a fresh slot from {currentTimeString} within the work window.\n\n" +
+                $"<CONFLICT_DETECTION>\n" +
+                $"Set isSuccessful = false ONLY if:\n" +
+                $"1. Not enough time remains before a task deadline given existing fixed blocks, weekend skipping, and work windows.\n" +
+                $"2. Two fixed blocks overlap each other in time.\n" +
+                $"Otherwise, isSuccessful = true.\n" +
+                $"</CONFLICT_DETECTION>\n\n" +
 
-                $"RULE C — UNSCHEDULED TASK:\n" +
-                $"Condition: 'EarliestStart' and 'LatestEnd' are BOTH null.\n" +
-                $"Action: Compute a fresh slot starting from {currentTimeString} within the work window.\n\n" +
-
-                $"════════════════════════════════════════\n" +
-                $"STEP 2 — INTERNAL SCHEDULING BEHAVIOR\n" +
-                $"════════════════════════════════════════\n" +
-                $"Use these rules internally to calculate and space task slots.\n" +
-                $"These rules affect placement only — they never appear in the output.\n\n" +
-
-                $"PRIORITY ORDER:\n" +
-                $"Schedule by Priority descending (10 = highest).\n" +
-                $"Among equal priority, schedule tighter deadlines first.\n\n" +
-
-                $"NO RUSHING:\n" +
-                $"If a task deadline is more than 3 days from {currentTimeString}, " +
-                $"do not force it into today.\n" +
-                $"Place it on the most natural future day within the work window.\n\n" +
-
-                $"WORK WINDOW BOUNDARY:\n" +
-                $"Every task start and end must fall strictly between {workDayStart} and {workDayEnd}.\n" +
-                $"Never schedule a task that starts before {workDayStart} or ends after {workDayEnd}.\n" +
-                $"Never split a task session across the day boundary.\n\n" +
-
-                $"DAY LOAD LIMIT:\n" +
-                $"Do not schedule more than 70% of the daily work window on any single day.\n" +
-                $"If a day reaches 70% capacity, move remaining tasks to the next working day.\n\n" +
-
-                $"INTERNAL REST GAPS:\n" +
-                $"After computing each task end time, add an invisible gap before the next task " +
-                $"based on the completed task EffortLevel:\n" +
-                $"  - Low effort      → 10 minutes gap\n" +
-                $"  - Medium effort   → 15 minutes gap\n" +
-                $"  - High effort     → 30 minutes gap\n" +
-                $"  - VeryHigh effort → 45 minutes gap\n" +
-                $"These gaps are internal spacers only.\n" +
-                $"They must NEVER appear as entries in scheduledTasks.\n\n" +
-
-                $"════════════════════════════════════════\n" +
-                $"STEP 3 — CONFLICT DETECTION\n" +
-                $"════════════════════════════════════════\n" +
-                $"Set isSuccessful = false ONLY in these exact situations:\n" +
-                $"1. Not enough time remains before a task deadline given existing fixed blocks.\n" +
-                $"2. An in-flight task adjusted end exceeds its Deadline or {workDayEnd}.\n" +
-                $"3. Two fixed blocks overlap each other in time.\n" +
-                $"In all other situations isSuccessful = true.\n\n" +
-
-                $"════════════════════════════════════════\n" +
-                $"STEP 4 — OUTPUT RULES\n" +
-                $"════════════════════════════════════════\n" +
+                $"<OUTPUT_RULES>\n" +
                 $"- Output raw JSON only. No markdown fences. No extra text.\n" +
                 $"- scheduledTasks contains ONLY real task work blocks.\n" +
                 $"- NO rest entries. NO gap entries. NO null taskId entries ever.\n" +
                 $"- Every entry must have a valid non-null integer taskId.\n" +
-                $"- start and end reflect the ACTUAL task work window " +
-                $"already accounting for internal rest gaps.\n" +
+                $"- start and end reflect the ACTUAL task work window.\n" +
                 $"- scheduledTasks must be null if nothing was scheduled.\n" +
-                $"- conflictMessage must be null if there is no conflict.\n\n" +
-
-                $"OUTPUT SCHEMA:\n" +
-                "{\n" +
-                "  \"isSuccessful\": true | false,\n" +
-                "  \"scheduledTasks\": [\n" +
-                "    {\n" +
-                "      \"taskId\": 1,\n" +
-                "      \"start\": \"yyyy-MM-dd HH:mm\",\n" +
-                "      \"end\": \"yyyy-MM-dd HH:mm\"\n" +
-                "    }\n" +
-                "  ],\n" +
-                "  \"conflictMessage\": null\n" +
-                "}";
+                $"- conflictMessage must be null if there is no conflict.\n" +
+                $"</OUTPUT_RULES>";
 
             // ── Step 2: Build Tasks Payload ───────────────────────────────────────────
             var tasksPayload = tasks.Select(t => new

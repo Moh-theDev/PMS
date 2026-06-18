@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Clock, X, Check, GripVertical } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { cn } from '@/lib/utils';
+import { cn, getContrastYIQ } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { type Task, type Category, type Tag, TaskStatus } from '@/types/index';
@@ -32,7 +32,7 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
   const isCancelled = task.status === TaskStatus.Cancelled;
   const isClosed = isCompleted || isCancelled;
   const category = categories?.find((c) => c.id === task.categoryId);
-  const categoryColor = category ? CATEGORY_COLORS[category.id % CATEGORY_COLORS.length] : null;
+  const categoryColor = category ? (category.color || CATEGORY_COLORS[category.id % CATEGORY_COLORS.length]) : null;
 
   const badgeText = (() => {
     if (isCompleted) return 'Done';
@@ -180,8 +180,8 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
                         navigate(`/tasks/tag/${tagObj.id}`);
                       }
                     }}
-                    className="group/tag inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md transition-all select-none cursor-pointer hover:opacity-80"
-                    style={{ backgroundColor: `${tagColor}18`, color: tagColor }}
+                    className="group/tag inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md transition-all select-none cursor-pointer shadow-sm hover:opacity-80"
+                    style={{ backgroundColor: tagColor, color: getContrastYIQ(tagColor) }}
                   >
                     {tagName}
                   </span>
@@ -196,8 +196,8 @@ export function TaskItem({ task, isSelected, onClick, onToggle, isOverdue, categ
                     e.preventDefault();
                     navigate(`/tasks/list/${category.id}`);
                   }}
-                  className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md cursor-pointer transition-colors hover:opacity-80"
-                  style={{ backgroundColor: `${categoryColor}18`, color: categoryColor ?? '#64748b' }}
+                  className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md cursor-pointer transition-colors shadow-sm hover:opacity-80"
+                  style={{ backgroundColor: categoryColor ?? '#64748b', color: getContrastYIQ(categoryColor ?? '#64748b') }}
                 >
                   {category.name}
                 </span>

@@ -358,7 +358,7 @@ export function FocusView() {
     '#6366f1', '#3b82f6', '#06b6d4', '#10b981',
     '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899',
   ];
-  const categoryColor = category ? CATEGORY_COLORS[category.id % CATEGORY_COLORS.length] : '#64748b';
+  const categoryColor = category ? (category.color || CATEGORY_COLORS[category.id % CATEGORY_COLORS.length]) : '#64748b';
 
   // ── API Playback Action Handlers ───────────────────────────────────────────
   

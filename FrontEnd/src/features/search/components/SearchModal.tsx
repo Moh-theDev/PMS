@@ -183,7 +183,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 {results.map((task, index) => {
                   const isCompleted = task.status === TaskStatus.Done;
                   const category = categories.find((c) => c.id === task.categoryId);
-                  const categoryColor = category ? CATEGORY_COLORS[category.id % CATEGORY_COLORS.length] : null;
+                  const categoryColor = category ? (category.color || CATEGORY_COLORS[category.id % CATEGORY_COLORS.length]) : null;
                   const isSelected = index === selectedIndex;
                   
                   return (
