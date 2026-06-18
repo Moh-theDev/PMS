@@ -491,14 +491,17 @@ interface HeatmapTooltip {
 }
 
 // ── Colour helpers ───────────────────────────────────────────────────────────
-function getHeatColor(seconds: number): string {
-  if (!seconds || seconds <= 0) return 'bg-muted border-border';
+function getHeatColor(seconds: number, omitBorders: boolean = false): string {
+  const getCls = (bg: string, border: string) => 
+    omitBorders ? bg : `${bg} ${border}`;
+
+  if (!seconds || seconds <= 0) return getCls('bg-slate-100 dark:bg-slate-800/60', 'border-slate-200 dark:border-slate-700/60');
   const h = seconds / 3600;
-  if (h < 0.5)  return 'bg-blue-500/20 border-blue-200 dark:border-blue-500/30';
-  if (h < 1.5)  return 'bg-blue-200 border-blue-300 dark:border-blue-500/30';
-  if (h < 3)    return 'bg-blue-400 border-blue-500';
-  if (h < 5)    return 'bg-blue-500 border-blue-600';
-  return              'bg-blue-700 border-blue-800';
+  if (h < 0.5)  return getCls('bg-blue-200', 'border-blue-300');
+  if (h < 1.5)  return getCls('bg-blue-400', 'border-blue-500');
+  if (h < 3)    return getCls('bg-blue-500', 'border-blue-600');
+  if (h < 5)    return getCls('bg-blue-700', 'border-blue-800');
+  return               getCls('bg-blue-900', 'border-blue-950');
 }
 
 // ── Floating tooltip (React-portal at pointer position, no edge clipping) ───
@@ -622,9 +625,9 @@ function FocusHeatmap({ timeframe, customStart, customEnd, sessions, refDate }: 
     for (let i = 0; i < lead; i++) cur.push(null);
     days.forEach(d => {
       cur.push(d);
-      if (cur.length === 7) { grid.push(cur); cur = []; }
+      if (cur.length === 14) { grid.push(cur); cur = []; }
     });
-    if (cur.length > 0) { while (cur.length < 7) cur.push(null); grid.push(cur); }
+    if (cur.length > 0) { while (cur.length < 14) cur.push(null); grid.push(cur); }
     return grid;
   }, [days, effectiveLayout]);
 
@@ -720,54 +723,45 @@ function FocusHeatmap({ timeframe, customStart, customEnd, sessions, refDate }: 
   // YEAR layout (also used when custom range > 31 days)
   // ════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="flex flex-col gap-4 w-full h-full justify-center">
+    <div className="flex flex-col gap-4 w-full h-full justify-center items-center">
       <HeatTooltip tip={tooltip} />
-      <div
-        ref={scrollRef}
-        className="flex items-start gap-1 overflow-x-auto pt-6 pb-2 scroll select-none max-w-full"
-      >
-        {/* Row labels */}
-        <div className="grid grid-rows-7 gap-1 h-[108px] text-[8px] font-bold text-muted-foreground pr-1.5 pt-0.5 leading-none shrink-0">
-          <span className="flex items-center h-3">Sun</span>
-          <span className="flex items-center h-3 opacity-0">Mon</span>
-          <span className="flex items-center h-3">Tue</span>
-          <span className="flex items-center h-3 opacity-0">Wed</span>
-          <span className="flex items-center h-3">Thu</span>
-          <span className="flex items-center h-3 opacity-0">Fri</span>
-          <span className="flex items-center h-3">Sat</span>
+      
+      {/* Month Labels & Grid Container */}
+      <div className="w-full flex flex-col gap-1 select-none max-w-[800px]">
+        
+        {/* Month Labels */}
+        <div className="relative w-full h-4 text-[10px] font-bold text-muted-foreground mb-1">
+           <span className="absolute left-[0%]">Jan</span>
+           <span className="absolute left-[25%]">Apr</span>
+           <span className="absolute left-[50%]">Jul</span>
+           <span className="absolute left-[75%]">Oct</span>
         </div>
 
-        {/* Week columns */}
-        <div className="flex gap-1">
-          {weekGrid.map((week, wIdx) => {
-            const firstValid  = week.find(d => d !== null);
-            const dayWith1    = week.find(d => d && d.dayNum === 1);
-            const showLabel   = !!dayWith1 || wIdx === 0;
-            const labelMonth  = dayWith1 ? dayWith1.monthIdx : (firstValid?.monthIdx ?? 0);
-            return (
-              <div key={`wk-${wIdx}`} className="flex flex-col gap-1 relative h-[108px]">
-                {showLabel && firstValid && (
-                  <span className="absolute -top-6 left-0 text-[8px] font-black text-muted-foreground whitespace-nowrap">
-                    {monthNames[labelMonth]}
-                  </span>
-                )}
-                {week.map((dayObj, dIdx) => {
-                  if (!dayObj) return <div key={`e-${dIdx}`} className="w-3 h-3 opacity-0 rounded-sm" />;
-                  const sec = focusTimeByDate[dayObj.dStr] || 0;
-                  return (
-                    <div
-                      key={dayObj.dStr}
-                      className={cn('w-3 h-3 border transition-colors duration-150 cursor-pointer hover:scale-125', getHeatColor(sec))}
-                      onMouseEnter={e => showTip(e, `${dayObj.formattedDate}: ${formatSecondsFriendly(sec)}`)}
-                      onMouseMove={e  => showTip(e, `${dayObj.formattedDate}: ${formatSecondsFriendly(sec)}`)}
-                      onMouseLeave={hideTip}
-                    />
-                  );
-                })}
-              </div>
-            );
-          })}
+        {/* Heatmap Grid container */}
+        <div className="flex justify-center w-full">
+          <div className="flex gap-[1px] w-full justify-between items-center">
+            {weekGrid.map((week, wIdx) => {
+              return (
+                <div key={`wk-${wIdx}`} className="flex flex-col gap-[2px] flex-1">
+                  {week.map((dayObj, dIdx) => {
+                    if (!dayObj) return <div key={`e-${dIdx}`} className="w-full aspect-square opacity-0" />;
+                    const sec = focusTimeByDate[dayObj.dStr] || 0;
+                    return (
+                      <div
+                        key={dayObj.dStr}
+                        className={cn('w-full aspect-square rounded-[1.5px] transition-colors duration-150 cursor-pointer', getHeatColor(sec, true))}
+                        onMouseEnter={e => showTip(e, `${dayObj.formattedDate}: ${formatSecondsFriendly(sec)}`)}
+                        onMouseMove={e  => showTip(e, `${dayObj.formattedDate}: ${formatSecondsFriendly(sec)}`)}
+                        onMouseLeave={hideTip}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
         </div>
+
       </div>
       <HeatmapLegend onTip={showTip} onHideTip={hideTip} />
     </div>
@@ -776,12 +770,12 @@ function FocusHeatmap({ timeframe, customStart, customEnd, sessions, refDate }: 
 
 // ── Legend row at the bottom of every layout ─────────────────────────────────
 const LEGEND_ITEMS = [
-  { color: 'bg-muted border-border', label: '0 min', title: 'No focus' },
-  { color: 'bg-blue-500/20 border-blue-200 dark:border-blue-500/30',      label: '< 30m',  title: '< 30 min' },
-  { color: 'bg-blue-200 border-blue-300 dark:border-blue-500/30',      label: '< 1.5h', title: '30 min – 1.5 h' },
-  { color: 'bg-blue-400 border-blue-500',      label: '< 3h',   title: '1.5 – 3 h' },
-  { color: 'bg-blue-500 border-blue-600',      label: '< 5h',   title: '3 – 5 h' },
-  { color: 'bg-blue-700 border-blue-800',      label: '≥ 5h',   title: '≥ 5 h' },
+  { color: 'bg-slate-100 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700/60', label: '0 min', title: 'No focus' },
+  { color: 'bg-blue-200 border-blue-300',      label: '< 30m',  title: '< 30 min' },
+  { color: 'bg-blue-400 border-blue-500',      label: '< 1.5h', title: '30 min – 1.5 h' },
+  { color: 'bg-blue-500 border-blue-600',      label: '< 3h',   title: '1.5 – 3 h' },
+  { color: 'bg-blue-700 border-blue-800',      label: '< 5h',   title: '3 – 5 h' },
+  { color: 'bg-blue-900 border-blue-950',      label: '≥ 5h',   title: '≥ 5 h' },
 ];
 
 function HeatmapLegend({
@@ -798,7 +792,7 @@ function HeatmapLegend({
         {LEGEND_ITEMS.map(item => (
           <div
             key={item.title}
-            className={cn('w-3 h-3 rounded-sm border cursor-default', item.color)}
+            className={cn('w-3 h-3 border cursor-default', item.color)}
             onMouseEnter={e => onTip(e, item.title)}
             onMouseMove={e  => onTip(e, item.title)}
             onMouseLeave={onHideTip}
@@ -874,7 +868,7 @@ export function AnalyticsView() {
   const [focusTrendCustomEnd, setFocusTrendCustomEnd] = React.useState(defaultEndDate);
 
   // Focus: Heatmap Card
-  const [focusHeatmapTimeframe, setFocusHeatmapTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('week');
+  const [focusHeatmapTimeframe, setFocusHeatmapTimeframe] = React.useState<'week' | 'month' | 'year' | 'custom'>('year');
   const [focusHeatmapCustomStart, setFocusHeatmapCustomStart] = React.useState(defaultStartDate);
   const [focusHeatmapCustomEnd, setFocusHeatmapCustomEnd] = React.useState(defaultEndDate);
 
@@ -2559,7 +2553,7 @@ export function AnalyticsView() {
                         </Button>
                       </div>
                     </CardHeader>
-                    <CardContent className="p-6 md:p-8 pt-0 flex-1 flex flex-col justify-center min-h-[280px]">
+                    <CardContent className="p-6 md:p-8 pt-0 flex-1 flex flex-col justify-center min-h-100">
                       <FocusHeatmap 
                         timeframe={focusHeatmapTimeframe}
                         customStart={focusHeatmapCustomStart}
@@ -2623,7 +2617,7 @@ export function AnalyticsView() {
                         </Button>
                       </div>
                     </CardHeader>
-                    <CardContent className="h-[280px] p-6 md:p-8 pt-0">
+                    <CardContent className="h-90 p-6 md:p-8 pt-0">
                       {focusLengthData.every(d => d['Sessions'] === 0) ? (
                         <EmptyStateIcon Icon={Zap} />
                       ) : (
