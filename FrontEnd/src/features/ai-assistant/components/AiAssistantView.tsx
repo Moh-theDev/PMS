@@ -898,12 +898,6 @@ function DeadlineWizard({
 function ReportPresenter({ score, content }: { score: number; content: string }) {
   const sections = React.useMemo(() => parseReportContent(content), [content]);
 
-  const scoreColors = (() => {
-    if (score >= 80) return { text: 'text-emerald-600 dark:text-emerald-400', ring: 'stroke-emerald-500', bg: 'bg-emerald-500/10', label: 'Great day! 🎉', border: 'border-emerald-100 dark:border-emerald-500/20' };
-    if (score >= 50) return { text: 'text-amber-600 dark:text-amber-400', ring: 'stroke-amber-500', bg: 'bg-amber-500/10', label: 'Decent progress 👍', border: 'border-amber-100 dark:border-amber-500/20' };
-    return { text: 'text-rose-600 dark:text-rose-400', ring: 'stroke-rose-500', bg: 'bg-rose-500/10', label: 'Tough day — keep going 💪', border: 'border-rose-100 dark:border-rose-500/20' };
-  })();
-
   const getSectionStyles = (color: string) => {
     switch (color) {
       case 'emerald': return { bg: 'bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20', title: 'text-emerald-700 dark:text-emerald-400', icon: <Trophy className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />, iconBg: 'bg-emerald-500/20 dark:bg-emerald-500/30' };
@@ -914,27 +908,9 @@ function ReportPresenter({ score, content }: { score: number; content: string })
     }
   };
 
-  const radius = 22;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (score / 100) * circumference;
-
   return (
     <div className="mt-3 space-y-3 animate-in zoom-in-95 duration-300">
-      {/* Score card */}
-      <div className={cn("p-4 rounded-xl border flex items-center gap-4 bg-card", scoreColors.border)}>
-        <div className="relative h-14 w-14 shrink-0 flex items-center justify-center">
-          <svg className="h-full w-full rotate-[-90deg]">
-            <circle cx="28" cy="28" r={radius} className="stroke-slate-100 fill-none" strokeWidth="4" />
-            <circle cx="28" cy="28" r={radius} className={cn("fill-none transition-all duration-1000", scoreColors.ring)}
-              strokeWidth="4" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round" />
-          </svg>
-          <span className={cn("absolute text-[11px] font-black", scoreColors.text)}>{Math.round(score)}%</span>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Productivity Score</p>
-          <p className={cn("text-sm font-black", scoreColors.text)}>{scoreColors.label}</p>
-        </div>
-      </div>
+
 
       {/* Sections */}
       <div className="space-y-2.5">
@@ -943,9 +919,6 @@ function ReportPresenter({ score, content }: { score: number; content: string })
           const isQuote = sect.color === 'indigo';
           return (
             <div key={sect.title} className={cn("p-3.5 rounded-xl border", s.bg, isQuote && "relative overflow-hidden")}>
-              {isQuote && (
-                <div className="absolute right-1 bottom-[-16px] text-indigo-200 dark:text-indigo-900/50 font-serif text-7xl pointer-events-none select-none">"</div>
-              )}
               <div className="flex items-center gap-2 mb-2">
                 <div className={cn("w-5 h-5 rounded-md flex items-center justify-center shrink-0", s.iconBg)}>
                   {s.icon}
@@ -972,6 +945,10 @@ function ReportPresenter({ score, content }: { score: number; content: string })
 interface ParsedSection { title: string; body: string; icon: string; color: string; }
 
 function parseReportContent(content: string): ParsedSection[] {
+  if (!content) {
+    return [{ title: 'Report', body: 'No content available.', icon: '📝', color: 'blue' }];
+  }
+
   const sections = [
     { key: 'achievements', header: 'Achievements Summary', icon: '🏆', color: 'emerald' },
     { key: 'analysis', header: 'Performance and Time Analysis', icon: '📈', color: 'blue' },
@@ -981,26 +958,73 @@ function parseReportContent(content: string): ParsedSection[] {
   ];
 
   const result: ParsedSection[] = [];
-  let remainingText = content;
+  const foundHeaders: { index: number, section: typeof sections[0] }[] = [];
+  
+  sections.forEach(sec => {
+    const idx = content.toLowerCase().indexOf(sec.header.toLowerCase());
+    if (idx !== -1) {
+      foundHeaders.push({ index: idx, section: sec });
+    }
+  });
 
-  for (let i = 0; i < sections.length; i++) {
-    const current = sections[i];
-    const next = sections[i + 1];
-    const currentIndex = remainingText.toLowerCase().indexOf(current.header.toLowerCase());
-    if (currentIndex !== -1) {
-      let endIndex = remainingText.length;
-      if (next) {
-        const nextIndex = remainingText.toLowerCase().indexOf(next.header.toLowerCase());
-        if (nextIndex !== -1) endIndex = nextIndex;
+  foundHeaders.sort((a, b) => a.index - b.index);
+
+  for (let i = 0; i < foundHeaders.length; i++) {
+    const current = foundHeaders[i];
+    const next = foundHeaders[i + 1];
+    
+    const startOfBody = current.index + current.section.header.length;
+    const endIndex = next ? next.index : content.length;
+    
+    let bodyText = content.substring(startOfBody, endIndex).trim();
+    bodyText = bodyText.replace(/^[:\-\s]+/, ''); // remove leading colon or dashes
+    bodyText = bodyText.replace(/^#+\s/gm, ''); // remove any rogue markdown headers
+    bodyText = bodyText.replace(/^\s*-\s*/, '');
+    bodyText = bodyText.replace(/\n\s*-\s*/g, '\n• ');
+    bodyText = bodyText.replace(/\n\s*•\s*/g, '\n• ');
+    bodyText = bodyText.replace(/\*\*(.*?)\*\*/g, '$1');
+
+    // Remove task IDs like (ID 134) or (Task 134)
+    bodyText = bodyText.replace(/\s*\((?:ID|Task)\s*\d+\)/gi, '');
+
+    const formatMin = (minsStr: string) => {
+      const mins = parseInt(minsStr, 10);
+      if (mins >= 60) {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return m > 0 ? `${h}h ${m}m` : `${h}h`;
       }
-      const lineEndIndex = remainingText.indexOf('\n', currentIndex);
-      const startOfBody = lineEndIndex !== -1 ? lineEndIndex + 1 : currentIndex + current.header.length;
-      let bodyText = remainingText.substring(startOfBody, endIndex).trim();
-      bodyText = bodyText.replace(/^\s*-\s*/, '');
-      bodyText = bodyText.replace(/\n\s*-\s*/g, '\n• ');
-      bodyText = bodyText.replace(/\n\s*•\s*/g, '\n• ');
-      bodyText = bodyText.replace(/\*\*(.*?)\*\*/g, '$1');
-      result.push({ title: current.header, body: bodyText, icon: current.icon, color: current.color });
+      return `${mins}m`;
+    };
+
+    // Convert "X-Y minutes" or "X to Y minutes"
+    bodyText = bodyText.replace(/(\d+)\s*(?:-|to)\s*(\d+)\s*-?\s*minutes?/gi, (match, p1, p2) => {
+      return `${formatMin(p1)}-${formatMin(p2)}`;
+    });
+    
+    // Convert "X minutes", "X-minute", "X minutes (Y hours)" into "Xh Ym"
+    bodyText = bodyText.replace(/(\d+)\s*-?\s*minutes?(?:\s*\(\s*\d+(?:\.\d+)?\s*hours?\s*\))?/gi, (match, p1) => {
+      return formatMin(p1);
+    });
+
+    // Convert 24-hour time (e.g. 21:00) to 12-hour AM/PM format (e.g. 9:00 PM)
+    bodyText = bodyText.replace(/\b([01]?\d|2[0-3]):([0-5]\d)\b/g, (match, h, m) => {
+      let hh = parseInt(h, 10);
+      const ampm = hh >= 12 ? 'PM' : 'AM';
+      hh = hh % 12 || 12;
+      return `${hh}:${m} ${ampm}`;
+    });
+
+    // Clean up trailing # chars
+    bodyText = bodyText.replace(/[#\s]+$/, '');
+    
+    if (bodyText) {
+      result.push({
+        title: current.section.header,
+        body: bodyText,
+        icon: current.section.icon,
+        color: current.section.color
+      });
     }
   }
 
